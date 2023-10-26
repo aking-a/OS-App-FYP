@@ -1,9 +1,10 @@
-import './index.scss';
+require('file-loader?name=[name].[ext]!./src/index.html')
 import osjs from 'osjs';
 import {name as applicationName} from './metadata.json';
 import React from 'react';
 import ReactDOM from 'react-dom';
-import App from './views/App.js'
+import App from './src/App.js';
+import './src/App.css';
 
 // Our launcher
 const register = (core, args, options, metadata) => {
@@ -19,7 +20,7 @@ const register = (core, args, options, metadata) => {
     position: {left: 700, top: 200}
   })
     .on('destroy', () => proc.destroy())
-    .render($content => ReactDOM.render(React.createElement(App), $content));
+    .render($content => ReactDOM.render(React.createElement(App,document.getElementById('app')), $content));
 
   // Creates a new WebSocket connection (see server.js)
   const sock = proc.socket('/socket');

@@ -1,0 +1,41 @@
+/* Apply styles to buttons */
+button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    border-radius: 5px;
+    margin-right: 10px;
+}
+
+/* Style the buttons inside the first div */
+#create-room {
+    background-color: #28a745;
+}
+
+/* Apply styles to input fields */
+input[type="text"] {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    margin: 5px 0;
+    box-sizing: border-box;
+}
+
+/* Style the input fields inside the second div */
+#room-id {
+    border-color: #dc3545;
+}
+
+#container {
+    border: 6px solid #000000;
+    /* Add a border */
+    padding: 20px;
+    /* Add some padding for spacing */
+    width: 600px;
+    /* Set the width */
+    margin: 0 auto;
+    /* Center the container horizontally */
+}
