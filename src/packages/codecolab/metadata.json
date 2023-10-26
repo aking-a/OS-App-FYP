@@ -1,0 +1,17 @@
+{
+  "type": "application",
+  "name": "codecolab",
+  "category": null,
+  "server": "server.js",
+  "icon": "icon.png",
+  "title": {
+    "en_EN": "codecolab"
+  },
+  "description": {
+    "en_EN": "codecolab"
+  },
+  "files": [
+    "main.js",
+    "main.css"
+  ]
+}
