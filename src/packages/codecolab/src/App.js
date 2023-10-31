@@ -1,18 +1,20 @@
 import React, { Component } from 'react';
+import { handleJoinRoomClick,handleNewRoomClick } from './interactions';
+import './App.css';
+
+
 
 class App extends Component {
   render() {
     return (
-      <div id='container'>
-        <div>
-          <div>
-            <button id="create-room">Create New Room</button>
-            <input type="text" id="room-id-new" placeholder="Enter Room ID"></input>
-          </div>
-          <div>
-            <button id="join-room">Join Room</button>
-            <input type="text" id="room-id" placeholder="Enter Room ID"></input>
-          </div>
+      <div className="container">
+        <div className="input-container">
+          <input type="text" id="input1" placeholder="Enter Room Id" />
+          <button id="button1"  onClick={handleNewRoomClick}>New Room</button>
+        </div>
+        <div className="input-container">
+          <input type="text" id="input2" placeholder="Enter Room Id" />
+          <button id="button2"  onClick={handleJoinRoomClick}>Join Room</button>
         </div>
       </div>
     );

@@ -19,6 +19,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _babel_runtime_helpers_getPrototypeOf__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @babel/runtime/helpers/getPrototypeOf */ "./node_modules/@babel/runtime/helpers/esm/getPrototypeOf.js");
 /* harmony import */ var react__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! react */ "./node_modules/react/index.js");
 /* harmony import */ var react__WEBPACK_IMPORTED_MODULE_5___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_5__);
+/* harmony import */ var _interactions__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./interactions */ "./src/interactions.js");
+/* harmony import */ var _App_css__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./App.css */ "./src/App.css");
 
 
 
@@ -26,6 +28,8 @@ __webpack_require__.r(__webpack_exports__);
 
 function _createSuper(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct(); return function _createSuperInternal() { var Super = (0,_babel_runtime_helpers_getPrototypeOf__WEBPACK_IMPORTED_MODULE_4__["default"])(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = (0,_babel_runtime_helpers_getPrototypeOf__WEBPACK_IMPORTED_MODULE_4__["default"])(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return (0,_babel_runtime_helpers_possibleConstructorReturn__WEBPACK_IMPORTED_MODULE_3__["default"])(this, result); }; }
 function _isNativeReflectConstruct() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Boolean.prototype.valueOf.call(Reflect.construct(Boolean, [], function () {})); return true; } catch (e) { return false; } }
+
+
 
 var App = /*#__PURE__*/function (_Component) {
   (0,_babel_runtime_helpers_inherits__WEBPACK_IMPORTED_MODULE_2__["default"])(App, _Component);
@@ -38,20 +42,26 @@ var App = /*#__PURE__*/function (_Component) {
     key: "render",
     value: function render() {
       return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_5___default().createElement("div", {
-        id: "container"
-      }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_5___default().createElement("div", null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_5___default().createElement("div", null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_5___default().createElement("button", {
-        id: "create-room"
-      }, "Create New Room"), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_5___default().createElement("input", {
+        className: "container"
+      }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_5___default().createElement("div", {
+        className: "input-container"
+      }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_5___default().createElement("input", {
         type: "text",
-        id: "room-id-new",
-        placeholder: "Enter Room ID"
-      })), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_5___default().createElement("div", null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_5___default().createElement("button", {
-        id: "join-room"
-      }, "Join Room"), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_5___default().createElement("input", {
+        id: "input1",
+        placeholder: "Enter Room Id"
+      }), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_5___default().createElement("button", {
+        id: "button1",
+        onClick: _interactions__WEBPACK_IMPORTED_MODULE_6__.handleNewRoomClick
+      }, "New Room")), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_5___default().createElement("div", {
+        className: "input-container"
+      }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_5___default().createElement("input", {
         type: "text",
-        id: "room-id",
-        placeholder: "Enter Room ID"
-      }))));
+        id: "input2",
+        placeholder: "Enter Room Id"
+      }), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_5___default().createElement("button", {
+        id: "button2",
+        onClick: _interactions__WEBPACK_IMPORTED_MODULE_6__.handleJoinRoomClick
+      }, "Join Room")));
     }
   }]);
   return App;
@@ -60,17 +70,34 @@ var App = /*#__PURE__*/function (_Component) {
 
 /***/ }),
 
-/***/ "./node_modules/file-loader/dist/cjs.js?name=[name].[ext]!./src/index.html":
-/*!*********************************************************************************!*\
-  !*** ./node_modules/file-loader/dist/cjs.js?name=[name].[ext]!./src/index.html ***!
-  \*********************************************************************************/
+/***/ "./src/interactions.js":
+/*!*****************************!*\
+  !*** ./src/interactions.js ***!
+  \*****************************/
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */   handleJoinRoomClick: () => (/* binding */ handleJoinRoomClick),
+/* harmony export */   handleNewRoomClick: () => (/* binding */ handleNewRoomClick)
 /* harmony export */ });
-/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (__webpack_require__.p + "index.html");
+function handleNewRoomClick() {
+  // Get the input values
+  var input1 = document.getElementById('input1').value;
+
+  // Log the input values to the console
+  console.log('Input 1 Value:', input1);
+}
+function handleJoinRoomClick() {
+  // Get the input values
+  var input2 = document.getElementById('input2').value;
+
+  // Log the input values to the console
+  if (input2) {
+    console.log('Input 2 Value:', input2);
+  }
+}
+
 
 /***/ }),
 
@@ -33732,18 +33759,6 @@ module.exports = JSON.parse('{"type":"application","name":"codecolab","category"
 /******/ 		};
 /******/ 	})();
 /******/ 	
-/******/ 	/* webpack/runtime/global */
-/******/ 	(() => {
-/******/ 		__webpack_require__.g = (function() {
-/******/ 			if (typeof globalThis === 'object') return globalThis;
-/******/ 			try {
-/******/ 				return this || new Function('return this')();
-/******/ 			} catch (e) {
-/******/ 				if (typeof window === 'object') return window;
-/******/ 			}
-/******/ 		})();
-/******/ 	})();
-/******/ 	
 /******/ 	/* webpack/runtime/hasOwnProperty shorthand */
 /******/ 	(() => {
 /******/ 		__webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
@@ -33769,29 +33784,6 @@ module.exports = JSON.parse('{"type":"application","name":"codecolab","category"
 /******/ 		};
 /******/ 	})();
 /******/ 	
-/******/ 	/* webpack/runtime/publicPath */
-/******/ 	(() => {
-/******/ 		var scriptUrl;
-/******/ 		if (__webpack_require__.g.importScripts) scriptUrl = __webpack_require__.g.location + "";
-/******/ 		var document = __webpack_require__.g.document;
-/******/ 		if (!scriptUrl && document) {
-/******/ 			if (document.currentScript)
-/******/ 				scriptUrl = document.currentScript.src;
-/******/ 			if (!scriptUrl) {
-/******/ 				var scripts = document.getElementsByTagName("script");
-/******/ 				if(scripts.length) {
-/******/ 					var i = scripts.length - 1;
-/******/ 					while (i > -1 && !scriptUrl) scriptUrl = scripts[i--].src;
-/******/ 				}
-/******/ 			}
-/******/ 		}
-/******/ 		// When supporting browsers where an automatic publicPath is not supported you must specify an output.publicPath manually via configuration
-/******/ 		// or pass an empty string ("") and set the __webpack_public_path__ variable from your code to use your own logic.
-/******/ 		if (!scriptUrl) throw new Error("Automatic publicPath is not supported in this browser");
-/******/ 		scriptUrl = scriptUrl.replace(/#.*$/, "").replace(/\?.*$/, "").replace(/\/[^\/]+$/, "/");
-/******/ 		__webpack_require__.p = scriptUrl;
-/******/ 	})();
-/******/ 	
 /************************************************************************/
 var __webpack_exports__ = {};
 // This entry need to be wrapped in an IIFE because it need to be isolated against other modules in the chunk.
@@ -33802,13 +33794,14 @@ var __webpack_exports__ = {};
 __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var osjs__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! osjs */ "osjs");
 /* harmony import */ var osjs__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(osjs__WEBPACK_IMPORTED_MODULE_0__);
-/* harmony import */ var _metadata_json__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./metadata.json */ "./metadata.json");
-/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! react */ "./node_modules/react/index.js");
-/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_2__);
-/* harmony import */ var react_dom__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! react-dom */ "./node_modules/react-dom/index.js");
-/* harmony import */ var _src_App_js__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./src/App.js */ "./src/App.js");
-/* harmony import */ var _src_App_css__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./src/App.css */ "./src/App.css");
-__webpack_require__(/*! file-loader?name=[name].[ext]!./src/index.html */ "./node_modules/file-loader/dist/cjs.js?name=[name].[ext]!./src/index.html");
+/* harmony import */ var _src_interactions_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./src/interactions.js */ "./src/interactions.js");
+/* harmony import */ var _metadata_json__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./metadata.json */ "./metadata.json");
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! react */ "./node_modules/react/index.js");
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_3___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_3__);
+/* harmony import */ var react_dom__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! react-dom */ "./node_modules/react-dom/index.js");
+/* harmony import */ var _src_App_js__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./src/App.js */ "./src/App.js");
+/* harmony import */ var _src_App_css__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./src/App.css */ "./src/App.css");
+
 
 
 
@@ -33831,8 +33824,8 @@ var register = function register(core, args, options, metadata) {
     title: metadata.title.en_EN,
     icon: proc.resource(proc.metadata.icon),
     dimension: {
-      width: 400,
-      height: 400
+      width: 700,
+      height: 600
     },
     position: {
       left: 700,
@@ -33841,20 +33834,13 @@ var register = function register(core, args, options, metadata) {
   }).on('destroy', function () {
     return proc.destroy();
   }).render(function ($content) {
-    return react_dom__WEBPACK_IMPORTED_MODULE_3__.render( /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_2___default().createElement(_src_App_js__WEBPACK_IMPORTED_MODULE_4__["default"], document.getElementById('app')), $content);
+    return react_dom__WEBPACK_IMPORTED_MODULE_4__.render( /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_3___default().createElement(_src_App_js__WEBPACK_IMPORTED_MODULE_5__["default"]), $content);
   });
 
   // Creates a new WebSocket connection (see server.js)
-  var sock = proc.socket('/socket');
-  sock.on('message', function () {
-    for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
-      args[_key] = arguments[_key];
-    }
-    return console.log(args);
-  });
-  sock.on('open', function () {
-    return sock.send('Ping');
-  });
+  // const sock = proc.socket('/socket');
+  // sock.on('message', (...args) => console.log(args))
+  // sock.on('open', () => sock.send('Ping'));
 
   // Use the internally core bound websocket
   //proc.on('ws:message', (...args) => console.log(args))
@@ -33868,7 +33854,7 @@ var register = function register(core, args, options, metadata) {
 };
 
 // Creates the internal callback function when OS.js launches an application
-osjs__WEBPACK_IMPORTED_MODULE_0___default().register(_metadata_json__WEBPACK_IMPORTED_MODULE_1__.name, register);
+osjs__WEBPACK_IMPORTED_MODULE_0___default().register(_metadata_json__WEBPACK_IMPORTED_MODULE_2__.name, register);
 })();
 
 /******/ })()

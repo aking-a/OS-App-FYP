@@ -1,46 +1,36 @@
 /*!**************************************************************************************************************************************************************!*\
   !*** css ./node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[0].use[1]!./node_modules/sass-loader/dist/cjs.js??ruleSet[1].rules[0].use[2]!./src/App.css ***!
   \**************************************************************************************************************************************************************/
-/* Apply styles to buttons */
-button {
-  background-color: #007bff;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  cursor: pointer;
-  border-radius: 5px;
-  margin-right: 10px;
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: Arial, sans-serif;
+  background-color: #f4f4f4;
+  margin: 0;
+  height: 100vh;
 }
 
-/* Style the buttons inside the first div */
-#create-room {
-  background-color: #28a745;
+.input-container {
+  display: flex;
+  align-items: center;
+  margin: 10px 0;
 }
 
-/* Apply styles to input fields */
-input[type=text] {
-  width: 100%;
+input {
   padding: 10px;
   border: 1px solid #ccc;
   border-radius: 5px;
-  margin: 5px 0;
-  box-sizing: border-box;
 }
 
-/* Style the input fields inside the second div */
-#room-id {
-  border-color: #dc3545;
-}
-
-#container {
-  border: 6px solid #000000;
-  /* Add a border */
-  padding: 20px;
-  /* Add some padding for spacing */
-  width: 600px;
-  /* Set the width */
-  margin: 0 auto;
-  /* Center the container horizontally */
+button {
+  padding: 10px 20px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  margin-left: 10px;
 }
 
 /*# sourceMappingURL=main.css.map*/
