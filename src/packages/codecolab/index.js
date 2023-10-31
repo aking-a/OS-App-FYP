@@ -23,9 +23,9 @@ const register = (core, args, options, metadata) => {
     .render($content => ReactDOM.render(React.createElement(App), $content));
 
   // Creates a new WebSocket connection (see server.js)
-  // const sock = proc.socket('/socket');
-  // sock.on('message', (...args) => console.log(args))
-  // sock.on('open', () => sock.send('Ping'));
+  const sock = proc.socket('/socket');
+  sock.on('message', (...args) => console.log(args))
+  sock.on('open', () => sock.send('Ping'));
 
   // Use the internally core bound websocket
   //proc.on('ws:message', (...args) => console.log(args))
@@ -34,6 +34,7 @@ const register = (core, args, options, metadata) => {
   // Creates a HTTP call (see server.js)
   //proc.request('/test', {method: 'post'})
   //.then(response => console.log(response));
+
 
   return proc;
 };

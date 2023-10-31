@@ -33838,9 +33838,16 @@ var register = function register(core, args, options, metadata) {
   });
 
   // Creates a new WebSocket connection (see server.js)
-  // const sock = proc.socket('/socket');
-  // sock.on('message', (...args) => console.log(args))
-  // sock.on('open', () => sock.send('Ping'));
+  var sock = proc.socket('/socket');
+  sock.on('message', function () {
+    for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+      args[_key] = arguments[_key];
+    }
+    return console.log(args);
+  });
+  sock.on('open', function () {
+    return sock.send('Ping');
+  });
 
   // Use the internally core bound websocket
   //proc.on('ws:message', (...args) => console.log(args))

@@ -5,9 +5,9 @@ module.exports = (core, proc) => {
     // When server initializes
     async init() {
       // HTTP Route example (see index.js)
-      routeAuthenticated('POST', proc.resource('/test'), (req, res) => {
-        res.json({hello: 'World'});
-      });
+      // routeAuthenticated('POST', proc.resource('/test'), (req, res) => {
+      //   res.json({hello: 'World'});
+      // });
 
       // WebSocket Route example (see index.js)
       // NOTE: This creates a new connection. You can use a core bound socket instead
@@ -22,11 +22,6 @@ module.exports = (core, proc) => {
 
     // When server goes down
     destroy() {
-    },
-
-    // When using an internally bound websocket, messages comes here
-    onmessage(ws, respond, args) {
-      respond('Pong');
     }
   };
 };
