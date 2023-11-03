@@ -1,18 +1,13 @@
 module.exports = (core, proc) => {
-  const {routeAuthenticated} = core.make('osjs/express');
+  const { routeAuthenticated } = core.make('osjs/express');
+  const endpoint = proc.resource('/socket');
 
   return {
     // When server initializes
     async init() {
-      // HTTP Route example (see index.js)
-      // routeAuthenticated('POST', proc.resource('/test'), (req, res) => {
-      //   res.json({hello: 'World'});
-      // });
-
-      // WebSocket Route example (see index.js)
-      // NOTE: This creates a new connection. You can use a core bound socket instead
       core.app.ws(proc.resource('/socket'), (ws, req) => {
-        ws.send('Hello World');
+        const clientID = 1;
+        ws.send(`User ${clientID} has connected working`);
       });
     },
 
@@ -22,6 +17,8 @@ module.exports = (core, proc) => {
 
     // When server goes down
     destroy() {
-    }
+      ws.close(); // Closes socket
+    },
+
   };
 };

@@ -22,26 +22,24 @@ module.exports = {
   externals: {
     osjs: 'OSjs'
   },
-  output: {
-    path: path.join(__dirname, '/dist'),
-    filename: 'main.js'
-  },
   optimization: {
     minimize,
   },
   plugins: [
     new CopyWebpackPlugin({
-      patterns: ['icon.png'],
+      patterns: ['icon.png']
     }),
     new MiniCssExtractPlugin({
       filename: '[name].css',
       chunkFilename: '[id].css'
     }),
+    ...plugins
   ],
   module: {
     rules: [
       {
         test: /\.(sa|sc|c)ss$/,
+        exclude: /(node_modules|bower_components)/,
         use: [
           MiniCssExtractPlugin.loader,
           {
@@ -58,7 +56,6 @@ module.exports = {
           }
         ]
       },
-
       {
         test: /\.js$/,
         exclude: /(node_modules|bower_components)/,
