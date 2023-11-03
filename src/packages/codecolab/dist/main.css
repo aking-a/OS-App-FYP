@@ -1,54 +1,36 @@
-
-/* Modern button styles */
-button {
-  background-color: #4caf50; /* Green color */
-  color: #fff; /* White text color */
-  padding: 12px 24px;
-  border: none;
-  border-radius: 5px; /* Rounded corners */
-  cursor: pointer;
-  transition: background-color 0.3s ease;
+/*!**************************************************************************************************************************************************************!*\
+  !*** css ./node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[0].use[1]!./node_modules/sass-loader/dist/cjs.js??ruleSet[1].rules[0].use[2]!./src/App.css ***!
+  \**************************************************************************************************************************************************************/
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: Arial, sans-serif;
+  background-color: #f4f4f4;
+  margin: 0;
+  height: 100vh;
 }
 
-button:hover {
-  background-color: #45a049; /* Slightly darker green on hover */
+.input-container {
+  display: flex;
+  align-items: center;
+  margin: 10px 0;
 }
 
-/* Style the input areas */
 input {
   padding: 10px;
-  border: 1px solid #ccc; /* Gray border */
-  border-radius: 5px; /* Rounded corners */
-  width: 100%;
-  font-size: 16px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
 }
 
-/* Style the text editor textarea */
-textarea {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #ccc; /* Gray border */
-  border-radius: 5px; /* Rounded corners */
-  resize: none; /* Prevent textarea from being resized by the user */
-  font-family: "Arial", sans-serif; /* Change the font to a sans-serif for better readability */
-  font-size: 14px;
-  line-height: 1.4;
-  background-color: #f5f5f5; /* Light gray background */
-}
-
-/* Modern button style for the "Join Room" button */
-#join-room {
-  background-color: #007bff; /* Blue color */
-  color: #fff; /* White text color */
-  padding: 12px 24px;
+button {
+  padding: 10px 20px;
+  background-color: #007bff;
+  color: white;
   border: none;
-  border-radius: 5px; /* Rounded corners */
+  border-radius: 5px;
   cursor: pointer;
-  transition: background-color 0.3s ease;
-}
-
-#join-room:hover {
-  background-color: #0056b3; /* Slightly darker blue on hover */
+  margin-left: 10px;
 }
 
 /*# sourceMappingURL=main.css.map*/
