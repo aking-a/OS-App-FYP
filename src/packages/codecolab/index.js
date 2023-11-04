@@ -4,9 +4,11 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import App from './src/App.js';
 import './src/App.css';
+import { BrowserRouter } from 'react-router-dom';
 
 // Our launcher
 const register = (core, args, options, metadata) => {
+
   // Create a new Application instance
   const proc = core.make('osjs/application', { args, options, metadata });
 
@@ -19,11 +21,11 @@ const register = (core, args, options, metadata) => {
     position: { left: 700, top: 200 }
   })
     .on('destroy', () => proc.destroy())
-    .render(($content) => {
-      ReactDOM.render(<App proc={proc} />, $content); // Pass 'proc' as a prop
-    });
+    .render(($content) => { ReactDOM.render(<BrowserRouter><App socket={proc.socket('/socket')} /></BrowserRouter>, $content); });
 
-    
+  
+
+
   return proc;
 };
 
