@@ -1,37 +1,80 @@
-import { handleJoinRoomClick, handleNewRoomClick } from './interactions';
+import React, { useState, useEffect } from 'react';
+import { Routes, Route, useNavigate } from 'react-router-dom';
 import './App.css';
-import React, { useEffect } from 'react';
+import { Home } from './home.js';
+import { Room } from './room.js';
 
-function App({ proc }) {
+function App({ socket }) {
+  const [code, setCode] = useState(`// Welcome to the Collaborative Code Editor\n\nfunction helloWorld() {\n  console.log('Hello, world!');\n}`);
+  const [curRoom, setCurRoom] = useState(''); // Initialize with an empty string
 
-  //imporitng proc to setup a connection based on the documentation
-  useEffect(() => {
 
-    //Creating websocket connection 
-    const socket = proc.socket('/socket');
 
-    socket.on('message', (message) => {
-      console.log('Received message:', message.data);
+  function generateRandomUserID(prefix) {
+    const randomNumber = Math.floor(Math.random() * 1000); // Adjust the range as needed
+    return `${prefix}${randomNumber}`;
+  }
 
-    });
+  //Generating random uid
+  const user = generateRandomUserID('User');
 
-    return () => {
-      socket.close();
-    };
-  }, [proc]);
+
+  const navigate = useNavigate()
+
+  //On client recieving message from server do something
+  socket.on('message', (event) => {
+    const data = JSON.parse(event.data);
+
+    if (data.type === 'roomJoined') {
+      console.log(`You've joined room: ${data.room}`);
+      navigate('/Room')
+    }
+
+    if (data.type === 'userJoined') {
+      console.log(`${data.user} has joined the room`);
+    }
+
+    if (data.type === 'message') {
+      console.log(`${data.user}: ${data.message}`);
+    }
+
+    //On code change update the code
+    if (data.type === 'codeChange') {
+      setCode(data.code)
+    }
+  });
+
+
+  function handleJoinRoomClick() {
+    // Get the input values
+    const room = document.getElementById('input2').value;
+    // Log the input values to the console
+    if (room) {
+      setCurRoom(room)
+      socket.send(JSON.stringify({ type: 'joinRoom', room, user }));
+    }
+
+  }
+
+  const handleCodeChange = (event) => {
+    const newCode = event.target.value;
+    setCode(newCode);
+    // Send the new code to the server via WebSocket
+    if (socket) {
+      socket.send(JSON.stringify({ type: 'codeChange', code: newCode, room: curRoom }));
+    }
+  };
+
+
 
   return (
-    <div className="container">
-      <div className="input-container">
-        <input type="text" id="input1" placeholder="Enter Room Id" />
-        <button id="button1" onClick={handleNewRoomClick}>New Room</button>
-      </div>
-      <div className="input-container">
-        <input type="text" id="input2" placeholder="Enter Room Id" />
-        <button id="button2" onClick={handleJoinRoomClick}>Join Room</button>
-      </div>
-    </div>
+    <Routes>
+      <Route>
+        <Route path="/" element={<Home handleJoinRoomClick={handleJoinRoomClick} />} />
+        <Route path='/Room' element={<Room handleCodeChange={handleCodeChange} code={code} />} />
+      </Route>
+    </Routes>
   );
 }
 
-export default App;
+export default App
