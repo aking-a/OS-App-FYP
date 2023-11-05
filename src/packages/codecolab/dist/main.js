@@ -4294,23 +4294,29 @@ function App(_ref) {
 
   //Generating random uid
   var user = generateRandomUserID('User');
+
+  //intialising navaigate
   var navigate = (0,react_router_dom__WEBPACK_IMPORTED_MODULE_5__.useNavigate)();
 
   //On client recieving message from server do something
   socket.on('message', function (event) {
     var data = JSON.parse(event.data);
+
+    //depending on the data type do something with the message
+    //Solution to using basic webSockets instead of socket.io was to package messages as JSON with data types
+
     if (data.type === 'roomJoined') {
+      //when a room is joined by a user the navigate to /Room will load a new page with the code editor
       console.log("You've joined room: ".concat(data.room));
       navigate('/Room');
     }
+
+    //When a broadcast for user joined a room is sent this is where it is handled
     if (data.type === 'userJoined') {
       console.log("".concat(data.user, " has joined the room"));
     }
-    if (data.type === 'message') {
-      console.log("".concat(data.user, ": ").concat(data.message));
-    }
 
-    //On code change update the code
+    //On code change update the code from server
     if (data.type === 'codeChange') {
       setCode(data.code);
     }
@@ -4318,9 +4324,11 @@ function App(_ref) {
   function handleJoinRoomClick() {
     // Get the input values
     var room = document.getElementById('input2').value;
-    // Log the input values to the console
     if (room) {
+      //save the current room the client is in for later
       setCurRoom(room);
+
+      //send this to the room
       socket.send(JSON.stringify({
         type: 'joinRoom',
         room: room,
