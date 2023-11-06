@@ -6,45 +6,48 @@ import { Room } from './room.js';
 
 function App({ socket }) {
   const [code, setCode] = useState(`// Welcome to the Collaborative Code Editor\n\nfunction helloWorld() {\n  console.log('Hello, world!');\n}`);
-  const [curRoom, setCurRoom] = useState(''); // Initialize with an empty string
+  const [curRoom, setCurRoom] = useState('');
+  const [user, setCurName] = useState(generateRandomUserID('User'));
+  const [userList, setUserList] = useState([]); // Maintain the list of users
 
 
 
   function generateRandomUserID(prefix) {
-    const randomNumber = Math.floor(Math.random() * 1000); // Adjust the range as needed
+    const randomNumber = Math.floor(Math.random() * 1000);
     return `${prefix}${randomNumber}`;
   }
 
-  //Generating random uid
-  const user = generateRandomUserID('User');
 
-  //intialising navaigate
+  // //intialising navaigate
   const navigate = useNavigate()
 
-  //On client recieving message from server do something
-  socket.on('message', (event) => {
-    const data = JSON.parse(event.data);
+  useEffect(() => {
+    // Add the message event listener only once
+    socket.on('message', (event) => {
+      const data = JSON.parse(event.data);
 
-    //depending on the data type do something with the message
-    //Solution to using basic webSockets instead of socket.io was to package messages as JSON with data types
+      if (data.type === 'roomJoined') {
+        console.log(data.room)
+        navigate('/Room');
+      }
 
-    if (data.type === 'roomJoined') {
+      if (data.type === 'userJoined') {
+        setUserList((prevUserList) => [...prevUserList, data.user]);
+      }
 
-      //when a room is joined by a user the navigate to /Room will load a new page with the code editor
-      console.log(`You've joined room: ${data.room}`);
-      navigate('/Room')
-    }
+      if (data.type === 'codeChange') {
+        setCode(data.code);
+      }
+      if (data.type === 'userLeft') {
+        setUserList((prevUserList) => prevUserList.filter((user) => user !== data.user));
+      }
+    });
 
-    //When a broadcast for user joined a room is sent this is where it is handled
-    if (data.type === 'userJoined') {
-      console.log(`${data.user} has joined the room`);
-    }
-
-    //On code change update the code from server
-    if (data.type === 'codeChange') {
-      setCode(data.code)
-    }
-  });
+    // Clean up the event listener when the component unmounts
+    return () => {
+      socket.off('message');
+    };
+  }, [socket, navigate]);
 
 
   function handleJoinRoomClick() {
@@ -69,14 +72,17 @@ function App({ socket }) {
       socket.send(JSON.stringify({ type: 'codeChange', code: newCode, room: curRoom }));
     }
   };
-
+  function onDisconnect() {
+    socket.send(JSON.stringify({ type: 'close', room: curRoom, socket:socket , user:user}));
+    navigate('/')
+  }
 
 
   return (
     <Routes>
       <Route>
         <Route path="/" element={<Home handleJoinRoomClick={handleJoinRoomClick} />} />
-        <Route path='/Room' element={<Room handleCodeChange={handleCodeChange} code={code} />} />
+        <Route path='/Room' element={<Room handleCodeChange={handleCodeChange} onDisconnect={onDisconnect} code={code} userName={user} roomName={curRoom} userList={userList} />} />
       </Route>
     </Routes>
   );

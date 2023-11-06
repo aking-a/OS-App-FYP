@@ -4263,13 +4263,15 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
 /* harmony export */ });
-/* harmony import */ var _babel_runtime_helpers_slicedToArray__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @babel/runtime/helpers/slicedToArray */ "./node_modules/@babel/runtime/helpers/esm/slicedToArray.js");
-/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! react */ "./node_modules/react/index.js");
-/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_1__);
-/* harmony import */ var react_router_dom__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! react-router-dom */ "./node_modules/react-router/dist/index.js");
-/* harmony import */ var _App_css__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./App.css */ "./src/App.css");
-/* harmony import */ var _home_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./home.js */ "./src/home.js");
-/* harmony import */ var _room_js__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./room.js */ "./src/room.js");
+/* harmony import */ var _babel_runtime_helpers_toConsumableArray__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @babel/runtime/helpers/toConsumableArray */ "./node_modules/@babel/runtime/helpers/esm/toConsumableArray.js");
+/* harmony import */ var _babel_runtime_helpers_slicedToArray__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @babel/runtime/helpers/slicedToArray */ "./node_modules/@babel/runtime/helpers/esm/slicedToArray.js");
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! react */ "./node_modules/react/index.js");
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_2__);
+/* harmony import */ var react_router_dom__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! react-router-dom */ "./node_modules/react-router/dist/index.js");
+/* harmony import */ var _App_css__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./App.css */ "./src/App.css");
+/* harmony import */ var _home_js__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./home.js */ "./src/home.js");
+/* harmony import */ var _room_js__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./room.js */ "./src/room.js");
+
 
 
 
@@ -4278,49 +4280,60 @@ __webpack_require__.r(__webpack_exports__);
 
 function App(_ref) {
   var socket = _ref.socket;
-  var _useState = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)("// Welcome to the Collaborative Code Editor\n\nfunction helloWorld() {\n  console.log('Hello, world!');\n}"),
-    _useState2 = (0,_babel_runtime_helpers_slicedToArray__WEBPACK_IMPORTED_MODULE_0__["default"])(_useState, 2),
+  var _useState = (0,react__WEBPACK_IMPORTED_MODULE_2__.useState)("// Welcome to the Collaborative Code Editor\n\nfunction helloWorld() {\n  console.log('Hello, world!');\n}"),
+    _useState2 = (0,_babel_runtime_helpers_slicedToArray__WEBPACK_IMPORTED_MODULE_1__["default"])(_useState, 2),
     code = _useState2[0],
     setCode = _useState2[1];
-  var _useState3 = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)(''),
-    _useState4 = (0,_babel_runtime_helpers_slicedToArray__WEBPACK_IMPORTED_MODULE_0__["default"])(_useState3, 2),
+  var _useState3 = (0,react__WEBPACK_IMPORTED_MODULE_2__.useState)(''),
+    _useState4 = (0,_babel_runtime_helpers_slicedToArray__WEBPACK_IMPORTED_MODULE_1__["default"])(_useState3, 2),
     curRoom = _useState4[0],
-    setCurRoom = _useState4[1]; // Initialize with an empty string
+    setCurRoom = _useState4[1];
+  var _useState5 = (0,react__WEBPACK_IMPORTED_MODULE_2__.useState)(generateRandomUserID('User')),
+    _useState6 = (0,_babel_runtime_helpers_slicedToArray__WEBPACK_IMPORTED_MODULE_1__["default"])(_useState5, 2),
+    user = _useState6[0],
+    setCurName = _useState6[1];
+  var _useState7 = (0,react__WEBPACK_IMPORTED_MODULE_2__.useState)([]),
+    _useState8 = (0,_babel_runtime_helpers_slicedToArray__WEBPACK_IMPORTED_MODULE_1__["default"])(_useState7, 2),
+    userList = _useState8[0],
+    setUserList = _useState8[1]; // Maintain the list of users
 
   function generateRandomUserID(prefix) {
-    var randomNumber = Math.floor(Math.random() * 1000); // Adjust the range as needed
+    var randomNumber = Math.floor(Math.random() * 1000);
     return "".concat(prefix).concat(randomNumber);
   }
 
-  //Generating random uid
-  var user = generateRandomUserID('User');
+  // //intialising navaigate
+  var navigate = (0,react_router_dom__WEBPACK_IMPORTED_MODULE_6__.useNavigate)();
+  (0,react__WEBPACK_IMPORTED_MODULE_2__.useEffect)(function () {
+    // Add the message event listener only once
+    socket.on('message', function (event) {
+      var data = JSON.parse(event.data);
+      if (data.type === 'roomJoined') {
+        console.log(data.room);
+        navigate('/Room');
+      }
+      if (data.type === 'userJoined') {
+        setUserList(function (prevUserList) {
+          return [].concat((0,_babel_runtime_helpers_toConsumableArray__WEBPACK_IMPORTED_MODULE_0__["default"])(prevUserList), [data.user]);
+        });
+      }
+      if (data.type === 'codeChange') {
+        setCode(data.code);
+      }
+      if (data.type === 'userLeft') {
+        setUserList(function (prevUserList) {
+          return prevUserList.filter(function (user) {
+            return user !== data.user;
+          });
+        });
+      }
+    });
 
-  //intialising navaigate
-  var navigate = (0,react_router_dom__WEBPACK_IMPORTED_MODULE_5__.useNavigate)();
-
-  //On client recieving message from server do something
-  socket.on('message', function (event) {
-    var data = JSON.parse(event.data);
-
-    //depending on the data type do something with the message
-    //Solution to using basic webSockets instead of socket.io was to package messages as JSON with data types
-
-    if (data.type === 'roomJoined') {
-      //when a room is joined by a user the navigate to /Room will load a new page with the code editor
-      console.log("You've joined room: ".concat(data.room));
-      navigate('/Room');
-    }
-
-    //When a broadcast for user joined a room is sent this is where it is handled
-    if (data.type === 'userJoined') {
-      console.log("".concat(data.user, " has joined the room"));
-    }
-
-    //On code change update the code from server
-    if (data.type === 'codeChange') {
-      setCode(data.code);
-    }
-  });
+    // Clean up the event listener when the component unmounts
+    return function () {
+      socket.off('message');
+    };
+  }, [socket, navigate]);
   function handleJoinRoomClick() {
     // Get the input values
     var room = document.getElementById('input2').value;
@@ -4348,16 +4361,29 @@ function App(_ref) {
       }));
     }
   };
-  return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_1___default().createElement(react_router_dom__WEBPACK_IMPORTED_MODULE_5__.Routes, null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_1___default().createElement(react_router_dom__WEBPACK_IMPORTED_MODULE_5__.Route, null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_1___default().createElement(react_router_dom__WEBPACK_IMPORTED_MODULE_5__.Route, {
+  function onDisconnect() {
+    socket.send(JSON.stringify({
+      type: 'close',
+      room: curRoom,
+      socket: socket,
+      user: user
+    }));
+    navigate('/');
+  }
+  return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_2___default().createElement(react_router_dom__WEBPACK_IMPORTED_MODULE_6__.Routes, null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_2___default().createElement(react_router_dom__WEBPACK_IMPORTED_MODULE_6__.Route, null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_2___default().createElement(react_router_dom__WEBPACK_IMPORTED_MODULE_6__.Route, {
     path: "/",
-    element: /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_1___default().createElement(_home_js__WEBPACK_IMPORTED_MODULE_3__.Home, {
+    element: /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_2___default().createElement(_home_js__WEBPACK_IMPORTED_MODULE_4__.Home, {
       handleJoinRoomClick: handleJoinRoomClick
     })
-  }), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_1___default().createElement(react_router_dom__WEBPACK_IMPORTED_MODULE_5__.Route, {
+  }), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_2___default().createElement(react_router_dom__WEBPACK_IMPORTED_MODULE_6__.Route, {
     path: "/Room",
-    element: /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_1___default().createElement(_room_js__WEBPACK_IMPORTED_MODULE_4__.Room, {
+    element: /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_2___default().createElement(_room_js__WEBPACK_IMPORTED_MODULE_5__.Room, {
       handleCodeChange: handleCodeChange,
-      code: code
+      onDisconnect: onDisconnect,
+      code: code,
+      userName: user,
+      roomName: curRoom,
+      userList: userList
     })
   })));
 }
@@ -4408,17 +4434,41 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react */ "./node_modules/react/index.js");
 /* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var _Room_module_css__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./Room.module.css */ "./src/Room.module.css");
+
+ // Import the CSS module
 
 function Room(_ref) {
   var handleCodeChange = _ref.handleCodeChange,
-    code = _ref.code;
+    code = _ref.code,
+    userName = _ref.userName,
+    roomName = _ref.roomName,
+    onDisconnect = _ref.onDisconnect,
+    userList = _ref.userList;
   return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", {
-    className: "container"
-  }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", {
-    className: "editor-container"
-  }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("textarea", {
+    className: _Room_module_css__WEBPACK_IMPORTED_MODULE_1__["default"].container
+  }, " ", /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", {
+    className: _Room_module_css__WEBPACK_IMPORTED_MODULE_1__["default"].header
+  }, " ", /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", {
+    className: _Room_module_css__WEBPACK_IMPORTED_MODULE_1__["default"]['user-info']
+  }, " ", /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("span", {
+    className: _Room_module_css__WEBPACK_IMPORTED_MODULE_1__["default"]['user-name']
+  }, "User: ", userName), " ", /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("span", {
+    className: _Room_module_css__WEBPACK_IMPORTED_MODULE_1__["default"]['room-name']
+  }, "Room: ", roomName), " "), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("button", {
+    className: _Room_module_css__WEBPACK_IMPORTED_MODULE_1__["default"]['disconnect-button'],
+    onClick: onDisconnect
+  }, "Disconnect"), " "), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", {
+    className: _Room_module_css__WEBPACK_IMPORTED_MODULE_1__["default"]['user-list']
+  }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("h2", null, "Users in the Room:"), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("ul", null, userList.map(function (user, index) {
+    return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("li", {
+      key: index
+    }, user);
+  }))), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", {
+    className: _Room_module_css__WEBPACK_IMPORTED_MODULE_1__["default"]['editor-container']
+  }, " ", /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("textarea", {
     id: "code-editor",
-    className: "editor",
+    className: _Room_module_css__WEBPACK_IMPORTED_MODULE_1__["default"].editor,
     value: code,
     onChange: handleCodeChange
   })));
@@ -4435,6 +4485,21 @@ function Room(_ref) {
 __webpack_require__.r(__webpack_exports__);
 // extracted by mini-css-extract-plugin
 
+
+/***/ }),
+
+/***/ "./src/Room.module.css":
+/*!*****************************!*\
+  !*** ./src/Room.module.css ***!
+  \*****************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+// extracted by mini-css-extract-plugin
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({"container":"wCorEo4utu7w4kuVKT_H","header":"h5_XWJXFAIW1cje9uhQS","user-info":"_8gdyCoBvUsS3HXHZItNl","user-name":"ip7KRTTiAT8LsjX1___A","room-name":"t6bsB9_7SEbPyrQbsflI","disconnect-button":"sd1Qa5dAk9B5OeYjocXj","editor-container":"O_MaDfrH__UDvQ0pTHB4","editor":"Dgb8MO_Ajc6s9XK_YsCH","user-list":"xuSjRt8JygNp3h7C05SS"});
 
 /***/ }),
 
@@ -34311,6 +34376,38 @@ if (
 
 /***/ }),
 
+/***/ "./node_modules/react-dom/client.js":
+/*!******************************************!*\
+  !*** ./node_modules/react-dom/client.js ***!
+  \******************************************/
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+
+var m = __webpack_require__(/*! react-dom */ "./node_modules/react-dom/index.js");
+if (false) {} else {
+  var i = m.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
+  exports.createRoot = function(c, o) {
+    i.usingClientEntryPoint = true;
+    try {
+      return m.createRoot(c, o);
+    } finally {
+      i.usingClientEntryPoint = false;
+    }
+  };
+  exports.hydrateRoot = function(c, h, o) {
+    i.usingClientEntryPoint = true;
+    try {
+      return m.hydrateRoot(c, h, o);
+    } finally {
+      i.usingClientEntryPoint = false;
+    }
+  };
+}
+
+
+/***/ }),
+
 /***/ "./node_modules/react-dom/index.js":
 /*!*****************************************!*\
   !*** ./node_modules/react-dom/index.js ***!
@@ -40674,6 +40771,40 @@ function _arrayWithHoles(arr) {
 
 /***/ }),
 
+/***/ "./node_modules/@babel/runtime/helpers/esm/arrayWithoutHoles.js":
+/*!**********************************************************************!*\
+  !*** ./node_modules/@babel/runtime/helpers/esm/arrayWithoutHoles.js ***!
+  \**********************************************************************/
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* binding */ _arrayWithoutHoles)
+/* harmony export */ });
+/* harmony import */ var _arrayLikeToArray_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./arrayLikeToArray.js */ "./node_modules/@babel/runtime/helpers/esm/arrayLikeToArray.js");
+
+function _arrayWithoutHoles(arr) {
+  if (Array.isArray(arr)) return (0,_arrayLikeToArray_js__WEBPACK_IMPORTED_MODULE_0__["default"])(arr);
+}
+
+/***/ }),
+
+/***/ "./node_modules/@babel/runtime/helpers/esm/iterableToArray.js":
+/*!********************************************************************!*\
+  !*** ./node_modules/@babel/runtime/helpers/esm/iterableToArray.js ***!
+  \********************************************************************/
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* binding */ _iterableToArray)
+/* harmony export */ });
+function _iterableToArray(iter) {
+  if (typeof Symbol !== "undefined" && iter[Symbol.iterator] != null || iter["@@iterator"] != null) return Array.from(iter);
+}
+
+/***/ }),
+
 /***/ "./node_modules/@babel/runtime/helpers/esm/iterableToArrayLimit.js":
 /*!*************************************************************************!*\
   !*** ./node_modules/@babel/runtime/helpers/esm/iterableToArrayLimit.js ***!
@@ -40730,6 +40861,22 @@ function _nonIterableRest() {
 
 /***/ }),
 
+/***/ "./node_modules/@babel/runtime/helpers/esm/nonIterableSpread.js":
+/*!**********************************************************************!*\
+  !*** ./node_modules/@babel/runtime/helpers/esm/nonIterableSpread.js ***!
+  \**********************************************************************/
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* binding */ _nonIterableSpread)
+/* harmony export */ });
+function _nonIterableSpread() {
+  throw new TypeError("Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
+}
+
+/***/ }),
+
 /***/ "./node_modules/@babel/runtime/helpers/esm/slicedToArray.js":
 /*!******************************************************************!*\
   !*** ./node_modules/@babel/runtime/helpers/esm/slicedToArray.js ***!
@@ -40750,6 +40897,30 @@ __webpack_require__.r(__webpack_exports__);
 
 function _slicedToArray(arr, i) {
   return (0,_arrayWithHoles_js__WEBPACK_IMPORTED_MODULE_0__["default"])(arr) || (0,_iterableToArrayLimit_js__WEBPACK_IMPORTED_MODULE_1__["default"])(arr, i) || (0,_unsupportedIterableToArray_js__WEBPACK_IMPORTED_MODULE_2__["default"])(arr, i) || (0,_nonIterableRest_js__WEBPACK_IMPORTED_MODULE_3__["default"])();
+}
+
+/***/ }),
+
+/***/ "./node_modules/@babel/runtime/helpers/esm/toConsumableArray.js":
+/*!**********************************************************************!*\
+  !*** ./node_modules/@babel/runtime/helpers/esm/toConsumableArray.js ***!
+  \**********************************************************************/
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* binding */ _toConsumableArray)
+/* harmony export */ });
+/* harmony import */ var _arrayWithoutHoles_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./arrayWithoutHoles.js */ "./node_modules/@babel/runtime/helpers/esm/arrayWithoutHoles.js");
+/* harmony import */ var _iterableToArray_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./iterableToArray.js */ "./node_modules/@babel/runtime/helpers/esm/iterableToArray.js");
+/* harmony import */ var _unsupportedIterableToArray_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./unsupportedIterableToArray.js */ "./node_modules/@babel/runtime/helpers/esm/unsupportedIterableToArray.js");
+/* harmony import */ var _nonIterableSpread_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./nonIterableSpread.js */ "./node_modules/@babel/runtime/helpers/esm/nonIterableSpread.js");
+
+
+
+
+function _toConsumableArray(arr) {
+  return (0,_arrayWithoutHoles_js__WEBPACK_IMPORTED_MODULE_0__["default"])(arr) || (0,_iterableToArray_js__WEBPACK_IMPORTED_MODULE_1__["default"])(arr) || (0,_unsupportedIterableToArray_js__WEBPACK_IMPORTED_MODULE_2__["default"])(arr) || (0,_nonIterableSpread_js__WEBPACK_IMPORTED_MODULE_3__["default"])();
 }
 
 /***/ }),
@@ -40882,7 +41053,9 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var react_dom__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! react-dom */ "./node_modules/react-dom/index.js");
 /* harmony import */ var _src_App_js__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./src/App.js */ "./src/App.js");
 /* harmony import */ var _src_App_css__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./src/App.css */ "./src/App.css");
-/* harmony import */ var react_router_dom__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! react-router-dom */ "./node_modules/react-router-dom/dist/index.js");
+/* harmony import */ var react_router_dom__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! react-router-dom */ "./node_modules/react-router-dom/dist/index.js");
+/* harmony import */ var react_dom_client__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! react-dom/client */ "./node_modules/react-dom/client.js");
+
 
 
 
@@ -40901,7 +41074,7 @@ var register = function register(core, args, options, metadata) {
   });
 
   // Create  a new Window instance
-  proc.createWindow({
+  var win = proc.createWindow({
     id: 'codecolabWindow',
     title: metadata.title.en_EN,
     icon: proc.resource(proc.metadata.icon),
@@ -40913,13 +41086,15 @@ var register = function register(core, args, options, metadata) {
       left: 700,
       top: 200
     }
-  }).on('destroy', function () {
-    return proc.destroy();
-  }).render(function ($content) {
-    react_dom__WEBPACK_IMPORTED_MODULE_3__.render( /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_2___default().createElement(react_router_dom__WEBPACK_IMPORTED_MODULE_6__.BrowserRouter, null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_2___default().createElement(_src_App_js__WEBPACK_IMPORTED_MODULE_4__["default"], {
-      socket: proc.socket('/socket')
-    })), $content);
   });
+  var $content = win.$content; // Assuming $content is the container where you want to render
+  var root = (0,react_dom_client__WEBPACK_IMPORTED_MODULE_6__.createRoot)($content);
+  win.on('destroy', function () {
+    return proc.destroy();
+  });
+  win.render(root.render( /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_2___default().createElement(react_router_dom__WEBPACK_IMPORTED_MODULE_7__.BrowserRouter, null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_2___default().createElement(_src_App_js__WEBPACK_IMPORTED_MODULE_4__["default"], {
+    socket: proc.socket('/socket')
+  }))));
   return proc;
 };
 

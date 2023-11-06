@@ -6,8 +6,7 @@
     "watch": "webpack --watch",
     "eslint": "eslint index.js server.js",
     "stylelint": "stylelint index.scss",
-    "prepublishOnly": "npm run test && rm ./dist/* && npm run build",
-    "start": "nodemon server.js"
+    "prepublishOnly": "npm run test && rm ./dist/* && npm run build"
   },
   "devDependencies": {
     "@babel/core": "^7.23.2",
