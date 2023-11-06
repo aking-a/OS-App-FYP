@@ -3,12 +3,14 @@ import { Routes, Route, useNavigate } from 'react-router-dom';
 import './App.css';
 import { Home } from './home.js';
 import { Room } from './room.js';
+import Popup from './popup.js';
 
 function App({ socket }) {
   const [code, setCode] = useState(`// Welcome to the Collaborative Code Editor\n\nfunction helloWorld() {\n  console.log('Hello, world!');\n}`);
   const [curRoom, setCurRoom] = useState('');
   const [user, setCurName] = useState(generateRandomUserID('User'));
-  const [userList, setUserList] = useState([]); // Maintain the list of users
+  const [popupMessage, setPopupMessage] = useState(''); // State for the popup message
+  const [showPopup, setShowPopup] = useState(false); // State to control the visibility of the popup
 
 
 
@@ -27,19 +29,32 @@ function App({ socket }) {
       const data = JSON.parse(event.data);
 
       if (data.type === 'roomJoined') {
-        console.log(data.room)
+
         navigate('/Room');
       }
 
       if (data.type === 'userJoined') {
-        setUserList((prevUserList) => [...prevUserList, data.user]);
+        setPopupMessage(`${data.user} joined the room`); // Set the popup message for a user join
+        setShowPopup(true); // Show the popup
+        // Add a timeout to hide the popup after 5 seconds
+        setTimeout(() => {
+          setShowPopup(false);
+        }, 5000);
       }
 
       if (data.type === 'codeChange') {
         setCode(data.code);
+
       }
       if (data.type === 'userLeft') {
-        setUserList((prevUserList) => prevUserList.filter((user) => user !== data.user));
+        setPopupMessage(`${data.user} left the room`); // Set the popup message for a user leave
+        setShowPopup(true); // Show the popup
+
+
+        // set timeout to prevent message not dissapearing
+        setTimeout(() => {
+          setShowPopup(false);
+        }, 5000);
       }
     });
 
@@ -59,7 +74,9 @@ function App({ socket }) {
       setCurRoom(room)
 
       //send this to the room
-      socket.send(JSON.stringify({ type: 'joinRoom', room, user }));
+      if (socket.connected == true) {
+        socket.send(JSON.stringify({ type: 'joinRoom', room, user }));
+      }
     }
 
   }
@@ -67,24 +84,33 @@ function App({ socket }) {
   const handleCodeChange = (event) => {
     const newCode = event.target.value;
     setCode(newCode);
-    // Send the new code to the server via WebSocket
-    if (socket) {
+    
+    //making sure the socket is connected to prevent errors
+    if (socket.connected == true) {
+
+      //sending updates to the code from client to server
       socket.send(JSON.stringify({ type: 'codeChange', code: newCode, room: curRoom }));
     }
   };
+  //removes client from a room on server side will also delete a room if there is no clients in it
   function onDisconnect() {
-    socket.send(JSON.stringify({ type: 'close', room: curRoom, socket:socket , user:user}));
+    if (socket.connected == true) {
+      socket.send(JSON.stringify({ type: 'close', room: curRoom, socket: socket, user: user }));
+    }
     navigate('/')
   }
 
 
   return (
-    <Routes>
-      <Route>
-        <Route path="/" element={<Home handleJoinRoomClick={handleJoinRoomClick} />} />
-        <Route path='/Room' element={<Room handleCodeChange={handleCodeChange} onDisconnect={onDisconnect} code={code} userName={user} roomName={curRoom} userList={userList} />} />
-      </Route>
-    </Routes>
+    <>
+      {showPopup && <Popup message={popupMessage} />}
+      <Routes>
+        <Route>
+          <Route path="/" element={<Home handleJoinRoomClick={handleJoinRoomClick} />} />
+          <Route path='/Room' element={<Room handleCodeChange={handleCodeChange} onDisconnect={onDisconnect} code={code} userName={user} roomName={curRoom} />} />
+        </Route>
+      </Routes>
+    </>
   );
 }
 

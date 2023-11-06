@@ -11,14 +11,6 @@ export function Room({ handleCodeChange, code, userName, roomName, onDisconnect,
         </div>
         <button className={styles['disconnect-button']} onClick={onDisconnect}>Disconnect</button> {/* Use styles['disconnect-button'] for the disconnect button */}
       </div>
-      <div className={styles['user-list']}>
-        <h2>Users in the Room:</h2>
-        <ul>
-          {userList.map((user, index) => (
-            <li key={index}>{user}</li>
-          ))}
-        </ul>
-      </div>
       <div className={styles['editor-container']}> {/* Use styles['editor-container'] for the editor-container */}
         <textarea
           id="code-editor"

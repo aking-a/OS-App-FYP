@@ -68,17 +68,24 @@ module.exports = (core, proc) => {
 
                         //Remove the client from the room
                         if (index !== -1) {
-                            const user = rooms[room].users[index];
-                            rooms[room].users.splice(index, 1);
+                            rooms[room].clients.splice(index, 1);
+
+                            rooms[data.room].clients.forEach((client) => {
+
+                                // stoping duplicate messages being sent
+                                if (client !== ws) {
+                                    client.send(JSON.stringify({ type: 'userLeft', user: data.user }));
+                                }
+                            });
 
                             // If there are no clients left in the room, destroy the room
                             if (rooms[room].clients.length === 0) {
                                 delete rooms[room];
                             }
+                            
                         }
-
-                        // Close the WebSocket connection
-                        //ws.close();
+                        //Close the WebSocket connection
+                        ws.close();
                     }
                 });
             });

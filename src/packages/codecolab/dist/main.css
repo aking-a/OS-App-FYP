@@ -134,29 +134,28 @@ button {
   resize: none;
   padding: 10px;
 }
-
-/* New styles for the user list */
-.xuSjRt8JygNp3h7C05SS {
-  margin-top: 20px;
+/*!***********************************************************************************************************************************************************************!*\
+  !*** css ./node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[0].use[1]!./node_modules/sass-loader/dist/cjs.js??ruleSet[1].rules[0].use[2]!./src/popup.module.css ***!
+  \***********************************************************************************************************************************************************************/
+.xRi9LLVlqTq1nFxi1djx {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  background-color: #333;
+  color: white;
   padding: 10px;
-  border: 1px solid #ccc;
   border-radius: 5px;
-  background-color: #f9f9f9;
+  box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.3);
+  animation: yWpUVyTKcokaXbku8j7Y 5s;
 }
 
-.xuSjRt8JygNp3h7C05SS h2 {
-  font-size: 16px;
-  margin-bottom: 10px;
-}
-
-.xuSjRt8JygNp3h7C05SS ul {
-  list-style: none;
-  padding: 0;
-}
-
-.xuSjRt8JygNp3h7C05SS li {
-  font-size: 14px;
-  margin-bottom: 5px;
+@keyframes yWpUVyTKcokaXbku8j7Y {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 /*# sourceMappingURL=main.css.map*/

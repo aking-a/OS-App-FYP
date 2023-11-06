@@ -47,26 +47,3 @@
     resize: none;
     padding: 10px;
   }
-  /* New styles for the user list */
-.user-list {
-  margin-top: 20px;
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  background-color: #f9f9f9;
-}
-
-.user-list h2 {
-  font-size: 16px;
-  margin-bottom: 10px;
-}
-
-.user-list ul {
-  list-style: none;
-  padding: 0;
-}
-
-.user-list li {
-  font-size: 14px;
-  margin-bottom: 5px;
-}
