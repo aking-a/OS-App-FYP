@@ -7,7 +7,7 @@
     "test": "npm run eslint && npm run stylelint",
     "eslint": "eslint 'src/client/**/*.js' 'src/server/**/*.js'",
     "stylelint": "stylelint 'src/client/*.scss'",
-    "serve": "node src/server/index.js",
+    "serve": "nodemon src/server/index.js",
     "build:manifest": "osjs-cli package:discover",
     "package:discover": "osjs-cli package:discover",
     "package:create": "osjs-cli package:create",
@@ -49,6 +49,7 @@
     "@osjs/standard-theme": "^4.0.9",
     "@osjs/textpad-application": "^1.2.7",
     "hyperapp": "^1.2.10",
+    "nodemon": "^3.0.1",
     "typeface-roboto": "0.0.75"
   },
   "repository": {

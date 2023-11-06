@@ -33,21 +33,129 @@ button {
   margin-left: 10px;
 }
 
+.container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  background-color: #333;
+  color: #fff;
+  display: flex;
+  justify-content: space-between;
+  padding: 10px;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-name,
+.room-name {
+  margin: 4px 0;
+}
+
+.disconnect-button {
+  background-color: red;
+  color: #fff;
+  padding: 5px 10px;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.disconnect-button:hover {
+  background-color: darkred;
+}
+
 .editor-container {
-  width: 80%;
-  height: 70vh;
-  border: 1px solid #ccc;
-  border-radius: 5px;
+  flex: 1;
 }
 
 .editor {
   width: 100%;
   height: 100%;
-  border: none;
-  outline: none;
-  font-family: monospace;
-  font-size: 16px;
+  border: 1px solid #ccc;
+  resize: none;
   padding: 10px;
+}
+/*!**********************************************************************************************************************************************************************!*\
+  !*** css ./node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[0].use[1]!./node_modules/sass-loader/dist/cjs.js??ruleSet[1].rules[0].use[2]!./src/Room.module.css ***!
+  \**********************************************************************************************************************************************************************/
+.wCorEo4utu7w4kuVKT_H {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.h5_XWJXFAIW1cje9uhQS {
+  background-color: #333;
+  color: #fff;
+  display: flex;
+  justify-content: space-between;
+  padding: 10px;
+}
+
+._8gdyCoBvUsS3HXHZItNl {
+  display: flex;
+  flex-direction: column;
+}
+
+.ip7KRTTiAT8LsjX1___A,
+.t6bsB9_7SEbPyrQbsflI {
+  margin: 4px 0;
+}
+
+.sd1Qa5dAk9B5OeYjocXj {
+  background-color: red;
+  color: #fff;
+  padding: 5px 10px;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.sd1Qa5dAk9B5OeYjocXj:hover {
+  background-color: darkred;
+}
+
+.O_MaDfrH__UDvQ0pTHB4 {
+  flex: 1;
+}
+
+.Dgb8MO_Ajc6s9XK_YsCH {
+  width: 100%;
+  height: 100%;
+  border: 1px solid #ccc;
+  resize: none;
+  padding: 10px;
+}
+/*!***********************************************************************************************************************************************************************!*\
+  !*** css ./node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[0].use[1]!./node_modules/sass-loader/dist/cjs.js??ruleSet[1].rules[0].use[2]!./src/popup.module.css ***!
+  \***********************************************************************************************************************************************************************/
+.xRi9LLVlqTq1nFxi1djx {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  background-color: #333;
+  color: white;
+  padding: 10px;
+  border-radius: 5px;
+  box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.3);
+  animation: yWpUVyTKcokaXbku8j7Y 5s;
+}
+
+@keyframes yWpUVyTKcokaXbku8j7Y {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 /*# sourceMappingURL=main.css.map*/

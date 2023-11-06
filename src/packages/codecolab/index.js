@@ -5,6 +5,7 @@ import ReactDOM from 'react-dom';
 import App from './src/App.js';
 import './src/App.css';
 import { BrowserRouter } from 'react-router-dom';
+import { createRoot } from 'react-dom/client';
 
 // Our launcher
 const register = (core, args, options, metadata) => {
@@ -13,17 +14,20 @@ const register = (core, args, options, metadata) => {
   const proc = core.make('osjs/application', { args, options, metadata });
 
   // Create  a new Window instance
-  proc.createWindow({
+  const win = proc.createWindow({
     id: 'codecolabWindow',
     title: metadata.title.en_EN,
     icon: proc.resource(proc.metadata.icon),
     dimension: { width: 700, height: 600 },
     position: { left: 700, top: 200 }
   })
-    .on('destroy', () => proc.destroy())
-    .render(($content) => { ReactDOM.render(<BrowserRouter><App socket={proc.socket('/socket')} /></BrowserRouter>, $content); });
 
-  
+  const $content = win.$content; // Assuming $content is the container where you want to render
+  const root = createRoot($content);
+  win.on('destroy', () => proc.destroy())
+  win.render( root.render(<BrowserRouter><App socket={proc.socket('/socket')} /></BrowserRouter>));
+
+
 
 
   return proc;

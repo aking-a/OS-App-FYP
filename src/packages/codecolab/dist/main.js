@@ -4266,10 +4266,12 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _babel_runtime_helpers_slicedToArray__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @babel/runtime/helpers/slicedToArray */ "./node_modules/@babel/runtime/helpers/esm/slicedToArray.js");
 /* harmony import */ var react__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! react */ "./node_modules/react/index.js");
 /* harmony import */ var react__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_1__);
-/* harmony import */ var react_router_dom__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! react-router-dom */ "./node_modules/react-router/dist/index.js");
+/* harmony import */ var react_router_dom__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! react-router-dom */ "./node_modules/react-router/dist/index.js");
 /* harmony import */ var _App_css__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./App.css */ "./src/App.css");
 /* harmony import */ var _home_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./home.js */ "./src/home.js");
 /* harmony import */ var _room_js__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./room.js */ "./src/room.js");
+/* harmony import */ var _popup_js__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./popup.js */ "./src/popup.js");
+
 
 
 
@@ -4285,54 +4287,85 @@ function App(_ref) {
   var _useState3 = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)(''),
     _useState4 = (0,_babel_runtime_helpers_slicedToArray__WEBPACK_IMPORTED_MODULE_0__["default"])(_useState3, 2),
     curRoom = _useState4[0],
-    setCurRoom = _useState4[1]; // Initialize with an empty string
+    setCurRoom = _useState4[1];
+  var _useState5 = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)(generateRandomUserID('User')),
+    _useState6 = (0,_babel_runtime_helpers_slicedToArray__WEBPACK_IMPORTED_MODULE_0__["default"])(_useState5, 2),
+    user = _useState6[0],
+    setCurName = _useState6[1];
+  var _useState7 = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)(''),
+    _useState8 = (0,_babel_runtime_helpers_slicedToArray__WEBPACK_IMPORTED_MODULE_0__["default"])(_useState7, 2),
+    popupMessage = _useState8[0],
+    setPopupMessage = _useState8[1]; // State for the popup message
+  var _useState9 = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)(false),
+    _useState10 = (0,_babel_runtime_helpers_slicedToArray__WEBPACK_IMPORTED_MODULE_0__["default"])(_useState9, 2),
+    showPopup = _useState10[0],
+    setShowPopup = _useState10[1]; // State to control the visibility of the popup
 
   function generateRandomUserID(prefix) {
-    var randomNumber = Math.floor(Math.random() * 1000); // Adjust the range as needed
+    var randomNumber = Math.floor(Math.random() * 1000);
     return "".concat(prefix).concat(randomNumber);
   }
 
-  //Generating random uid
-  var user = generateRandomUserID('User');
-  var navigate = (0,react_router_dom__WEBPACK_IMPORTED_MODULE_5__.useNavigate)();
+  // //intialising navaigate
+  var navigate = (0,react_router_dom__WEBPACK_IMPORTED_MODULE_6__.useNavigate)();
+  (0,react__WEBPACK_IMPORTED_MODULE_1__.useEffect)(function () {
+    // Add the message event listener only once
+    socket.on('message', function (event) {
+      var data = JSON.parse(event.data);
+      if (data.type === 'roomJoined') {
+        navigate('/Room');
+      }
+      if (data.type === 'userJoined') {
+        setPopupMessage("".concat(data.user, " joined the room")); // Set the popup message for a user join
+        setShowPopup(true); // Show the popup
+        // Add a timeout to hide the popup after 5 seconds
+        setTimeout(function () {
+          setShowPopup(false);
+        }, 5000);
+      }
+      if (data.type === 'codeChange') {
+        setCode(data.code);
+      }
+      if (data.type === 'userLeft') {
+        setPopupMessage("".concat(data.user, " left the room")); // Set the popup message for a user leave
+        setShowPopup(true); // Show the popup
 
-  //On client recieving message from server do something
-  socket.on('message', function (event) {
-    var data = JSON.parse(event.data);
-    if (data.type === 'roomJoined') {
-      console.log("You've joined room: ".concat(data.room));
-      navigate('/Room');
-    }
-    if (data.type === 'userJoined') {
-      console.log("".concat(data.user, " has joined the room"));
-    }
-    if (data.type === 'message') {
-      console.log("".concat(data.user, ": ").concat(data.message));
-    }
+        // set timeout to prevent message not dissapearing
+        setTimeout(function () {
+          setShowPopup(false);
+        }, 5000);
+      }
+    });
 
-    //On code change update the code
-    if (data.type === 'codeChange') {
-      setCode(data.code);
-    }
-  });
+    // Clean up the event listener when the component unmounts
+    return function () {
+      socket.off('message');
+    };
+  }, [socket, navigate]);
   function handleJoinRoomClick() {
     // Get the input values
     var room = document.getElementById('input2').value;
-    // Log the input values to the console
     if (room) {
+      //save the current room the client is in for later
       setCurRoom(room);
-      socket.send(JSON.stringify({
-        type: 'joinRoom',
-        room: room,
-        user: user
-      }));
+
+      //send this to the room
+      if (socket.connected == true) {
+        socket.send(JSON.stringify({
+          type: 'joinRoom',
+          room: room,
+          user: user
+        }));
+      }
     }
   }
   var handleCodeChange = function handleCodeChange(event) {
     var newCode = event.target.value;
     setCode(newCode);
-    // Send the new code to the server via WebSocket
-    if (socket) {
+
+    //making sure the socket is connected to prevent errors
+    if (socket.connected == true) {
+      //sending updates to the code from client to server
       socket.send(JSON.stringify({
         type: 'codeChange',
         code: newCode,
@@ -4340,18 +4373,35 @@ function App(_ref) {
       }));
     }
   };
-  return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_1___default().createElement(react_router_dom__WEBPACK_IMPORTED_MODULE_5__.Routes, null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_1___default().createElement(react_router_dom__WEBPACK_IMPORTED_MODULE_5__.Route, null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_1___default().createElement(react_router_dom__WEBPACK_IMPORTED_MODULE_5__.Route, {
+  //removes client from a room on server side will also delete a room if there is no clients in it
+  function onDisconnect() {
+    if (socket.connected == true) {
+      socket.send(JSON.stringify({
+        type: 'close',
+        room: curRoom,
+        socket: socket,
+        user: user
+      }));
+    }
+    navigate('/');
+  }
+  return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_1___default().createElement((react__WEBPACK_IMPORTED_MODULE_1___default().Fragment), null, showPopup && /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_1___default().createElement(_popup_js__WEBPACK_IMPORTED_MODULE_5__["default"], {
+    message: popupMessage
+  }), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_1___default().createElement(react_router_dom__WEBPACK_IMPORTED_MODULE_6__.Routes, null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_1___default().createElement(react_router_dom__WEBPACK_IMPORTED_MODULE_6__.Route, null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_1___default().createElement(react_router_dom__WEBPACK_IMPORTED_MODULE_6__.Route, {
     path: "/",
     element: /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_1___default().createElement(_home_js__WEBPACK_IMPORTED_MODULE_3__.Home, {
       handleJoinRoomClick: handleJoinRoomClick
     })
-  }), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_1___default().createElement(react_router_dom__WEBPACK_IMPORTED_MODULE_5__.Route, {
+  }), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_1___default().createElement(react_router_dom__WEBPACK_IMPORTED_MODULE_6__.Route, {
     path: "/Room",
     element: /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_1___default().createElement(_room_js__WEBPACK_IMPORTED_MODULE_4__.Room, {
       handleCodeChange: handleCodeChange,
-      code: code
+      onDisconnect: onDisconnect,
+      code: code,
+      userName: user,
+      roomName: curRoom
     })
-  })));
+  }))));
 }
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (App);
 
@@ -4388,6 +4438,31 @@ function Home(_ref) {
 
 /***/ }),
 
+/***/ "./src/popup.js":
+/*!**********************!*\
+  !*** ./src/popup.js ***!
+  \**********************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react */ "./node_modules/react/index.js");
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var _popup_module_css__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./popup.module.css */ "./src/popup.module.css");
+
+
+var Popup = function Popup(_ref) {
+  var message = _ref.message;
+  return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", {
+    className: _popup_module_css__WEBPACK_IMPORTED_MODULE_1__["default"].popup
+  }, " ", message);
+};
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (Popup);
+
+/***/ }),
+
 /***/ "./src/room.js":
 /*!*********************!*\
   !*** ./src/room.js ***!
@@ -4400,17 +4475,35 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react */ "./node_modules/react/index.js");
 /* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var _Room_module_css__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./Room.module.css */ "./src/Room.module.css");
+
+ // Import the CSS module
 
 function Room(_ref) {
   var handleCodeChange = _ref.handleCodeChange,
-    code = _ref.code;
+    code = _ref.code,
+    userName = _ref.userName,
+    roomName = _ref.roomName,
+    onDisconnect = _ref.onDisconnect,
+    userList = _ref.userList;
   return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", {
-    className: "container"
-  }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", {
-    className: "editor-container"
-  }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("textarea", {
+    className: _Room_module_css__WEBPACK_IMPORTED_MODULE_1__["default"].container
+  }, " ", /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", {
+    className: _Room_module_css__WEBPACK_IMPORTED_MODULE_1__["default"].header
+  }, " ", /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", {
+    className: _Room_module_css__WEBPACK_IMPORTED_MODULE_1__["default"]['user-info']
+  }, " ", /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("span", {
+    className: _Room_module_css__WEBPACK_IMPORTED_MODULE_1__["default"]['user-name']
+  }, "User: ", userName), " ", /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("span", {
+    className: _Room_module_css__WEBPACK_IMPORTED_MODULE_1__["default"]['room-name']
+  }, "Room: ", roomName), " "), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("button", {
+    className: _Room_module_css__WEBPACK_IMPORTED_MODULE_1__["default"]['disconnect-button'],
+    onClick: onDisconnect
+  }, "Disconnect"), " "), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", {
+    className: _Room_module_css__WEBPACK_IMPORTED_MODULE_1__["default"]['editor-container']
+  }, " ", /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("textarea", {
     id: "code-editor",
-    className: "editor",
+    className: _Room_module_css__WEBPACK_IMPORTED_MODULE_1__["default"].editor,
     value: code,
     onChange: handleCodeChange
   })));
@@ -4427,6 +4520,36 @@ function Room(_ref) {
 __webpack_require__.r(__webpack_exports__);
 // extracted by mini-css-extract-plugin
 
+
+/***/ }),
+
+/***/ "./src/Room.module.css":
+/*!*****************************!*\
+  !*** ./src/Room.module.css ***!
+  \*****************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+// extracted by mini-css-extract-plugin
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({"container":"wCorEo4utu7w4kuVKT_H","header":"h5_XWJXFAIW1cje9uhQS","user-info":"_8gdyCoBvUsS3HXHZItNl","user-name":"ip7KRTTiAT8LsjX1___A","room-name":"t6bsB9_7SEbPyrQbsflI","disconnect-button":"sd1Qa5dAk9B5OeYjocXj","editor-container":"O_MaDfrH__UDvQ0pTHB4","editor":"Dgb8MO_Ajc6s9XK_YsCH"});
+
+/***/ }),
+
+/***/ "./src/popup.module.css":
+/*!******************************!*\
+  !*** ./src/popup.module.css ***!
+  \******************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+// extracted by mini-css-extract-plugin
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({"popup":"xRi9LLVlqTq1nFxi1djx","fadeOut":"yWpUVyTKcokaXbku8j7Y"});
 
 /***/ }),
 
@@ -34303,6 +34426,38 @@ if (
 
 /***/ }),
 
+/***/ "./node_modules/react-dom/client.js":
+/*!******************************************!*\
+  !*** ./node_modules/react-dom/client.js ***!
+  \******************************************/
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+
+var m = __webpack_require__(/*! react-dom */ "./node_modules/react-dom/index.js");
+if (false) {} else {
+  var i = m.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
+  exports.createRoot = function(c, o) {
+    i.usingClientEntryPoint = true;
+    try {
+      return m.createRoot(c, o);
+    } finally {
+      i.usingClientEntryPoint = false;
+    }
+  };
+  exports.hydrateRoot = function(c, h, o) {
+    i.usingClientEntryPoint = true;
+    try {
+      return m.hydrateRoot(c, h, o);
+    } finally {
+      i.usingClientEntryPoint = false;
+    }
+  };
+}
+
+
+/***/ }),
+
 /***/ "./node_modules/react-dom/index.js":
 /*!*****************************************!*\
   !*** ./node_modules/react-dom/index.js ***!
@@ -40874,7 +41029,9 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var react_dom__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! react-dom */ "./node_modules/react-dom/index.js");
 /* harmony import */ var _src_App_js__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./src/App.js */ "./src/App.js");
 /* harmony import */ var _src_App_css__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./src/App.css */ "./src/App.css");
-/* harmony import */ var react_router_dom__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! react-router-dom */ "./node_modules/react-router-dom/dist/index.js");
+/* harmony import */ var react_router_dom__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! react-router-dom */ "./node_modules/react-router-dom/dist/index.js");
+/* harmony import */ var react_dom_client__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! react-dom/client */ "./node_modules/react-dom/client.js");
+
 
 
 
@@ -40893,7 +41050,7 @@ var register = function register(core, args, options, metadata) {
   });
 
   // Create  a new Window instance
-  proc.createWindow({
+  var win = proc.createWindow({
     id: 'codecolabWindow',
     title: metadata.title.en_EN,
     icon: proc.resource(proc.metadata.icon),
@@ -40905,13 +41062,15 @@ var register = function register(core, args, options, metadata) {
       left: 700,
       top: 200
     }
-  }).on('destroy', function () {
-    return proc.destroy();
-  }).render(function ($content) {
-    react_dom__WEBPACK_IMPORTED_MODULE_3__.render( /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_2___default().createElement(react_router_dom__WEBPACK_IMPORTED_MODULE_6__.BrowserRouter, null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_2___default().createElement(_src_App_js__WEBPACK_IMPORTED_MODULE_4__["default"], {
-      socket: proc.socket('/socket')
-    })), $content);
   });
+  var $content = win.$content; // Assuming $content is the container where you want to render
+  var root = (0,react_dom_client__WEBPACK_IMPORTED_MODULE_6__.createRoot)($content);
+  win.on('destroy', function () {
+    return proc.destroy();
+  });
+  win.render(root.render( /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_2___default().createElement(react_router_dom__WEBPACK_IMPORTED_MODULE_7__.BrowserRouter, null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_2___default().createElement(_src_App_js__WEBPACK_IMPORTED_MODULE_4__["default"], {
+    socket: proc.socket('/socket')
+  }))));
   return proc;
 };
 
