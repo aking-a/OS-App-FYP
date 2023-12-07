@@ -82,7 +82,7 @@ module.exports = (core, proc) => {
                             if (rooms[room].clients.length === 0) {
                                 delete rooms[room];
                             }
-                            
+
                         }
                         //Close the WebSocket connection
                         ws.close();
