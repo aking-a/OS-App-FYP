@@ -4,15 +4,11 @@ import MonacoEditor from 'react-monaco-editor';
 
 
 export function Room({ handleCodeChange, code, userName, roomName, onDisconnect, userList }) {
+
   const editorDidMount = (editor, monaco) => {
     console.log('editorDidMount', editor);
     editor.focus();
-  };
-
-  const onChange = (newValue, e) => {
-    console.log('onChange', newValue, e);
-    // Call your handleCodeChange function here
-    handleCodeChange(newValue);
+    editor.value
   };
 
   const options = {
@@ -40,7 +36,7 @@ export function Room({ handleCodeChange, code, userName, roomName, onDisconnect,
           theme="vs-dark"
           value={code}
           options={options}
-          onChange={onChange}
+          onChange={handleCodeChange}
           editorDidMount={editorDidMount}
         />
       </div>
