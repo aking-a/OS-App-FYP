@@ -4,6 +4,7 @@ import './App.css';
 import { Home } from './home.js';
 import { Room } from './room.js';
 import Popup from './popup.js';
+import MonacoEditor from 'react-monaco-editor';
 
 function App({ socket }) {
   const [code, setCode] = useState(`// Welcome to the Collaborative Code Editor\n\nfunction helloWorld() {\n  console.log('Hello, world!');\n}`);
@@ -81,8 +82,7 @@ function App({ socket }) {
 
   }
 
-  const handleCodeChange = (event) => {
-    const newCode = event.target.value;
+  const handleCodeChange = (newCode, event) => {
     setCode(newCode);
     
     //making sure the socket is connected to prevent errors
