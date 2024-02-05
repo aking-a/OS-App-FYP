@@ -22,26 +22,27 @@ module.exports = (core, proc) => {
 
                         //if a room name does not already exist in the json create a new room and append clients obj to it
                         if (!rooms[data.room]) {
-                            rooms[data.room] = { clients: [] };
+                            rooms[data.room] = { clients: [] , code: ''};
                         }
 
                         //push the current connected websocket into that room.client obj
                         rooms[data.room].clients.push(ws);
                         //nav to room
-                        ws.send(JSON.stringify({ type: 'roomJoined', room: data.room }));
+                        ws.send(JSON.stringify({ type: 'roomJoined', room: data.room, }));
 
 
                         //getting amount of clients in a room count
                         const clientCount = rooms[data.room].clients.length;
 
                         if (clientCount > 1) {
-                            // Broadcast message to clients in the room only if there is more than 1 person in the room
-
+                            const room_code = rooms[data.room].code
                             rooms[data.room].clients.forEach((client) => {
-
                                 // stoping duplicate messages being sent
                                 if (client !== ws) {
-                                    client.send(JSON.stringify({ type: 'userJoined', user: data.user }));
+                                    client.send(JSON.stringify({ type: 'userJoined', user: data.user}));
+                                }
+                                else if(client == ws){
+                                    client.send(JSON.stringify({ type: 'newUserJoined', code: room_code}));
                                 }
                             });
                         }
@@ -51,7 +52,7 @@ module.exports = (core, proc) => {
                         // Handle code changes
                         const room = data.room;
                         const newCode = data.code;
-
+                        rooms[room].code = newCode;
                         // Broadcast the code change to all clients in the room
                         rooms[room].clients.forEach((client) => {
 

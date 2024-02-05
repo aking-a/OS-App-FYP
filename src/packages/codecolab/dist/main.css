@@ -1,6 +1,6 @@
-/*!**************************************************************************************************************************************************************!*\
-  !*** css ./node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[0].use[1]!./node_modules/sass-loader/dist/cjs.js??ruleSet[1].rules[0].use[2]!./src/App.css ***!
-  \**************************************************************************************************************************************************************/
+/*!*********************************************************************************************************************************************************************!*\
+  !*** css ./node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[0].use[1]!./node_modules/sass-loader/dist/cjs.js??ruleSet[1].rules[0].use[2]!./src/Styles/App.css ***!
+  \*********************************************************************************************************************************************************************/
 .container {
   display: flex;
   flex-direction: column;
@@ -82,17 +82,17 @@ button {
   resize: none;
   padding: 10px;
 }
-/*!**********************************************************************************************************************************************************************!*\
-  !*** css ./node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[0].use[1]!./node_modules/sass-loader/dist/cjs.js??ruleSet[1].rules[0].use[2]!./src/Room.module.css ***!
-  \**********************************************************************************************************************************************************************/
-.wCorEo4utu7w4kuVKT_H {
+/*!*****************************************************************************************************************************************************************************!*\
+  !*** css ./node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[0].use[1]!./node_modules/sass-loader/dist/cjs.js??ruleSet[1].rules[0].use[2]!./src/Styles/Room.module.css ***!
+  \*****************************************************************************************************************************************************************************/
+.OR38SaN5EWZjgBUM_pAk {
   width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
 }
 
-.h5_XWJXFAIW1cje9uhQS {
+.oMB76nbTUdnNdTf3pAqJ {
   background-color: #333;
   color: #fff;
   display: flex;
@@ -100,17 +100,17 @@ button {
   padding: 10px;
 }
 
-._8gdyCoBvUsS3HXHZItNl {
+.BiOik3BH1JsUB6_FJQ9f {
   display: flex;
   flex-direction: column;
 }
 
-.ip7KRTTiAT8LsjX1___A,
-.t6bsB9_7SEbPyrQbsflI {
+.yqZetEmrsSbGsn0VvtDj,
+.XAvz_TegSka443Hhr6i2 {
   margin: 4px 0;
 }
 
-.sd1Qa5dAk9B5OeYjocXj {
+.UWMTPka4phiP3PFZfUUM {
   background-color: red;
   color: #fff;
   padding: 5px 10px;
@@ -119,25 +119,32 @@ button {
   transition: background-color 0.3s;
 }
 
-.sd1Qa5dAk9B5OeYjocXj:hover {
+.UWMTPka4phiP3PFZfUUM:hover {
   background-color: darkred;
 }
 
-.O_MaDfrH__UDvQ0pTHB4 {
+.MhRMJpK0atNKGuWRwXCL {
   flex: 1;
 }
 
-.Dgb8MO_Ajc6s9XK_YsCH {
+.aKKQ4c2fEvTeEZTBlFM_ {
+  display: flex;
+  flex-direction: column; /* or row, depending on your layout */
+  width: 100%;
+  height: 100%;
+}
+
+.HY8jXze19xJ9ho7FbEXK {
   width: 100%;
   height: 100%;
   border: 1px solid #ccc;
   resize: none;
   padding: 10px;
 }
-/*!***********************************************************************************************************************************************************************!*\
-  !*** css ./node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[0].use[1]!./node_modules/sass-loader/dist/cjs.js??ruleSet[1].rules[0].use[2]!./src/popup.module.css ***!
-  \***********************************************************************************************************************************************************************/
-.xRi9LLVlqTq1nFxi1djx {
+/*!******************************************************************************************************************************************************************************!*\
+  !*** css ./node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[0].use[1]!./node_modules/sass-loader/dist/cjs.js??ruleSet[1].rules[0].use[2]!./src/Styles/popup.module.css ***!
+  \******************************************************************************************************************************************************************************/
+.LJfImPr_NkoP8UM7foeu {
   position: fixed;
   top: 10px;
   right: 10px;
@@ -146,10 +153,10 @@ button {
   padding: 10px;
   border-radius: 5px;
   box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.3);
-  animation: yWpUVyTKcokaXbku8j7Y 5s;
+  animation: htSRflIMzzAgNu32Kc4f 5s;
 }
 
-@keyframes yWpUVyTKcokaXbku8j7Y {
+@keyframes htSRflIMzzAgNu32Kc4f {
   0% {
     opacity: 1;
   }

@@ -1,17 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect,useRef } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
-import './App.css';
+import './Styles/App.css';
 import { Home } from './home.js';
 import { Room } from './room.js';
 import Popup from './popup.js';
 import MonacoEditor from 'react-monaco-editor';
 
 function App({ socket }) {
-  const [code, setCode] = useState(`// Welcome to the Collaborative Code Editor\n\nfunction helloWorld() {\n  console.log('Hello, world!');\n}`);
+  const editorRef = useRef(null);
+  const [code, setCode] = useState('');
   const [curRoom, setCurRoom] = useState('');
   const [user, setCurName] = useState(generateRandomUserID('User'));
   const [popupMessage, setPopupMessage] = useState(''); // State for the popup message
   const [showPopup, setShowPopup] = useState(false); // State to control the visibility of the popup
+  const [file, setFile] = useState();//set current file
+  const [language, setLanguage] = useState('javascript');//set Current language
+  const [showFileContainer, setShowFileContainer] = useState(true);//show file container if you are in a room you created otherwise hide it
 
 
 
@@ -42,11 +46,16 @@ function App({ socket }) {
           setShowPopup(false);
         }, 5000);
       }
+      if(data.type === 'newUserJoined'){
+        setCode(data.code)
+        setShowFileContainer(false);
+      }
 
       if (data.type === 'codeChange') {
         setCode(data.code);
 
       }
+
       if (data.type === 'userLeft') {
         setPopupMessage(`${data.user} left the room`); // Set the popup message for a user leave
         setShowPopup(true); // Show the popup
@@ -81,6 +90,28 @@ function App({ socket }) {
     }
 
   }
+  const handleFileChange = (event) => {
+    if (event.target.files) {
+      setFile(event.target.files[0]);
+    }
+  };
+
+  useEffect(() => {
+    if (file) {
+      var reader = new FileReader();
+      reader.onload = async (e) => {
+        setCode(e.target.result);
+        handleCodeChange(e.target.result);
+      };
+      reader.readAsText(file);
+      let newLanguage = 'javascript';
+      const extension = file.name.split('.').pop();
+      if (['css', 'html', 'python', 'java','csharp'].includes(extension)) {
+        newLanguage = extension;
+      }
+      setLanguage(newLanguage);
+    }
+  }, [file]);
 
   const handleCodeChange = (newCode, event) => {
     setCode(newCode);
@@ -96,9 +127,17 @@ function App({ socket }) {
   function onDisconnect() {
     if (socket.connected == true) {
       socket.send(JSON.stringify({ type: 'close', room: curRoom, socket: socket, user: user }));
+      setCode(null);
+      setCurRoom('');
+      setShowFileContainer(true);
     }
     navigate('/')
   }
+  function handleEditorDidMount(editor, monaco) {
+    editorRef.current = editor;
+    editor.focus();
+
+  };
 
 
   return (
@@ -107,7 +146,7 @@ function App({ socket }) {
       <Routes>
         <Route>
           <Route path="/" element={<Home handleJoinRoomClick={handleJoinRoomClick} />} />
-          <Route path='/Room' element={<Room handleCodeChange={handleCodeChange} onDisconnect={onDisconnect} code={code} userName={user} roomName={curRoom} />} />
+          <Route path='/Room' element={<Room handleCodeChange={handleCodeChange} onDisconnect={onDisconnect} code={code} userName={user} roomName={curRoom} handleEditorDidMount = {handleEditorDidMount} handleFileChange={handleFileChange} language={language} showFileContainer={showFileContainer}/>} />
         </Route>
       </Routes>
     </>
