@@ -1,18 +1,30 @@
-import React from 'react';
-import styles from './Room.module.css'; // Import the CSS module
+import React, {useState} from 'react';
+import styles from './Styles/Room.module.css'; // Import the CSS module
 import MonacoEditor from 'react-monaco-editor';
+import { Box, Button, Menu, MenuButton, MenuItem, MenuList, Text } from '@chakra-ui/react';
 
-
-export function Room({ handleCodeChange, code, userName, roomName, onDisconnect, userList }) {
-
-  const editorDidMount = (editor, monaco) => {
-    console.log('editorDidMount', editor);
-    editor.focus();
-    editor.value
-  };
-
+export function Room({ handleCodeChange, code, userName, roomName, onDisconnect, userList, handleEditorDidMount,handleFileChange,language,showFileContainer }) {
   const options = {
     selectOnLineNumbers: true,
+    autoIndent: 'full',
+    contextmenu: true,
+    fontFamily: 'monospace',
+    fontSize: 13,
+    lineHeight: 24,
+    hideCursorInOverviewRuler: true,
+    matchBrackets: 'always',
+    minimap: {
+      enabled: true,
+    },
+    scrollbar: {
+      horizontalSliderSize: 4,
+      verticalSliderSize: 18,
+    },
+    selectOnLineNumbers: true,
+    roundedSelection: false,
+    readOnly: false,
+    cursorStyle: 'line',
+    automaticLayout: true,
   };
   return (
     <div className={styles.container}>
@@ -28,18 +40,25 @@ export function Room({ handleCodeChange, code, userName, roomName, onDisconnect,
           Disconnect
         </button>
       </div>
-      <div className={styles['editor-container']}>
+      {showFileContainer && (
+        <div className={styles['file-container']}>
+          <input type="file" onChange={handleFileChange} />
+        </div>
+      )}
+      <div >
+        <Box bg='#1E1E1E'>
         <MonacoEditor
           width="800"
           height="600"
-          language="javascript"
+          language={language}
           theme="vs-dark"
           value={code}
           options={options}
           onChange={handleCodeChange}
-          editorDidMount={editorDidMount}
+          onMount={handleEditorDidMount}
         />
-      </div>
-    </div>
+        </Box>
+       </div>
+     </div>
   );
 }
