@@ -42,7 +42,7 @@ export function Room({ handleCodeChange, code, userName, roomName, onDisconnect,
       </div>
       {showFileContainer && (
         <div className={styles['file-container']}>
-          <input type="file" onChange={handleFileChange} />
+          <button className={styles['file-button']}onClick={handleFileChange} >choose file</button>
         </div>
       )}
       <div >

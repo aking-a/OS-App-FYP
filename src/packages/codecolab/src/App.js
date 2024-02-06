@@ -5,8 +5,9 @@ import { Home } from './home.js';
 import { Room } from './room.js';
 import Popup from './popup.js';
 import MonacoEditor from 'react-monaco-editor';
+import { Menubar, MenubarItem } from '@osjs/gui';
 
-function App({ socket }) {
+function App({ osjs,proc,core,socket,_,vfs,basic,win }) {
   const editorRef = useRef(null);
   const [code, setCode] = useState('');
   const [curRoom, setCurRoom] = useState('');
@@ -16,6 +17,9 @@ function App({ socket }) {
   const [file, setFile] = useState();//set current file
   const [language, setLanguage] = useState('javascript');//set Current language
   const [showFileContainer, setShowFileContainer] = useState(true);//show file container if you are in a room you created otherwise hide it
+  const [text, setText] = useState('');
+
+  
 
 
 
@@ -88,29 +92,42 @@ function App({ socket }) {
         socket.send(JSON.stringify({ type: 'joinRoom', room, user }));
       }
     }
-
+    
   }
-  const handleFileChange = (event) => {
-    if (event.target.files) {
-      setFile(event.target.files[0]);
-    }
+  async function handleFileChange(){
+    (async()=>{
+      async function userOpenFile(options) {
+        const file = await new Promise(
+          r => osjs.make('osjs/dialog', 'file', options, (_,v)=>r(v))
+        );
+        const data = file?.isFile && await OSjs.make('osjs/vfs').readfile(file, 'bin');
+        return {file, data};
+      }
+      const {file,data} = await userOpenFile();
+
+      if(file.isFile==true){
+        const textDecoder = new TextDecoder('utf-8'); // Specify the encoding
+        const text = textDecoder.decode(data);// Decode the ArrayBuffer to origional text
+        setText(text)
+        setFile(file)
+      }
+
+    })()
   };
 
   useEffect(() => {
     if (file) {
-      var reader = new FileReader();
-      reader.onload = async (e) => {
-        setCode(e.target.result);
-        handleCodeChange(e.target.result);
-      };
-      reader.readAsText(file);
+      //call handleCodeChange
+      handleCodeChange(text)
+
       let newLanguage = 'javascript';
-      const extension = file.name.split('.').pop();
+      const extension = file.filename.split('.').pop();
       if (['css', 'html', 'python', 'java','csharp'].includes(extension)) {
         newLanguage = extension;
       }
       setLanguage(newLanguage);
     }
+    
   }, [file]);
 
   const handleCodeChange = (newCode, event) => {
