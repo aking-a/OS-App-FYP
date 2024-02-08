@@ -1,12 +1,13 @@
-import React, { useState, useEffect,useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import './Styles/App.css';
 import { Home } from './home.js';
 import { Room } from './room.js';
 import Popup from './popup.js';
 import MonacoEditor from 'react-monaco-editor';
+import { Menubar, MenubarItem } from '@osjs/gui';
 
-function App({ socket }) {
+function App({ osjs, proc, core, socket, _, vfs, basic, win }) {
   const editorRef = useRef(null);
   const [code, setCode] = useState('');
   const [curRoom, setCurRoom] = useState('');
@@ -16,6 +17,9 @@ function App({ socket }) {
   const [file, setFile] = useState();//set current file
   const [language, setLanguage] = useState('javascript');//set Current language
   const [showFileContainer, setShowFileContainer] = useState(true);//show file container if you are in a room you created otherwise hide it
+  const [text, setText] = useState('');
+
+
 
 
 
@@ -46,7 +50,7 @@ function App({ socket }) {
           setShowPopup(false);
         }, 5000);
       }
-      if(data.type === 'newUserJoined'){
+      if (data.type === 'newUserJoined') {
         setCode(data.code)
         setShowFileContainer(false);
       }
@@ -90,32 +94,60 @@ function App({ socket }) {
     }
 
   }
-  const handleFileChange = (event) => {
-    if (event.target.files) {
-      setFile(event.target.files[0]);
-    }
+  async function handleFileChange() {
+    (async () => {
+      async function userOpenFile(options) {
+
+        return await new Promise((resolve, reject) => {
+
+          //opens vfs
+          osjs.make('osjs/dialog', 'file', options, (_, v) => {
+
+            //checks if a file has been selected or not
+            if (v) {
+              setFile(v)
+              resolve(osjs.make('osjs/vfs').readfile(v, 'bin'));
+            }
+            else {
+              reject("File not selected");
+            }
+          });
+        });
+
+      }
+
+      userOpenFile().then((data) => {
+        const textDecoder = new TextDecoder('utf-8');
+        const text = textDecoder.decode(data);
+        setText(text)
+
+      }).catch((error) => {
+        console.log(error)
+      });
+
+    })()
   };
 
   useEffect(() => {
-    if (file) {
-      var reader = new FileReader();
-      reader.onload = async (e) => {
-        setCode(e.target.result);
-        handleCodeChange(e.target.result);
-      };
-      reader.readAsText(file);
+
+    if (text != '') {
+      //call handleCodeChange
+      handleCodeChange(text)
+
       let newLanguage = 'javascript';
-      const extension = file.name.split('.').pop();
-      if (['css', 'html', 'python', 'java','csharp'].includes(extension)) {
+      const extension = file.filename.split('.').pop();
+      if (['css', 'html', 'python', 'java', 'csharp'].includes(extension)) {
         newLanguage = extension;
       }
       setLanguage(newLanguage);
     }
-  }, [file]);
+
+
+  }, [text]);
 
   const handleCodeChange = (newCode, event) => {
     setCode(newCode);
-    
+
     //making sure the socket is connected to prevent errors
     if (socket.connected == true) {
 
@@ -130,6 +162,8 @@ function App({ socket }) {
       setCode(null);
       setCurRoom('');
       setShowFileContainer(true);
+      setText('')
+      setFile()
     }
     navigate('/')
   }
@@ -146,7 +180,7 @@ function App({ socket }) {
       <Routes>
         <Route>
           <Route path="/" element={<Home handleJoinRoomClick={handleJoinRoomClick} />} />
-          <Route path='/Room' element={<Room handleCodeChange={handleCodeChange} onDisconnect={onDisconnect} code={code} userName={user} roomName={curRoom} handleEditorDidMount = {handleEditorDidMount} handleFileChange={handleFileChange} language={language} showFileContainer={showFileContainer}/>} />
+          <Route path='/Room' element={<Room handleCodeChange={handleCodeChange} onDisconnect={onDisconnect} code={code} userName={user} roomName={curRoom} handleEditorDidMount={handleEditorDidMount} handleFileChange={handleFileChange} language={language} showFileContainer={showFileContainer} />} />
         </Route>
       </Routes>
     </>
