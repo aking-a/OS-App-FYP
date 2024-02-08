@@ -1,4 +1,4 @@
-import React, { useState, useEffect,useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import './Styles/App.css';
 import { Home } from './home.js';
@@ -7,7 +7,7 @@ import Popup from './popup.js';
 import MonacoEditor from 'react-monaco-editor';
 import { Menubar, MenubarItem } from '@osjs/gui';
 
-function App({ osjs,proc,core,socket,_,vfs,basic,win }) {
+function App({ osjs, proc, core, socket, _, vfs, basic, win }) {
   const editorRef = useRef(null);
   const [code, setCode] = useState('');
   const [curRoom, setCurRoom] = useState('');
@@ -19,7 +19,7 @@ function App({ osjs,proc,core,socket,_,vfs,basic,win }) {
   const [showFileContainer, setShowFileContainer] = useState(true);//show file container if you are in a room you created otherwise hide it
   const [text, setText] = useState('');
 
-  
+
 
 
 
@@ -50,7 +50,7 @@ function App({ osjs,proc,core,socket,_,vfs,basic,win }) {
           setShowPopup(false);
         }, 5000);
       }
-      if(data.type === 'newUserJoined'){
+      if (data.type === 'newUserJoined') {
         setCode(data.code)
         setShowFileContainer(false);
       }
@@ -92,47 +92,62 @@ function App({ osjs,proc,core,socket,_,vfs,basic,win }) {
         socket.send(JSON.stringify({ type: 'joinRoom', room, user }));
       }
     }
-    
-  }
-  async function handleFileChange(){
-    (async()=>{
-      async function userOpenFile(options) {
-        const file = await new Promise(
-          r => osjs.make('osjs/dialog', 'file', options, (_,v)=>r(v))
-        );
-        const data = file?.isFile && await OSjs.make('osjs/vfs').readfile(file, 'bin');
-        return {file, data};
-      }
-      const {file,data} = await userOpenFile();
 
-      if(file.isFile==true){
-        const textDecoder = new TextDecoder('utf-8'); // Specify the encoding
-        const text = textDecoder.decode(data);// Decode the ArrayBuffer to origional text
-        setText(text)
-        setFile(file)
+  }
+  async function handleFileChange() {
+    (async () => {
+      async function userOpenFile(options) {
+
+        return await new Promise((resolve, reject) => {
+
+          //opens vfs
+          osjs.make('osjs/dialog', 'file', options, (_, v) => {
+
+            //checks if a file has been selected or not
+            if (v) {
+              setFile(v)
+              resolve(osjs.make('osjs/vfs').readfile(v, 'bin'));
+            }
+            else {
+              reject("File not selected");
+            }
+          });
+        });
+
       }
+
+      userOpenFile().then((data) => {
+        const textDecoder = new TextDecoder('utf-8');
+        const text = textDecoder.decode(data);
+        setText(text)
+
+      }).catch((error) => {
+        console.log(error)
+      });
 
     })()
   };
 
   useEffect(() => {
-    if (file) {
+
+    if (text != '') {
       //call handleCodeChange
       handleCodeChange(text)
 
       let newLanguage = 'javascript';
       const extension = file.filename.split('.').pop();
-      if (['css', 'html', 'python', 'java','csharp'].includes(extension)) {
+      if (['css', 'html', 'python', 'java', 'csharp'].includes(extension)) {
         newLanguage = extension;
       }
       setLanguage(newLanguage);
     }
-    
-  }, [file]);
+
+
+  }, [text]);
 
   const handleCodeChange = (newCode, event) => {
     setCode(newCode);
-    
+
     //making sure the socket is connected to prevent errors
     if (socket.connected == true) {
 
@@ -147,6 +162,8 @@ function App({ osjs,proc,core,socket,_,vfs,basic,win }) {
       setCode(null);
       setCurRoom('');
       setShowFileContainer(true);
+      setText('')
+      setFile()
     }
     navigate('/')
   }
@@ -163,7 +180,7 @@ function App({ osjs,proc,core,socket,_,vfs,basic,win }) {
       <Routes>
         <Route>
           <Route path="/" element={<Home handleJoinRoomClick={handleJoinRoomClick} />} />
-          <Route path='/Room' element={<Room handleCodeChange={handleCodeChange} onDisconnect={onDisconnect} code={code} userName={user} roomName={curRoom} handleEditorDidMount = {handleEditorDidMount} handleFileChange={handleFileChange} language={language} showFileContainer={showFileContainer}/>} />
+          <Route path='/Room' element={<Room handleCodeChange={handleCodeChange} onDisconnect={onDisconnect} code={code} userName={user} roomName={curRoom} handleEditorDidMount={handleEditorDidMount} handleFileChange={handleFileChange} language={language} showFileContainer={showFileContainer} />} />
         </Route>
       </Routes>
     </>
