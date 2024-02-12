@@ -2,7 +2,15 @@ const { cli } = require("@osjs/cli");
 
 //rooms json where room names are fixed to websocket instances 
 const rooms = {};
+function generateURLEncodedURL(baseURL, data) {
+    // Encode the data string
+    const encodedData = encodeURIComponent(data);
 
+    // Combine base URL with encoded data
+    const encodedURL = `${baseURL}?data=${encodedData}`;
+
+    return encodedURL;
+}
 module.exports = (core, proc) => {
     const { routeAuthenticated } = core.make('osjs/express');
 
@@ -25,11 +33,16 @@ module.exports = (core, proc) => {
                             rooms[inputId] = { clients: [], file: [] };
                             rooms[inputId].clients.push(ws);
                             rooms[inputId].file.push(data.file);
+                            const baseURL = "http://localhost:8000/open";
+                            const fileLink = generateURLEncodedURL(baseURL, inputId)
+                            ws.send(JSON.stringify({ type: 'filelink', file: fileLink }));
+   
                         }
                         else if (data.room != null) {
                             inputId = data.room
                             rooms[inputId].clients.push(ws);
                         }
+                        
                         f_name = rooms[inputId].file[0].file[0].filename
                         const extension = f_name.split('.').pop();
                         switch (extension) {
@@ -45,7 +58,7 @@ module.exports = (core, proc) => {
                         //push the current connected websocket into that room.client obj
 
                         //nav to room
-                        ws.send(JSON.stringify({ type: 'roomJoined', room: inputId,language:rooms[inputId].file[0].language }));
+                        ws.send(JSON.stringify({ type: 'roomJoined', room: inputId, language: rooms[inputId].file[0].language }));
 
 
                         //getting amount of clients in a room count
