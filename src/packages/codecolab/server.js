@@ -19,30 +19,48 @@ module.exports = (core, proc) => {
 
                     //handles messages when dtype = joinRoom
                     if (data.type === 'joinRoom') {
-
+                        let inputId = crypto.randomUUID();
                         //if a room name does not already exist in the json create a new room and append clients obj to it
-                        if (!rooms[data.room]) {
-                            rooms[data.room] = { clients: [] , code: ''};
+                        if (!rooms[inputId] && data.room == null) {
+                            rooms[inputId] = { clients: [], file: [] };
+                            rooms[inputId].clients.push(ws);
+                            rooms[inputId].file.push(data.file);
+                        }
+                        else if (data.room != null) {
+                            inputId = data.room
+                            rooms[inputId].clients.push(ws);
+                        }
+                        f_name = rooms[inputId].file[0].file[0].filename
+                        const extension = f_name.split('.').pop();
+                        switch (extension) {
+                            case 'py': rooms[inputId].file[0].language = 'python'; break;
+                            case 'html': rooms[inputId].file[0].language = 'html'; break;
+                            case 'css': rooms[inputId].file[0].language = 'css'; break;
+                            case 'java': rooms[inputId].file[0].language = 'java'; break;
+                            case 'php': rooms[inputId].file[0].language = 'php'; break;
+                            case 'js': rooms[inputId].file[0].language = 'javascript'; break;
+                            case 'cs': rooms[inputId].file[0].language = 'cs'; break;
                         }
 
                         //push the current connected websocket into that room.client obj
-                        rooms[data.room].clients.push(ws);
+
                         //nav to room
-                        ws.send(JSON.stringify({ type: 'roomJoined', room: data.room, }));
+                        ws.send(JSON.stringify({ type: 'roomJoined', room: inputId,language:rooms[inputId].file[0].language }));
 
 
                         //getting amount of clients in a room count
-                        const clientCount = rooms[data.room].clients.length;
+                        const clientCount = rooms[inputId].clients.length;
 
                         if (clientCount > 1) {
-                            const room_code = rooms[data.room].code
-                            rooms[data.room].clients.forEach((client) => {
+                            const room_code = rooms[inputId].file[0].content
+                            const language = rooms[inputId].file[0].language
+                            rooms[inputId].clients.forEach((client) => {
                                 // stoping duplicate messages being sent
                                 if (client !== ws) {
-                                    client.send(JSON.stringify({ type: 'userJoined', user: data.user}));
+                                    client.send(JSON.stringify({ type: 'userJoined', user: data.user }));
                                 }
-                                else if(client == ws){
-                                    client.send(JSON.stringify({ type: 'newUserJoined', code: room_code}));
+                                else if (client == ws) {
+                                    client.send(JSON.stringify({ type: 'newUserJoined', code: room_code, language: language }));
                                 }
                             });
                         }
@@ -64,7 +82,6 @@ module.exports = (core, proc) => {
                     }
                     if (data.type === 'close') {
                         const room = data.room;
-
                         const index = rooms[room].clients.indexOf(ws)
 
                         //Remove the client from the room

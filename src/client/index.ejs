@@ -1,17 +1,48 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <!--
+
+<head>
+  <meta charset="utf-8" />
+  <!--
     OS.js - Copyright (c) 2011-2020
     Anders Evenrud (andersevenrud@gmail.com)
     https://github.com/os-js/
     -->
-    <meta name="google" content="notranslate" />
-    <meta name="description" content="OS.js - JavaScript Cloud/Web Desktop Platform" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
-    <title><%= htmlWebpackPlugin.options.title %></title>
-  </head>
-  <body>
-  </body>
+  <meta name="google" content="notranslate" />
+  <meta name="description" content="OS.js - JavaScript Cloud/Web Desktop Platform" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+  <title>
+    <%= htmlWebpackPlugin.options.title %>
+  </title>
+</head>
+
+<body>
+</body>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    setTimeout(function () {
+      // Get the current URL
+      const params = new Proxy(new URLSearchParams(window.location.search), {
+        get: (searchParams, prop) => searchParams.get(prop),
+      });
+      // Get the value using a key
+      let value = params.data;
+
+      //if the value is not null it means my application should be opened and 
+      if (value != null) {
+        const name = 'codecolab', args = {}, options = {};
+        OSjs.run(name, args, options);
+
+      }
+      else {
+        return
+      }
+
+
+    }, 1000);
+
+  });
+
+</script>
+
 </html>

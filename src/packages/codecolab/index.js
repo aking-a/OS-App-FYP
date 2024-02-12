@@ -1,7 +1,6 @@
 import osjs from 'osjs';
-import { name as applicationName } from './metadata.json';
+import { name as applicationName}  from './metadata.json';
 import React, { useState }  from 'react';
-import ReactDOM from 'react-dom';
 import App from './src/App.js';
 import './src/Styles/App.css';
 import { BrowserRouter } from 'react-router-dom';

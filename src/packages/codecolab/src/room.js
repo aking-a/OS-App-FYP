@@ -3,7 +3,7 @@ import styles from './Styles/Room.module.css'; // Import the CSS module
 import MonacoEditor from 'react-monaco-editor';
 import { Box, Button, Menu, MenuButton, MenuItem, MenuList, Text } from '@chakra-ui/react';
 
-export function Room({ handleCodeChange, code, userName, roomName, onDisconnect, userList, handleEditorDidMount,handleFileChange,language,showFileContainer }) {
+export function Room({ handleCodeChange, code, userName, roomName, onDisconnect, handleEditorDidMount,language}) {
   const options = {
     selectOnLineNumbers: true,
     autoIndent: 'full',
@@ -40,11 +40,6 @@ export function Room({ handleCodeChange, code, userName, roomName, onDisconnect,
           Disconnect
         </button>
       </div>
-      {showFileContainer && (
-        <div className={styles['file-container']}>
-          <button className={styles['file-button']}onClick={handleFileChange} >choose file</button>
-        </div>
-      )}
       <div >
         <Box bg='#1E1E1E'>
         <MonacoEditor

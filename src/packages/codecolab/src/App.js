@@ -4,8 +4,7 @@ import './Styles/App.css';
 import { Home } from './home.js';
 import { Room } from './room.js';
 import Popup from './popup.js';
-import MonacoEditor from 'react-monaco-editor';
-import { Menubar, MenubarItem } from '@osjs/gui';
+import { FileData } from './components/file.js'
 
 function App({ osjs, proc, core, socket, _, vfs, basic, win }) {
   const editorRef = useRef(null);
@@ -15,20 +14,14 @@ function App({ osjs, proc, core, socket, _, vfs, basic, win }) {
   const [popupMessage, setPopupMessage] = useState(''); // State for the popup message
   const [showPopup, setShowPopup] = useState(false); // State to control the visibility of the popup
   const [file, setFile] = useState();//set current file
-  const [language, setLanguage] = useState('javascript');//set Current language
   const [showFileContainer, setShowFileContainer] = useState(true);//show file container if you are in a room you created otherwise hide it
   const [text, setText] = useState('');
-
-
-
-
+  const [language, setLanguage] = useState('javascript');//set Current language
 
   function generateRandomUserID(prefix) {
     const randomNumber = Math.floor(Math.random() * 1000);
     return `${prefix}${randomNumber}`;
   }
-
-
   // //intialising navaigate
   const navigate = useNavigate()
 
@@ -38,7 +31,9 @@ function App({ osjs, proc, core, socket, _, vfs, basic, win }) {
       const data = JSON.parse(event.data);
 
       if (data.type === 'roomJoined') {
-
+        console.log(data.room)
+        setCurRoom(data.room)
+        setLanguage(data.language)
         navigate('/Room');
       }
 
@@ -51,6 +46,7 @@ function App({ osjs, proc, core, socket, _, vfs, basic, win }) {
         }, 5000);
       }
       if (data.type === 'newUserJoined') {
+        setLanguage(data.language)
         setCode(data.code)
         setShowFileContainer(false);
       }
@@ -79,39 +75,40 @@ function App({ osjs, proc, core, socket, _, vfs, basic, win }) {
   }, [socket, navigate]);
 
 
-  function handleJoinRoomClick() {
-    // Get the input values
+  async function handleJoinRoomClick() {
     const room = document.getElementById('input2').value;
-
-    if (room) {
-      //save the current room the client is in for later
-      setCurRoom(room)
-
-      //send this to the room
-      if (socket.connected == true) {
-        socket.send(JSON.stringify({ type: 'joinRoom', room, user }));
-      }
+    //send this to the room
+    if (socket.connected == true) {
+      socket.send(JSON.stringify({ type: 'joinRoom', room }));
     }
 
+
   }
-  async function handleFileChange() {
-    (async () => {
+  function handleFileChange() {
       async function userOpenFile(options) {
 
         return await new Promise((resolve, reject) => {
 
           //opens vfs
-          osjs.make('osjs/dialog', 'file', options, (_, v) => {
-
-            //checks if a file has been selected or not
-            if (v) {
-              setFile(v)
-              resolve(osjs.make('osjs/vfs').readfile(v, 'bin'));
+          osjs.make('osjs/dialog', 'file', options, {
+            parent: win,
+            attributes:{
+              modal:true
             }
-            else {
-              reject("File not selected");
+          },(btn,v)=>{
+              if(btn=='ok'&& v){
+                console.log('works')
+                setFile(v)
+                resolve(osjs.make('osjs/vfs').readfile(v, 'bin'));
+              }
+              else if((btn=='cancle'||btn=='destroy')){
+                reject("File not selected");
+              }
+              else{
+                reject("File not selected");
+              }
             }
-          });
+          );
         });
 
       }
@@ -120,30 +117,31 @@ function App({ osjs, proc, core, socket, _, vfs, basic, win }) {
         const textDecoder = new TextDecoder('utf-8');
         const text = textDecoder.decode(data);
         setText(text)
+        
 
       }).catch((error) => {
         console.log(error)
       });
-
-    })()
   };
 
   useEffect(() => {
 
     if (text != '') {
-      //call handleCodeChange
-      handleCodeChange(text)
-
-      let newLanguage = 'javascript';
-      const extension = file.filename.split('.').pop();
-      if (['css', 'html', 'python', 'java', 'csharp'].includes(extension)) {
-        newLanguage = extension;
-      }
-      setLanguage(newLanguage);
+      handleShareFile(text)
     }
 
-
   }, [text]);
+
+  function handleShareFile() {
+    if (socket.connected == true) {
+      setCode(text);
+      FileData.file.push(file)
+      FileData.content = text
+      //sending updates to the code from client to server
+      socket.send(JSON.stringify({ type: 'joinRoom', user: user, file: FileData }));
+
+    }
+  }
 
   const handleCodeChange = (newCode, event) => {
     setCode(newCode);
@@ -179,8 +177,8 @@ function App({ osjs, proc, core, socket, _, vfs, basic, win }) {
       {showPopup && <Popup message={popupMessage} />}
       <Routes>
         <Route>
-          <Route path="/" element={<Home handleJoinRoomClick={handleJoinRoomClick} />} />
-          <Route path='/Room' element={<Room handleCodeChange={handleCodeChange} onDisconnect={onDisconnect} code={code} userName={user} roomName={curRoom} handleEditorDidMount={handleEditorDidMount} handleFileChange={handleFileChange} language={language} showFileContainer={showFileContainer} />} />
+          <Route path="/" element={<Home handleJoinRoomClick={handleJoinRoomClick} handleFileChange={handleFileChange} showFileContainer={showFileContainer} />} />
+          <Route path='/Room' element={<Room handleCodeChange={handleCodeChange} onDisconnect={onDisconnect} code={code} userName={user} roomName={curRoom} handleEditorDidMount={handleEditorDidMount} language={language} />} />
         </Route>
       </Routes>
     </>
