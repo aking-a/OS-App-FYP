@@ -83,6 +83,22 @@ button {
   padding: 10px;
 }
 /*!*****************************************************************************************************************************************************************************!*\
+  !*** css ./node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[0].use[1]!./node_modules/sass-loader/dist/cjs.js??ruleSet[1].rules[0].use[2]!./src/Styles/home.module.css ***!
+  \*****************************************************************************************************************************************************************************/
+.KqcXw5lbjBNwNWImJE5Q {
+  background-color: #c5c5c5;
+  border: none;
+  color: white;
+  padding: 10px 20px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 16px;
+  margin: 4px 2px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+/*!*****************************************************************************************************************************************************************************!*\
   !*** css ./node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[0].use[1]!./node_modules/sass-loader/dist/cjs.js??ruleSet[1].rules[0].use[2]!./src/Styles/Room.module.css ***!
   \*****************************************************************************************************************************************************************************/
 .OR38SaN5EWZjgBUM_pAk {
@@ -140,20 +156,6 @@ button {
   border: 1px solid #ccc;
   resize: none;
   padding: 10px;
-}
-
-.am8W3nTwkTr0SPcn03D6 {
-  background-color: #c5c5c5;
-  border: none;
-  color: white;
-  padding: 10px 20px;
-  text-align: center;
-  text-decoration: none;
-  display: inline-block;
-  font-size: 16px;
-  margin: 4px 2px;
-  cursor: pointer;
-  border-radius: 4px;
 }
 /*!******************************************************************************************************************************************************************************!*\
   !*** css ./node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[0].use[1]!./node_modules/sass-loader/dist/cjs.js??ruleSet[1].rules[0].use[2]!./src/Styles/popup.module.css ***!

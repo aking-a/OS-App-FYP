@@ -38,6 +38,8 @@
 // https://manual.os-js.org/resource/official/
 //
 
+
+
 const {
   Core,
   CoreServiceProvider,
@@ -47,6 +49,7 @@ const {
   SettingsServiceProvider
 } = require('@osjs/server');
 
+const Watcher= require('./providers/watcher.js');
 const config = require('./config.js');
 const osjs = new Core(config, {});
 
@@ -55,6 +58,7 @@ osjs.register(PackageServiceProvider);
 osjs.register(VFSServiceProvider);
 osjs.register(AuthServiceProvider);
 osjs.register(SettingsServiceProvider);
+osjs.register(Watcher);
 
 const shutdown = signal => (error) => {
   if (error instanceof Error) {
