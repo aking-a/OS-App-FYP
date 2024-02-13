@@ -6,7 +6,7 @@ import { Room } from './room.js';
 import Popup from './popup.js';
 import { FileData } from './components/file.js'
 
-function App({ osjs, proc, core, socket, _, vfs, basic, win }) {
+function App({ osjs, socket, win, args, options }) {
   const editorRef = useRef(null);
   const [code, setCode] = useState('');
   const [curRoom, setCurRoom] = useState('');
@@ -22,6 +22,16 @@ function App({ osjs, proc, core, socket, _, vfs, basic, win }) {
     const randomNumber = Math.floor(Math.random() * 1000);
     return `${prefix}${randomNumber}`;
   }
+  useEffect(() => {
+    if (args != null && curRoom == '') {
+
+      setTimeout(() => {
+        setCurRoom(args)
+        handleJoinRoom()
+      },[1000])
+    }
+  }, [curRoom])
+
   // //intialising navaigate
   const navigate = useNavigate()
 
@@ -29,11 +39,13 @@ function App({ osjs, proc, core, socket, _, vfs, basic, win }) {
     // Add the message event listener only once
     socket.on('message', (event) => {
       const data = JSON.parse(event.data);
-
+      if (data.type === 'filelink') {
+        console.log(data.file)
+      }
       if (data.type === 'roomJoined') {
-        console.log(data.room)
         setCurRoom(data.room)
         setLanguage(data.language)
+        //setLanguage(data.language)
         navigate('/Room');
       }
 
@@ -75,53 +87,54 @@ function App({ osjs, proc, core, socket, _, vfs, basic, win }) {
   }, [socket, navigate]);
 
 
-  async function handleJoinRoomClick() {
-    const room = document.getElementById('input2').value;
+  async function handleJoinRoom() {
     //send this to the room
     if (socket.connected == true) {
-      socket.send(JSON.stringify({ type: 'joinRoom', room }));
+      socket.send(JSON.stringify({ type: 'joinRoom', room: args }));
     }
 
 
   }
   function handleFileChange() {
-      async function userOpenFile(options) {
+    async function userOpenFile(options) {
 
-        return await new Promise((resolve, reject) => {
+      return await new Promise((resolve, reject) => {
 
-          //opens vfs
-          osjs.make('osjs/dialog', 'file', options, {
-            parent: win,
-            attributes:{
-              modal:true
-            }
-          },(btn,v)=>{
-              if(btn=='ok'&& v){
-                console.log('works')
-                setFile(v)
-                resolve(osjs.make('osjs/vfs').readfile(v, 'bin'));
-              }
-              else if((btn=='cancle'||btn=='destroy')){
-                reject("File not selected");
-              }
-              else{
-                reject("File not selected");
-              }
-            }
-          );
-        });
-
-      }
-
-      userOpenFile().then((data) => {
-        const textDecoder = new TextDecoder('utf-8');
-        const text = textDecoder.decode(data);
-        setText(text)
-        
-
-      }).catch((error) => {
-        console.log(error)
+        //opens vfs
+        osjs.make('osjs/dialog', 'file', options, {
+          parent: win,
+          attributes: {
+            modal: true
+          }
+        }, (btn, v) => {
+          if (btn == 'ok' && v) {
+            console.log('works')
+            setFile(v)
+            resolve(osjs.make('osjs/vfs').readfile(v, 'bin'));
+          }
+          else if ((btn == 'cancle' || btn == 'destroy')) {
+            reject("File not selected");
+          }
+          else {
+            reject("File not selected");
+          }
+        }
+        );
       });
+
+    }
+
+    userOpenFile().then((data) => {
+      //Decoding the selected file from ArrayBuffer
+      const textDecoder = new TextDecoder('utf-8');
+      const text = textDecoder.decode(data);
+      //sets Text which activates use effect
+      setText(text)
+
+
+    }).catch((error) => {
+      console.log(error)
+    });
   };
 
   useEffect(() => {
@@ -159,6 +172,8 @@ function App({ osjs, proc, core, socket, _, vfs, basic, win }) {
       socket.send(JSON.stringify({ type: 'close', room: curRoom, socket: socket, user: user }));
       setCode(null);
       setCurRoom('');
+      args = null
+      options = null
       setShowFileContainer(true);
       setText('')
       setFile()
@@ -177,7 +192,7 @@ function App({ osjs, proc, core, socket, _, vfs, basic, win }) {
       {showPopup && <Popup message={popupMessage} />}
       <Routes>
         <Route>
-          <Route path="/" element={<Home handleJoinRoomClick={handleJoinRoomClick} handleFileChange={handleFileChange} showFileContainer={showFileContainer} />} />
+          <Route path="/" element={<Home handleFileChange={handleFileChange} showFileContainer={showFileContainer} />} />
           <Route path='/Room' element={<Room handleCodeChange={handleCodeChange} onDisconnect={onDisconnect} code={code} userName={user} roomName={curRoom} handleEditorDidMount={handleEditorDidMount} language={language} />} />
         </Route>
       </Routes>

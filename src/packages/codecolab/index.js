@@ -10,11 +10,6 @@ const register = (core, args, options, metadata) => {
 
   // Create a new Application instance
   const proc = core.make('osjs/application', { args, options, metadata });
-  const _ = core.make('osjs/locale').translate;
-  const vfs = core.make('osjs/vfs');
-  const basic = core.make('osjs/basic-application', proc, win, {
-    defaultFilename: 'New File.txt'
-  });
   // Create  a new Window instance
   const win = proc.createWindow({
     id: 'codecolabWindow',
@@ -26,7 +21,13 @@ const register = (core, args, options, metadata) => {
   const $content = win.$content; // Assuming $content is the container where you want to render
   const root = createRoot($content);
   win.on('destroy', () => proc.destroy())
-  win.render( root.render(<BrowserRouter><App osjs={osjs} proc={proc} core={core} socket={proc.socket('/socket')} _={_} vfs={vfs} basic={basic} win={win}/></BrowserRouter>));
+  let socket = proc.socket('/socket')
+  console.log(socket)
+
+  if(!options.joinstate){
+    args=null
+  }
+  win.render( root.render(<BrowserRouter><App osjs={osjs} socket={socket} win={win} args={args} options={options.joinstate}/></BrowserRouter>));
   win.once('render', () => win.focus());
 
 

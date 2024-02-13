@@ -18,31 +18,4 @@
 
 <body>
 </body>
-<script>
-  document.addEventListener("DOMContentLoaded", function () {
-    setTimeout(function () {
-      // Get the current URL
-      const params = new Proxy(new URLSearchParams(window.location.search), {
-        get: (searchParams, prop) => searchParams.get(prop),
-      });
-      // Get the value using a key
-      let value = params.data;
-
-      //if the value is not null it means my application should be opened and 
-      if (value != null) {
-        const name = 'codecolab', args = {}, options = {};
-        OSjs.run(name, args, options);
-
-      }
-      else {
-        return
-      }
-
-
-    }, 1000);
-
-  });
-
-</script>
-
 </html>
