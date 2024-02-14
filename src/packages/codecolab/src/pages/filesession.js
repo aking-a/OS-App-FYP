@@ -1,5 +1,4 @@
 import React, {useState} from 'react';
-import styles from './Styles/Room.module.css'; // Import the CSS module
 import MonacoEditor from 'react-monaco-editor';
 import { Box, Button, Menu, MenuButton, MenuItem, MenuList, Text } from '@chakra-ui/react';
 
@@ -41,7 +40,6 @@ export function Room({ handleCodeChange, code, userName, roomName, onDisconnect,
         </button>
       </div>
       <div >
-        <Box bg='#1E1E1E'>
         <MonacoEditor
           width="800"
           height="600"
@@ -52,7 +50,6 @@ export function Room({ handleCodeChange, code, userName, roomName, onDisconnect,
           onChange={handleCodeChange}
           onMount={handleEditorDidMount}
         />
-        </Box>
        </div>
      </div>
   );
