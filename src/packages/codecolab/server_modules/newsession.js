@@ -1,4 +1,5 @@
 const sessions = require('./database.js')
+const crypto = require('crypto');
 class CreateNewSession {
     constructor(data) {
         this.data = data
@@ -29,7 +30,7 @@ class CreateNewSession {
     }
     getLanguage() {
         if (this.sessionID != null) {
-            const f_name = sessions[this.sessionID].sessionIden.file.filename
+            const f_name = sessions[this.sessionID].sessionIden.file.file.filename
             const extension = f_name.split('.').pop();
             switch (extension) {
                 case 'py': return 'python'; break;

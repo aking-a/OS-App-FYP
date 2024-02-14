@@ -1,1 +1,1 @@
-{"version":3,"file":"main.css","mappings":"AAAA;EACE;AACF,C","sources":["webpack://codecolab/./index.scss"],"sourcesContent":[".Window_codecolabWindow {\n  /* Your styles here */\n}\n"],"names":[],"sourceRoot":""}
+{"version":3,"file":"main.css","mappings":"AAAA;EACE;AACF,C","sources":["webpack://codecolab/./index.scss"],"sourcesContent":[".Window_codecolabWindow {\r\n  /* Your styles here */\r\n}\r\n"],"names":[],"sourceRoot":""}

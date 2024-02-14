@@ -1,13 +1,12 @@
-import React from 'react';
+import React, {useState} from 'react';
 import { userOpenFile } from '../utils/openfile.js';
 import { File } from '../data/file.js';
-import {Session} from '../data/sessionclass.js'
 import {getApp, useSetApp} from '../hooks/useSetApp.js'
 import GetUserName from '../utils/username/getusername.js';
 import StartFileShare from '../utils/socket/socketoutgoing.js'
+import {getSession,setSession} from '../utils/getsession.js'
 
 export function FileSelector() {
-
   async function clickevent() {
     const [file,data] = await userOpenFile().then((promise) => {
       return [promise.file,promise.result]
@@ -19,9 +18,11 @@ export function FileSelector() {
     const newfile = new File(file,text)
 
     const resource = getApp()
-    const socket = resource.socket
     const username = GetUserName()
-    const sessionId = new Session(file, socket, username)
+    const socket = resource.socket
+    
+    setSession(newfile, socket, username)
+    const sessionId = getSession()
     StartFileShare(sessionId)
 
 

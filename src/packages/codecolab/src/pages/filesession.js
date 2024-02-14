@@ -1,8 +1,9 @@
-import React, {useState} from 'react';
+import React from 'react';
 import MonacoEditor from 'react-monaco-editor';
-import { Box, Button, Menu, MenuButton, MenuItem, MenuList, Text } from '@chakra-ui/react';
+import {handleEditorDidMount} from '../utils/monaco/handleMount.js'
 
-export function Room({ handleCodeChange, code, userName, roomName, onDisconnect, handleEditorDidMount,language}) {
+
+export function FileSession() {
   const options = {
     selectOnLineNumbers: true,
     autoIndent: 'full',
@@ -26,31 +27,16 @@ export function Room({ handleCodeChange, code, userName, roomName, onDisconnect,
     automaticLayout: true,
   };
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <div className={styles['user-info']}>
-          <span className={styles['user-name']}>User: {userName}</span>
-          <span className={styles['room-name']}>Room: {roomName}</span>
-        </div>
-        <button
-          className={styles['disconnect-button']}
-          onClick={onDisconnect}
-        >
-          Disconnect
-        </button>
-      </div>
       <div >
         <MonacoEditor
           width="800"
           height="600"
-          language={language}
+          language= 'python'
           theme="vs-dark"
           value={code}
           options={options}
-          onChange={handleCodeChange}
           onMount={handleEditorDidMount}
         />
        </div>
-     </div>
   );
 }
