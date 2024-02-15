@@ -3,7 +3,7 @@ import { userOpenFile } from '../utils/openfile.js';
 import { File } from '../data/file.js';
 import {getApp, useSetApp} from '../hooks/useSetApp.js'
 import GetUserName from '../utils/username/getusername.js';
-import StartFileShare from '../utils/socket/socketoutgoing.js'
+import {StartFileShare} from '../utils/socket/socketoutgoing.js'
 import {getSession,setSession} from '../utils/getsession.js'
 
 export function FileSelector() {
@@ -23,6 +23,7 @@ export function FileSelector() {
     
     setSession(newfile, socket, username)
     const sessionId = getSession()
+    sessionId.setCode(sessionId.file.data)
     StartFileShare(sessionId)
 
 

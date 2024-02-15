@@ -1,9 +1,25 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import MonacoEditor from 'react-monaco-editor';
-import {handleEditorDidMount} from '../utils/monaco/handleMount.js'
-
+import DidMount from '../utils/monaco/handledidmount.js'
+import { getSession, setSession } from "../utils/getsession"
+import { CodeChange } from '../utils/socket/socketoutgoing.js'
+import { getApp } from '../hooks/useSetApp.js';
 
 export function FileSession() {
+  const [language, setLanguage] = useState('javascript')
+
+  useEffect(() => {
+    const session = getSession()
+    const editor = session.getData().editorRef
+    editor.setValue(session.code)
+
+    setLanguage(session.language)
+    editor.onDidChangeModelContent(() => {
+      CodeChange(editor.getValue(), session.socket, session.sessionID)
+    });
+  }, [DidMount])
+
+
   const options = {
     selectOnLineNumbers: true,
     autoIndent: 'full',
@@ -20,23 +36,22 @@ export function FileSession() {
       horizontalSliderSize: 4,
       verticalSliderSize: 18,
     },
-    selectOnLineNumbers: true,
     roundedSelection: false,
     readOnly: false,
     cursorStyle: 'line',
     automaticLayout: true,
   };
   return (
-      <div >
-        <MonacoEditor
-          width="800"
-          height="600"
-          language= 'python'
-          theme="vs-dark"
-          value={code}
-          options={options}
-          onMount={handleEditorDidMount}
-        />
-       </div>
+    <div >
+      <MonacoEditor
+        width="800"
+        height="600"
+        language={language}
+        theme="vs-dark"
+        value=''
+        options={options}
+        editorDidMount={DidMount}
+      />
+    </div>
   );
 }

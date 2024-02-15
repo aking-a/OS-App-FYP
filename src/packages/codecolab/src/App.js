@@ -1,31 +1,36 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { FileSelector } from './pages/fileselector.js';
 import { FileSession } from './pages/filesession.js';
 import { getApp, useSetApp } from './hooks/useSetApp.js';
 import useSocketListener from './hooks/useSocketListener.js'
-import {getSession,setSession} from './utils/getsession.js'
-import {nav} from './utils/nav.js'
+import { Joinlanding } from './pages/joinlanding.js';
+
 
 function App() {
     const navigate = useNavigate()
-    const session = getSession()
     const [socket, setSocket] = useState(null); // State to hold the socket instance
+    const [code, setCode] = useState('');
 
     useEffect(() => {
         setSocket(getApp().socket);
     }, []);
+    useEffect(() => {
+        if ((getApp().options.joinstate == true) && getApp().args != null) {
+            navigate('/Landing')
+        }
+    }, []);
 
-    useSocketListener(socket);
-    if(session.nav!=null){
-        console.log("ssdsdsdsd")
-    }
+    useSocketListener(socket, navigate);
+
+
 
     return (
         <Routes>
             <Route>
                 <Route path="/" element={<FileSelector />} />
                 <Route path="/Session" element={<FileSession />} />
+                <Route path="/Landing" element={<Joinlanding />} />
             </Route>
         </Routes>
     )

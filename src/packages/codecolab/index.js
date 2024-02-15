@@ -23,6 +23,7 @@ const register = (core, args, options, metadata) => {
     position: { left: 700, top: 200 }
   }).on('destroy', () => proc.destroy())
 
+
   const app_data = new AppData(win, args, options, proc, osjs, socket)
   useSetApp(app_data)
 

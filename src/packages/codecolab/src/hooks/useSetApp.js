@@ -4,7 +4,7 @@ function useSetApp(initVal) {
         val = initVal
     }
 }
-function getApp(initVal){
+function getApp(){
     return val
 }
 export {useSetApp,getApp}

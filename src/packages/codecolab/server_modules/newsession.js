@@ -1,21 +1,13 @@
-const sessions = require('./database.js')
-const crypto = require('crypto');
 class CreateNewSession {
     constructor(data) {
         this.data = data
-        this.sessionID = null
+        this.instance = null
+        this.language = null
     }
     createSession(ws) {
-        let inputId = crypto.randomUUID();
-        if (!sessions[inputId]) {
-            sessions[inputId] = { clients: [], sessionIden: this.data }
-            sessions[inputId].clients.push(ws)
-            sessions[inputId].clients[ws] = { owner: true }
-            this.sessionID = inputId
-
-            return inputId
-        }
-
+        this.instance = { clients: [], sessionIden: this.data }
+        this.instance.clients.push(ws)
+        this.instance.clients[ws] = { owner: true }
 
     }
     createShareLink(inputID) {
@@ -29,20 +21,19 @@ class CreateNewSession {
         return encodedURL;
     }
     getLanguage() {
-        if (this.sessionID != null) {
-            const f_name = sessions[this.sessionID].sessionIden.file.file.filename
-            const extension = f_name.split('.').pop();
-            switch (extension) {
-                case 'py': return 'python'; break;
-                case 'html': return 'html'; break;
-                case 'css': return 'css'; break;
-                case 'java': return 'java'; break;
-                case 'php': return 'php'; break;
-                case 'js': return 'javascript'; break;
-                case 'cs': return 'cs'; break;
-                default: return 'language not in mime type'
-            }
+        const f_name = this.instance.sessionIden.file.file.filename
+        const extension = f_name.split('.').pop();
+        switch (extension) {
+            case 'py': this.language = 'python'; return 'python'; break;
+            case 'html': this.language = 'html'; return 'html'; break;
+            case 'css': this.language = 'css'; return 'css'; break;
+            case 'java': this.language = 'java'; return 'java'; break;
+            case 'php': this.language = 'php'; return 'php'; break;
+            case 'js': this.language = 'javascript'; return 'javascript'; break;
+            case 'cs': this.language = 'cs'; return 'cs'; break;
+            default: this.language = 'notfound'; return 'notfound'
         }
+
     }
 }
 module.exports = CreateNewSession

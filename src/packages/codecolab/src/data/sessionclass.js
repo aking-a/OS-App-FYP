@@ -6,6 +6,9 @@ export class Session {
         this.language = null
         this.link = null
         this.nav = null
+        this.editorRef = null
+        this.sessionID = null
+        this.code = null
     }
     getData() {
         return {
@@ -15,6 +18,7 @@ export class Session {
             language:this.language,
             link:this.link,
             nav:this.nav,
+            editorRef:this.editorRef
         }
 
     }
@@ -26,5 +30,14 @@ export class Session {
     }
     setNav(nav){
         this.nav = nav
+    }
+    setEditor(editorRef){
+        this.editorRef = editorRef
+    }
+    setSessionID(sessionID){
+        this.sessionID = sessionID
+    }
+    setCode(code){
+        this.code = code
     }
 }
