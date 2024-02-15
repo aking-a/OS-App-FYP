@@ -36,8 +36,8 @@ module.exports = (core, proc) => {
 
             sessions[data.sessionID].session.instance.clients.forEach((client) => {
 
-              if (client !== ws) {
-                client.send(JSON.stringify({ type: 'incodechange', code: data.code }));
+              if (client != ws) {
+                ws.send(JSON.stringify({ type: 'incodechange', code: data.code }));
               }
             });
           }
@@ -49,6 +49,8 @@ module.exports = (core, proc) => {
               
               const code = sessions[data.sessionID].session.instance.sessionIden.file.data
               const language = sessions[data.sessionID].session.language
+
+              console.log(sessions[data.sessionID].session.instance.clients[1].owner,sessions[data.sessionID].session.instance.clients[0].owner)
               
               
               ws.send(JSON.stringify({ type: 'joinedsession', code: code,language:language}))

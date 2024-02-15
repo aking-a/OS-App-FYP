@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { getSession, setSession } from '../utils/getsession.js'
+import { incomingChange } from '../utils/monaco/handleChanges.js';
 
 const useSocketListener = (socket, navigate) => {
     useEffect(() => {
@@ -12,12 +13,12 @@ const useSocketListener = (socket, navigate) => {
                     session.setLink(data.sharelink)
                     session.setSessionID(data.sessionID)
                     console.log(data.sharelink)
-
                     navigate('/Session')
                 }
                 if (data.type === 'incodechange') {
-                    const editor = getSession().editorRef
-                    editor.setValue(data.code)
+                    //incomingChange(data.code)
+                    console.log(data.code)
+                    
                 }
                 if (data.type === 'joinedsession') {
                     const session = getSession()
@@ -25,6 +26,9 @@ const useSocketListener = (socket, navigate) => {
                     session.setCode(data.code)
 
                     navigate('/Session')
+                    setTimeout(()=>{
+                        console.log("hdhdhdhdhdhdh")
+                    },[1000])
 
                 }
 
