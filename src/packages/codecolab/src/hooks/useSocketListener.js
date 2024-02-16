@@ -45,8 +45,21 @@ const useSocketListener = (socket, navigate) => {
                         navigate('/')
                     }
                     else if (data.status == 'alert') {
-                        console.log("dhduhuhdufhdfhdufhfdu")
+                        const set1 = getSession().popupMessage
+                        const set2 = getSession().showPopup
+                        
+                        set1(data.username + " has left the session")
+                        set2(true)
+
                     }
+                }
+                if(data.type === 'joined'){
+                    const set1 = getSession().popupMessage
+                    const set2 = getSession().showPopup
+                    
+                    set1(data.username + " has joined the session")
+                    set2(true)
+
                 }
 
             };

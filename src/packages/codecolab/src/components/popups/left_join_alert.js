@@ -1,5 +1,5 @@
 import React from 'react';
-
+import styles from '../../assets/popup.module.css';
 function Popup({ message }) {
 
   const handleDisconnect = () => {
@@ -8,8 +8,8 @@ function Popup({ message }) {
   };
 
   return (
-    <div className={styles.popup}>
-      {message}
+    <div className={styles['popup-message']}>
+      <h2>{message}</h2>
     </div>
   );
 };

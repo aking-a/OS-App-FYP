@@ -7,6 +7,7 @@ import { BrowserRouter } from 'react-router-dom';
 import React from 'react';
 import { AppData } from './src/data/appdata.js';
 import {getApp, useSetApp} from './src/hooks/useSetApp.js'
+import {getSession} from './src/utils/getsession.js'
 
 // Our launcher
 const register = (core, args, options, metadata) => {
@@ -19,7 +20,7 @@ const register = (core, args, options, metadata) => {
     id: 'codecolabWindow',
     title: metadata.title.en_EN,
     icon: proc.resource(proc.metadata.icon),
-    dimension: { width: 400, height: 400 },
+    dimension: { width: 800, height: 600 },
     position: { left: 700, top: 200 }
   }).on('destroy', () => proc.destroy())
 

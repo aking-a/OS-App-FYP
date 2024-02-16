@@ -52,6 +52,15 @@ module.exports = (core, proc) => {
               const language = sessions[data.sessionID].session.language
 
               ws.send(JSON.stringify({ type: 'joinedsession', code: code, language: language }))
+
+              sessions[data.sessionID].session.instance.clients.forEach((client) => {
+                if (client !== ws) {
+
+                  client.send(JSON.stringify({ type: 'joined', username: data.username }));
+
+                }
+
+              });
             }
           }
           if (data.type === 'disconnect') {
@@ -70,7 +79,7 @@ module.exports = (core, proc) => {
               sessions[data.sessionID].session.instance.clients.forEach((client) => {
                 if (client !== ws) {
 
-                  client.send(JSON.stringify({ type: 'disconnected', status: 'alert' }))
+                  client.send(JSON.stringify({ type: 'disconnected', status: 'alert', username: data.username}))
 
                 }
                 if (client == ws) {

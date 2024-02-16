@@ -1,11 +1,12 @@
 .Window_codecolabWindow {
   /* Your styles here */
 }
+/* disconnectButton.module.css */
 .F0CrjgQQw0ouJzCZmkOP {
-  background-color: #4CAF50; /* Green */
+  background-color: #f44336; /* Red */
   border: none;
   color: white;
-  padding: 15px 32px;
+  padding: 5px 10px; /* Same size as the menu button */
   text-align: center;
   text-decoration: none;
   display: inline-block;
@@ -17,7 +18,75 @@
 }
 
 .F0CrjgQQw0ouJzCZmkOP:hover {
-  background-color: #45a049; /* Darker Green */
+  background-color: #d32f2f; /* Darker Red */
+}
+/* DropdownMenu.module.css */
+.LCusNOs6Ad5SlqOlCkfQ {
+  background-color: #7e7e7e; /* white */
+  color: #ffffff; /* dark grey */
+  border: none;
+  border-radius: 1px; /* slightly rounded edges */
+  padding: 5px 10px; /* smaller padding */
+  transition: background-color 0.3s ease;
+  display: inline-block;
+  font-size: 16px;
+  margin: 4px 2px;
+  border-radius: 5px;
+}
+
+.LCusNOs6Ad5SlqOlCkfQ:hover {
+  background-color: #474747; /* light grey */
+}
+
+.ErIuok7dTxc0fOkyGYkZ {
+  background-color: transparent; /* white */
+  border: none;
+  box-shadow: 0px 10px 20px rgba(0, 0, 0, 0.1); /* subtle box shadow */
+  margin-top: 10px;
+  transition: box-shadow 0.3s ease;
+  color: #000000; /* dark grey */
+}
+
+.ek0929FMF5w07QWKuZ8c {
+  padding: 5px 10px; /* smaller padding */
+  transition: background-color 0.3s ease;
+  color: #ffffff; /* dark grey */
+}
+
+.ek0929FMF5w07QWKuZ8c:hover {
+  background-color: #f6f6f6; /* light grey */
+}
+.omnpaUYbt7wGW3ymjYAW {
+  position: fixed;
+  width: 150px; /* Even smaller width */
+  padding: 5px; /* Even smaller padding */
+  bottom: 20px; /* Position at the bottom */
+  right: 20px; /* Position at the right */
+  background-color: rgba(255, 255, 255, 0.6); /* More transparent white */
+  border-radius: 10px;
+  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.25);
+  text-align: center;
+  z-index: 1000;
+}
+
+.omnpaUYbt7wGW3ymjYAW h2 {
+  margin: 0;
+  padding: 0;
+  color: #333;
+  font-size: 12px;
+}
+
+.omnpaUYbt7wGW3ymjYAW button:hover {
+  background-color: #555;
+}
+
+@keyframes jhAP9q3jPIo0ptKomU0c {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 /*# sourceMappingURL=main.css.map*/

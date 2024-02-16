@@ -1,0 +1,36 @@
+/* DropdownMenu.module.css */
+.menuButton {
+    background-color: #7e7e7e; /* white */
+    color: #ffffff; /* dark grey */
+    border: none;
+    border-radius: 1px; /* slightly rounded edges */
+    padding: 5px 10px; /* smaller padding */
+    transition: background-color 0.3s ease;
+    display: inline-block;
+    font-size: 16px;
+    margin: 4px 2px;
+    border-radius: 5px;
+  }
+  
+  .menuButton:hover {
+    background-color: #474747; /* light grey */
+  }
+  
+  .menuList {
+    background-color: transparent; /* white */
+    border: none;
+    box-shadow: 0px 10px 20px rgba(0, 0, 0, 0.1); /* subtle box shadow */
+    margin-top: 10px;
+    transition: box-shadow 0.3s ease;
+    color: #000000; /* dark grey */
+  }
+  
+  .menuItem {
+    padding: 5px 10px; /* smaller padding */
+    transition: background-color 0.3s ease;
+    color: #ffffff; /* dark grey */
+  }
+  
+  .menuItem:hover {
+    background-color: #f6f6f6; /* light grey */
+  }

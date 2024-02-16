@@ -10,6 +10,8 @@ export class Session {
         this.sessionID = null
         this.code = null
         this.state = null
+        this.showPopup = false
+        this.popupMessage = null
     }
     getData() {
         return {
@@ -43,6 +45,12 @@ export class Session {
     }
     setState(state){
         this.state = state
+    }
+    setPopupMessage(popupMessage){
+        this.popupMessage = popupMessage
+    }
+    setShowPopup(showPopup){
+        this.showPopup = showPopup
     }
  
 }
