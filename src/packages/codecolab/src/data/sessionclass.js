@@ -9,6 +9,7 @@ export class Session {
         this.editorRef = null
         this.sessionID = null
         this.code = null
+        this.state = null
     }
     getData() {
         return {
@@ -40,4 +41,8 @@ export class Session {
     setCode(code){
         this.code = code
     }
+    setState(state){
+        this.state = state
+    }
+ 
 }

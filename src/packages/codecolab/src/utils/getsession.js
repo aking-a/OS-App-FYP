@@ -6,4 +6,7 @@ function setSession(file,socket,username){
 function getSession(){
     return instance
 }
-export {setSession,getSession}
+function Terminate(){
+    instance = ''
+}
+export {setSession,getSession, Terminate}

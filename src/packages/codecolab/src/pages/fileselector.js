@@ -24,7 +24,7 @@ export function FileSelector() {
     setSession(newfile, socket, username)
     const sessionId = getSession()
     sessionId.setCode(sessionId.file.data)
-    StartFileShare(sessionId)
+    StartFileShare(sessionId,username)
 
 
 

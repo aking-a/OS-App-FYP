@@ -7,7 +7,6 @@ class CreateNewSession {
     createSession(ws) {
         this.instance = { clients: [], sessionIden: this.data }
         this.instance.clients.push(ws)
-        this.instance.clients[ws] = { owner: true }
 
     }
     createShareLink(inputID) {

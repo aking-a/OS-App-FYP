@@ -15,7 +15,7 @@ export function Joinlanding() {
 
                 setTimeout(()=>{
                     const args = getApp().args
-                    JoinSession(socket, args)
+                    JoinSession(socket, args,username)
                 },[2000])
     return (
 

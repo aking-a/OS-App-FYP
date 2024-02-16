@@ -2,26 +2,24 @@ import React, { useEffect, useState, useRef } from 'react';
 import MonacoEditor from 'react-monaco-editor';
 import DidMount from '../utils/monaco/handledidmount.js'
 import { getSession, setSession } from "../utils/getsession"
-import { clientChange,incomingChange } from '../utils/monaco/handleChanges.js';
+import { clientChange} from '../utils/monaco/handleChanges.js';
+import  DisconnectButton from '../components/buttons/disconnect.js'
 
 export function FileSession() {
   const editorRef = useRef(null)
   const [language, setLanguage] = useState('javascript')
-  const [userChange, setUserChange] = useState(true); 
+  const [userChange, setUserChange] = useState(true);
   const [code, setCode] = useState('')
 
   useEffect(() => {
     const session = getSession()
+    session.setState(setCode)
     const editor = session.getData().editorRef
     setCode(session.code)
     setLanguage(session.language)
 
   }, [DidMount])
 
-  useEffect(()=>{
-    const session = getSession()
-    setCode(session.code)
-  },[incomingChange])
 
 
   const options = {
@@ -46,7 +44,11 @@ export function FileSession() {
     automaticLayout: true,
   };
   return (
+
     <div >
+      <div>
+        <DisconnectButton></DisconnectButton>
+      </div>
       <MonacoEditor
         width="800"
         height="600"

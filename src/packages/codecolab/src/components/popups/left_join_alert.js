@@ -1,8 +1,14 @@
 import React from 'react';
 
-const Popup = ({ message }) => {
+function Popup({ message }) {
+
+  const handleDisconnect = () => {
+    // Disconnect logic goes here
+    setConnected(false);
+  };
+
   return (
-    <div className={styles.popup}> {/* Use the CSS Module class */}
+    <div className={styles.popup}>
       {message}
     </div>
   );

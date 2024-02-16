@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
-import { getSession, setSession } from '../utils/getsession.js'
+import { getSession, Terminate } from '../utils/getsession.js'
 import { incomingChange } from '../utils/monaco/handleChanges.js';
+import { getApp } from './useSetApp.js';
 
 const useSocketListener = (socket, navigate) => {
     useEffect(() => {
@@ -16,9 +17,9 @@ const useSocketListener = (socket, navigate) => {
                     navigate('/Session')
                 }
                 if (data.type === 'incodechange') {
-                    //incomingChange(data.code)
-                    console.log(data.code)
-                    
+                    incomingChange(data.code)
+
+
                 }
                 if (data.type === 'joinedsession') {
                     const session = getSession()
@@ -26,10 +27,26 @@ const useSocketListener = (socket, navigate) => {
                     session.setCode(data.code)
 
                     navigate('/Session')
-                    setTimeout(()=>{
-                        console.log("hdhdhdhdhdhdh")
-                    },[1000])
-
+                }
+                if (data.type === 'disconnected') {
+                    console.log(data.status)
+                    if (data.status == 'true') {
+                        console.log("trueact")
+                        Terminate()
+                        getApp().options = {}
+                        getApp().args = null
+                        navigate('/')
+                    }
+                    else if (data.status == 'false') {
+                        console.log("falseact")
+                        Terminate()
+                        getApp().options = {}
+                        getApp().args = null
+                        navigate('/')
+                    }
+                    else if (data.status == 'alert') {
+                        console.log("dhduhuhdufhdfhdufhfdu")
+                    }
                 }
 
             };
