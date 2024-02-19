@@ -1,25 +1,45 @@
-const { ServiceProvider } = require('@osjs/common');
-const Watcher = require('./src/watcher.js');
+/*
+For more information about service providers, visit:
+- https://manual.os-js.org/tutorial/provider/
+- https://manual.os-js.org/guide/provider/
+- https://manual.os-js.org/development/
+*/
+class LinkHandlerServiceProvider {
 
-class WatcherService extends ServiceProvider {
-    constructor(core) {
-        super(core);
+  /**
+   * Constructor
+   * @param {Core} core Core reference
+   */
+  constructor(core, options = {}) {
+    /**
+     * Core instance reference
+     * @type {Core}
+     */
+    this.core = core;
+    this.options = options;
+  }
 
-        this.watch = new Watcher(core);
-    }
+  /**
+   * A list of services this provider can create
+   * @desc Used for resolving a dependency graph
+   * @return {string[]}
+   */
+  provides() {
+    return [
 
-    destroy() {
-        super.destroy();
-        this.watch.destroy();
-    }
+    ];
+  }
 
-    async init() {
-        const app = this.core.make('osjs/express')
+  /**
+   * Initializes provider
+   */
+  init() {
+    const app = this.core.make('osjs/express')
 
-        app.route('get', '/open', (req, res) => {
-            let data = req.query.data;
-            let ans = decodeURIComponent(data);
-            let page = `<!DOCTYPE html>
+    app.route('get', '/open', (req, res) => {
+      let data = req.query.data;
+      let ans = decodeURIComponent(data);
+      let page = `<!DOCTYPE html>
             <html lang="en">
             <head>
                 <meta charset="UTF-8">
@@ -71,9 +91,22 @@ class WatcherService extends ServiceProvider {
                 </script>
             </body>
             </html>`
-            res.send(page);
-        })
-    }
+      res.send(page);
+    })
+  }
+
+  /**
+   * Starts provider
+   */
+  start() {
+  }
+
+  /**
+   * Destroys provider
+   */
+  destroy() {
+  }
+
 }
 
-module.exports = WatcherService;
+module.exports = LinkHandlerServiceProvider;
