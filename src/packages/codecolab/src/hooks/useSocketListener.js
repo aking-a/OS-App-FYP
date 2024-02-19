@@ -12,9 +12,11 @@ const useSocketListener = (socket, navigate) => {
                     const session = getSession()
                     session.setLanguage(data.language)
                     session.setLink(data.sharelink)
+                    session.setIsVisible(true)
                     session.setSessionID(data.sessionID)
-                    console.log(data.sharelink)
+
                     navigate('/Session')
+
                 }
                 if (data.type === 'incodechange') {
                     incomingChange(data.code)
@@ -25,6 +27,7 @@ const useSocketListener = (socket, navigate) => {
                     const session = getSession()
                     session.setLanguage(data.language)
                     session.setCode(data.code)
+                    session.setIsVisible(false)
 
                     navigate('/Session')
                 }
@@ -47,18 +50,20 @@ const useSocketListener = (socket, navigate) => {
                     else if (data.status == 'alert') {
                         const set1 = getSession().popupMessage
                         const set2 = getSession().showPopup
-                        
+
                         set1(data.username + " has left the session")
                         set2(true)
 
                     }
                 }
-                if(data.type === 'joined'){
+                if (data.type === 'joined') {
                     const set1 = getSession().popupMessage
                     const set2 = getSession().showPopup
-                    
+                    const set3 = getSession().isVisible
+
                     set1(data.username + " has joined the session")
                     set2(true)
+                    set3(false)
 
                 }
 

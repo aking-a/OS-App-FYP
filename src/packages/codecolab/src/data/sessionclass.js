@@ -4,14 +4,15 @@ export class Session {
         this.socket = socket
         this.username = username
         this.language = null
-        this.link = null
+        this.sharelink = null
         this.nav = null
         this.editorRef = null
         this.sessionID = null
         this.code = null
         this.state = null
-        this.showPopup = false
+        this.showPopup = null
         this.popupMessage = null
+        this.isVisible = null
     }
     getData() {
         return {
@@ -25,8 +26,8 @@ export class Session {
         }
 
     }
-    setLink(link){
-        this.link = link
+    setLink(sharelink){
+        this.sharelink = sharelink
     }
     setLanguage(language){
         this.language = language
@@ -51,6 +52,9 @@ export class Session {
     }
     setShowPopup(showPopup){
         this.showPopup = showPopup
+    }
+    setIsVisible(isVisible){
+        this.isVisible = isVisible
     }
  
 }

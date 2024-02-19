@@ -2,6 +2,7 @@ import { getSession,setSession } from "../getsession"
 import { CodeChange } from '../socket/socketoutgoing.js'
 
 function clientChange(){
+    console.log("change")
     const session = getSession()
     const editor = session.editorRef
     CodeChange(editor.getValue(), session.socket, session.sessionID)

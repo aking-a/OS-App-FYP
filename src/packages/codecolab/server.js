@@ -32,7 +32,8 @@ module.exports = (core, proc) => {
 
           }
           if (data.type === 'codechange') {
-
+            console.log("mmskdmdksdmdksmkmsdkds")
+            sessions[data.sessionID].session.instance.sessionIden.file.data = data.code
 
             sessions[data.sessionID].session.instance.clients.forEach((client) => {
               if (client !== ws) {
@@ -49,6 +50,7 @@ module.exports = (core, proc) => {
               sessions[data.sessionID].session.instance.clients.push(ws)
 
               const code = sessions[data.sessionID].session.instance.sessionIden.file.data
+              console.log(code)
               const language = sessions[data.sessionID].session.language
 
               ws.send(JSON.stringify({ type: 'joinedsession', code: code, language: language }))
