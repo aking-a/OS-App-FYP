@@ -2,7 +2,7 @@ const { cli } = require('webpack');
 const CreateNewSession = require('./server_modules/newsession.js')
 const crypto = require('crypto');
 const sessions = {}
-
+const userList = {}
 module.exports = (core, proc) => {
   const { routeAuthenticated } = core.make('osjs/express');
 
@@ -19,7 +19,7 @@ module.exports = (core, proc) => {
             let inputID = crypto.randomUUID();
 
             if (!sessions[inputID]) {
-
+              userList[inputID] = {usernames:[]}
               sessions[inputID] = { session: '' }
               const session = new CreateNewSession(data.sessionIden)
               session.createSession(ws)
@@ -47,6 +47,7 @@ module.exports = (core, proc) => {
           if (data.type === 'joinsession') {
 
             if (sessions[data.sessionID]) {
+              userList[data.sessionID].usernames.push(data.username)
               sessions[data.sessionID].session.instance.clients.push(ws)
 
               const code = sessions[data.sessionID].session.instance.sessionIden.file.data
@@ -58,11 +59,12 @@ module.exports = (core, proc) => {
               sessions[data.sessionID].session.instance.clients.forEach((client) => {
                 if (client !== ws) {
 
-                  client.send(JSON.stringify({ type: 'joined', username: data.username }));
+                  client.send(JSON.stringify({ type: 'joined', username: data.username}));
 
                 }
 
               });
+              sessions[data.sessionID].session.instance.clients[0].send(JSON.stringify({ type: 'userlist', username: data.username, userList: userList[data.sessionID].usernames}));
             }
           }
           if (data.type === 'disconnect') {

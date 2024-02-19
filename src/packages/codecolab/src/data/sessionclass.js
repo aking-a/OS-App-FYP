@@ -13,6 +13,7 @@ export class Session {
         this.showPopup = null
         this.popupMessage = null
         this.isVisible = null
+        this.UserList= null
     }
     getData() {
         return {
@@ -55,6 +56,9 @@ export class Session {
     }
     setIsVisible(isVisible){
         this.isVisible = isVisible
+    }
+    setUserList(UserList){
+        this.UserList = UserList
     }
  
 }

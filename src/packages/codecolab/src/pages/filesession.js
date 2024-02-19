@@ -9,11 +9,11 @@ import { getApp } from '../hooks/useSetApp.js';
 import Popup from '../components/popups/left_join_alert.js';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faClipboard, faCheck } from '@fortawesome/free-solid-svg-icons';
-import { userOpenFile } from '../utils/openfile.js';
+
 
 export function FileSession() {
   const editorRef = useRef(null);
-  const [language, setLanguage] = useState('javascript')
+  const [language, setLanguage] = useState('')
   const [userChange, setUserChange] = useState(true);
   const [code, setCode] = useState('')
   const [user, setUser] = useState('')
@@ -45,7 +45,6 @@ export function FileSession() {
     editorRef.current = editor
     setCode(session.code)
     setLanguage(session.language)
-
     session.setPopupMessage(setPopupMessage)
     session.setShowPopup(setShowPopup)
 
@@ -54,6 +53,7 @@ export function FileSession() {
       setLink(session.sharelink)
     }
 
+
   }, [DidMount])
 
 
@@ -61,24 +61,6 @@ export function FileSession() {
     editorRef.current.layout({ width: dimension.width, height: dimension.height });
   })
 
-  const handleSelect = (option) => {
-    if (option.label === 'open') {
-      userOpenFile().then((promise) => {
-        const file = promise.file
-        const data = promise.result
-        const textDecoder = new TextDecoder('utf-8');
-        const text = textDecoder.decode(data);
-        const session = getSession()
-        session.file = file
-        session.code = text
-        setCode(text)
-        clientChange()
-      }).catch((error) => {
-        console.log(error)
-      });
-      
-    }
-  };
   useEffect(() => {
     if (showPopup) {
 
@@ -88,7 +70,7 @@ export function FileSession() {
     }
   }, [showPopup]);
 
-  const params = {
+  const options = {
     selectOnLineNumbers: true,
     autoIndent: 'full',
     contextmenu: true,
@@ -110,18 +92,11 @@ export function FileSession() {
     automaticLayout: true,
   };
 
-  const options = [
-    { id: 1, label: 'save' },
-    { id: 2, label: 'open' },
-    { id: 3, label: 'user list' },
-  ];
-
   return (
     <div>
       <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', backgroundColor: '#1E1E1E', border: '3px solid #808080' }}>
-        {isVisible &&(<DropdownMenu
-          options={options}
-          handleSelect={handleSelect}
+        {isVisible && (<DropdownMenu
+          
         />)}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <p style={{ margin: '0 10px', color: '#fff' }}>username: {user}</p>

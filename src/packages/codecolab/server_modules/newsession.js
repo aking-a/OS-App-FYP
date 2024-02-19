@@ -29,7 +29,7 @@ class CreateNewSession {
             case 'java': this.language = 'java'; return 'java'; break;
             case 'php': this.language = 'php'; return 'php'; break;
             case 'js': this.language = 'javascript'; return 'javascript'; break;
-            case 'cs': this.language = 'cs'; return 'cs'; break;
+            case 'cs': this.language = 'csharp'; return 'csharp'; break;
             default: this.language = 'notfound'; return 'notfound'
         }
 

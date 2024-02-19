@@ -36,7 +36,7 @@ module.exports = {
       chunkFilename: '[id].css'
     }),
     new MonacoWebpackPlugin({
-      languages: ['json','java','python','css','javascript','cs']
+      languages: ['json','java','python','css','javascript','csharp','html','php']
     }),
     ...plugins
   ],

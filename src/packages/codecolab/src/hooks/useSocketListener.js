@@ -10,6 +10,7 @@ const useSocketListener = (socket, navigate) => {
                 const data = JSON.parse(event.data);
                 if (data.type === 'sessioncreated') {
                     const session = getSession()
+
                     session.setLanguage(data.language)
                     session.setLink(data.sharelink)
                     session.setIsVisible(true)
@@ -32,16 +33,16 @@ const useSocketListener = (socket, navigate) => {
                     navigate('/Session')
                 }
                 if (data.type === 'disconnected') {
-                    console.log(data.status)
+     
                     if (data.status == 'true') {
-                        console.log("trueact")
+              
                         Terminate()
                         getApp().options = {}
                         getApp().args = null
                         navigate('/')
                     }
                     else if (data.status == 'false') {
-                        console.log("falseact")
+             
                         Terminate()
                         getApp().options = {}
                         getApp().args = null
@@ -59,12 +60,15 @@ const useSocketListener = (socket, navigate) => {
                 if (data.type === 'joined') {
                     const set1 = getSession().popupMessage
                     const set2 = getSession().showPopup
-                    const set3 = getSession().isVisible
 
                     set1(data.username + " has joined the session")
                     set2(true)
-                    set3(false)
 
+                }
+                if (data.type === 'userlist') {
+                    const session = getSession()
+                    const set1 = session.UserList
+                    set1(data.userList)
                 }
 
             };
