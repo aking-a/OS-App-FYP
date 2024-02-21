@@ -122,5 +122,32 @@
     opacity: 0;
   }
 }
+@keyframes CEdhbyGgLiHoi9hhGGU9 {
+  0% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.HgnuRq1mX4Mq6CGnuVTb {
+  animation: CEdhbyGgLiHoi9hhGGU9 1s infinite;
+  font-size: 24px; /* increase the size */
+  font-family: "Arial", sans-serif; /* change the font */
+  font-weight: bold; /* make the text bold */
+}
+
+.DHPtFMBjWlM4mrSNMFCC {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: row;
+  gap: 5px;
+  width: 800px;
+  height: 600px;
+}
 
 /*# sourceMappingURL=main.css.map*/

@@ -3,6 +3,7 @@ import { JoinSession } from '../utils/socket/socketoutgoing.js'
 import GetUserName from '../utils/username/getusername.js'
 import {getSession,setSession} from '../utils/getsession.js'
 import { getApp, useSetApp } from '../hooks/useSetApp.js';
+import styles from '../assets/landing.module.css';
 
 export function Joinlanding() {
                 
@@ -16,9 +17,10 @@ export function Joinlanding() {
                 setTimeout(()=>{
                     const args = getApp().args
                     JoinSession(socket, args,username)
-                },[2000])
+                },[3000])
     return (
-        <div>
+        <div className={styles.container}> 
+            <p className={styles.loadingIcon}>Loading...</p>
         </div>
     );
 }
