@@ -18,9 +18,7 @@ export function Joinlanding() {
                     JoinSession(socket, args,username)
                 },[2000])
     return (
-
-        <div className="container">
-            hello man whats up
+        <div>
         </div>
     );
 }

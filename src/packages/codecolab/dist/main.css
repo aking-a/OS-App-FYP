@@ -1,6 +1,40 @@
 .Window_codecolabWindow {
   /* Your styles here */
 }
+.d9xrBRfGqN2yJsNOYz6o {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: row;
+  gap: 5px;
+  width: 800px;
+  height: 600px;
+}
+
+.nKp6ZNuRxkekgPObXbXk {
+  padding: 10px 20px;
+  font-size: 16px;
+  border-radius: 5px;
+  border: none;
+  cursor: pointer;
+  background-color: transparent; /* no background */
+  color: white;
+  box-shadow: none; /* no box shadow */
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.nKp6ZNuRxkekgPObXbXk:hover {
+  background-color: transparent;
+  box-shadow: none;
+}
+
+.FlPozyRZ3lQ3QlPuE5QC {
+  font-size: 20px;
+  color: #333;
+  margin-right: 10px;
+  font-family: "Arial", sans-serif; /* use Arial font */
+  font-weight: bold; /* make the text bold */
+}
 /* disconnectButton.module.css */
 .F0CrjgQQw0ouJzCZmkOP {
   background-color: #f44336; /* Red */

@@ -65,11 +65,6 @@ const useSocketListener = (socket, navigate) => {
                     set2(true)
 
                 }
-                if (data.type === 'userlist') {
-                    const session = getSession()
-                    const set1 = session.UserList
-                    set1(data.userList)
-                }
 
             };
             socket.on('message', handleSocketData);

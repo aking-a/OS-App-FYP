@@ -6,7 +6,7 @@ import { getSession } from '../../utils/getsession.js';
 import { getApp } from '../../hooks/useSetApp.js'
 
 export default function DropdownMenu() {
-    const [userList, setUserList] = useState('No users have joined the sesstion yet') // [user, setUser] = ['' , function(){}]
+
     const options = [
         { id: 1, label: 'save' },
         { id: 3, label: 'user list' },
@@ -16,27 +16,10 @@ export default function DropdownMenu() {
             userSaveFile()
         }
         if (option.label === 'user list') {
-            const session = getSession()
-            session.setUserList(setUserList)
-            const proc = getApp().proc
-            const win = proc.createWindow({
-                id: 'userListWindow',
-                title: 'User List',
-                dimension: { width: 100, height: 400 },
-                position: { left: 100, top: 200 }
-              }).on('destroy',() => proc.destroy())
-
-            win.render($content => {
-                Object.values(userList).forEach(value => {
-                  $content.appendChild(document.createTextNode(value));
-                })
-            })
+            
         }
     };
-    useEffect(() => {
-        if (userList !== '') {
-        }
-    }, [userList])
+
     return (
         <Box>
             <Menu>
