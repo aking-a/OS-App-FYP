@@ -36,7 +36,7 @@ module.exports = {
       chunkFilename: '[id].css'
     }),
     new MonacoWebpackPlugin({
-      languages: ['json','java','python','css','javascript','cs']
+      languages: ['json','java','python','css','javascript','csharp','html','php']
     }),
     ...plugins
   ],
@@ -70,10 +70,12 @@ module.exports = {
         test: /\.js$/,
         exclude: /(node_modules|bower_components)/,
         use: {
-          loader: 'babel-loader'
+          loader: 'babel-loader',
+          options: {
+            presets: ['@babel/preset-env', '@babel/preset-react']
+          }
         }
-      },
-      
+      }
     ]
   }
 };

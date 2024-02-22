@@ -1,184 +1,153 @@
-/*!*********************************************************************************************************************************************************************!*\
-  !*** css ./node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[0].use[1]!./node_modules/sass-loader/dist/cjs.js??ruleSet[1].rules[0].use[2]!./src/Styles/App.css ***!
-  \*********************************************************************************************************************************************************************/
-.container {
+.Window_codecolabWindow {
+  /* Your styles here */
+}
+.d9xrBRfGqN2yJsNOYz6o {
   display: flex;
-  flex-direction: column;
+  justify-content: center;
   align-items: center;
-  font-family: Arial, sans-serif;
-  background-color: #f4f4f4;
-  margin: 0;
-  height: 100vh;
+  flex-direction: row;
+  gap: 5px;
+  width: 800px;
+  height: 600px;
 }
 
-.input-container {
-  display: flex;
-  align-items: center;
-  margin: 10px 0;
-}
-
-input {
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-}
-
-button {
+.nKp6ZNuRxkekgPObXbXk {
   padding: 10px 20px;
-  background-color: #007bff;
-  color: white;
-  border: none;
+  font-size: 16px;
   border-radius: 5px;
-  cursor: pointer;
-  margin-left: 10px;
-}
-
-.container {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-.header {
-  background-color: #333;
-  color: #fff;
-  display: flex;
-  justify-content: space-between;
-  padding: 10px;
-}
-
-.user-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.user-name,
-.room-name {
-  margin: 4px 0;
-}
-
-.disconnect-button {
-  background-color: red;
-  color: #fff;
-  padding: 5px 10px;
   border: none;
   cursor: pointer;
-  transition: background-color 0.3s;
+  background-color: transparent; /* no background */
+  color: white;
+  box-shadow: none; /* no box shadow */
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-.disconnect-button:hover {
-  background-color: darkred;
+.nKp6ZNuRxkekgPObXbXk:hover {
+  background-color: transparent;
+  box-shadow: none;
 }
 
-.editor-container {
-  flex: 1;
+.FlPozyRZ3lQ3QlPuE5QC {
+  font-size: 20px;
+  color: #333;
+  margin-right: 10px;
+  font-family: "Arial", sans-serif; /* use Arial font */
+  font-weight: bold; /* make the text bold */
 }
-
-.editor {
-  width: 100%;
-  height: 100%;
-  border: 1px solid #ccc;
-  resize: none;
-  padding: 10px;
-}
-/*!*****************************************************************************************************************************************************************************!*\
-  !*** css ./node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[0].use[1]!./node_modules/sass-loader/dist/cjs.js??ruleSet[1].rules[0].use[2]!./src/Styles/home.module.css ***!
-  \*****************************************************************************************************************************************************************************/
-.KqcXw5lbjBNwNWImJE5Q {
-  background-color: #c5c5c5;
+/* disconnectButton.module.css */
+.F0CrjgQQw0ouJzCZmkOP {
+  background-color: #f44336; /* Red */
   border: none;
   color: white;
-  padding: 10px 20px;
+  padding: 5px 10px; /* Same size as the menu button */
   text-align: center;
   text-decoration: none;
   display: inline-block;
   font-size: 16px;
   margin: 4px 2px;
   cursor: pointer;
-  border-radius: 4px;
-}
-/*!*****************************************************************************************************************************************************************************!*\
-  !*** css ./node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[0].use[1]!./node_modules/sass-loader/dist/cjs.js??ruleSet[1].rules[0].use[2]!./src/Styles/Room.module.css ***!
-  \*****************************************************************************************************************************************************************************/
-.OR38SaN5EWZjgBUM_pAk {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-.oMB76nbTUdnNdTf3pAqJ {
-  background-color: #333;
-  color: #fff;
-  display: flex;
-  justify-content: space-between;
-  padding: 10px;
-}
-
-.BiOik3BH1JsUB6_FJQ9f {
-  display: flex;
-  flex-direction: column;
-}
-
-.yqZetEmrsSbGsn0VvtDj,
-.XAvz_TegSka443Hhr6i2 {
-  margin: 4px 0;
-}
-
-.UWMTPka4phiP3PFZfUUM {
-  background-color: red;
-  color: #fff;
-  padding: 5px 10px;
-  border: none;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
-
-.UWMTPka4phiP3PFZfUUM:hover {
-  background-color: darkred;
-}
-
-.MhRMJpK0atNKGuWRwXCL {
-  flex: 1;
-}
-
-.aKKQ4c2fEvTeEZTBlFM_ {
-  display: flex;
-  flex-direction: column; /* or row, depending on your layout */
-  width: 100%;
-  height: 100%;
-}
-
-.HY8jXze19xJ9ho7FbEXK {
-  width: 100%;
-  height: 100%;
-  border: 1px solid #ccc;
-  resize: none;
-  padding: 10px;
-}
-/*!******************************************************************************************************************************************************************************!*\
-  !*** css ./node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[0].use[1]!./node_modules/sass-loader/dist/cjs.js??ruleSet[1].rules[0].use[2]!./src/Styles/popup.module.css ***!
-  \******************************************************************************************************************************************************************************/
-.LJfImPr_NkoP8UM7foeu {
-  position: fixed;
-  top: 10px;
-  right: 10px;
-  background-color: #333;
-  color: white;
-  padding: 10px;
   border-radius: 5px;
-  box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.3);
-  animation: htSRflIMzzAgNu32Kc4f 5s;
+  transition: background-color 0.3s ease;
 }
 
-@keyframes htSRflIMzzAgNu32Kc4f {
+.F0CrjgQQw0ouJzCZmkOP:hover {
+  background-color: #d32f2f; /* Darker Red */
+}
+/* DropdownMenu.module.css */
+.LCusNOs6Ad5SlqOlCkfQ {
+  background-color: #7e7e7e; /* white */
+  color: #ffffff; /* dark grey */
+  border: none;
+  border-radius: 1px; /* slightly rounded edges */
+  padding: 5px 10px; /* smaller padding */
+  transition: background-color 0.3s ease;
+  display: inline-block;
+  font-size: 16px;
+  margin: 4px 2px;
+  border-radius: 5px;
+}
+
+.LCusNOs6Ad5SlqOlCkfQ:hover {
+  background-color: #474747; /* light grey */
+}
+
+.ErIuok7dTxc0fOkyGYkZ {
+  background-color: transparent; /* white */
+  border: none;
+  box-shadow: 0px 10px 20px rgba(0, 0, 0, 0.1); /* subtle box shadow */
+  margin-top: 10px;
+  transition: box-shadow 0.3s ease;
+  color: #000000; /* dark grey */
+}
+
+.ek0929FMF5w07QWKuZ8c {
+  padding: 5px 10px; /* smaller padding */
+  transition: background-color 0.3s ease;
+  color: #ffffff; /* dark grey */
+}
+
+.ek0929FMF5w07QWKuZ8c:hover {
+  background-color: #f6f6f6; /* light grey */
+}
+.omnpaUYbt7wGW3ymjYAW {
+  position: fixed;
+  width: 150px; /* Even smaller width */
+  padding: 5px; /* Even smaller padding */
+  bottom: 20px; /* Position at the bottom */
+  right: 20px; /* Position at the right */
+  background-color: rgba(255, 255, 255, 0.6); /* More transparent white */
+  border-radius: 10px;
+  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.25);
+  text-align: center;
+  z-index: 1000;
+}
+
+.omnpaUYbt7wGW3ymjYAW h2 {
+  margin: 0;
+  padding: 0;
+  color: #333;
+  font-size: 12px;
+}
+
+.omnpaUYbt7wGW3ymjYAW button:hover {
+  background-color: #555;
+}
+
+@keyframes jhAP9q3jPIo0ptKomU0c {
   0% {
     opacity: 1;
   }
   100% {
     opacity: 0;
   }
+}
+@keyframes CEdhbyGgLiHoi9hhGGU9 {
+  0% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.HgnuRq1mX4Mq6CGnuVTb {
+  animation: CEdhbyGgLiHoi9hhGGU9 1s infinite;
+  font-size: 24px; /* increase the size */
+  font-family: "Arial", sans-serif; /* change the font */
+  font-weight: bold; /* make the text bold */
+}
+
+.DHPtFMBjWlM4mrSNMFCC {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: row;
+  gap: 5px;
+  width: 800px;
+  height: 600px;
 }
 
 /*# sourceMappingURL=main.css.map*/

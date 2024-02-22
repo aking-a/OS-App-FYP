@@ -1,0 +1,33 @@
+.container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: row;
+  gap: 5px;
+  width: 800px;
+  height: 600px;
+}
+
+.button {
+  padding: 10px 20px;
+  font-size: 16px;
+  border-radius: 5px;
+  border: none;
+  cursor: pointer;
+  background-color: transparent; /* no background */
+  color: white;
+  box-shadow: none; /* no box shadow */
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.button:hover {
+  background-color: transparent;
+  box-shadow: none;
+}
+.paragraph {
+  font-size: 20px;
+  color: #333;
+  margin-right: 10px;
+  font-family: 'Arial', sans-serif; /* use Arial font */
+  font-weight: bold; /* make the text bold */
+}

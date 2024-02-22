@@ -49,16 +49,16 @@ const {
   SettingsServiceProvider
 } = require('@osjs/server');
 
-const Watcher= require('./providers/watcher.js');
 const config = require('./config.js');
 const osjs = new Core(config, {});
+const LinkHandlerServiceProvider = require('./providers/LinkHandler.js');
 
 osjs.register(CoreServiceProvider, {before: true});
 osjs.register(PackageServiceProvider);
 osjs.register(VFSServiceProvider);
 osjs.register(AuthServiceProvider);
 osjs.register(SettingsServiceProvider);
-osjs.register(Watcher);
+osjs.register(LinkHandlerServiceProvider);
 
 const shutdown = signal => (error) => {
   if (error instanceof Error) {
