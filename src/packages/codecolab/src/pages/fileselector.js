@@ -9,28 +9,30 @@ import styles from '../assets/button.module.css';
 import { Menu, MenuButton, MenuList, MenuItem, Button, Box } from "@chakra-ui/react";
 
 export function FileSelector() {
+
   async function clickevent() {
-    const [file, data] = await userOpenFile().then((promise) => {
-      return [promise.file, promise.result]
-    }).catch((error) => {
-      console.log(error)
-    });
-    const textDecoder = new TextDecoder('utf-8');
-    const text = textDecoder.decode(data);
-    const newfile = new File(file, text)
+    try {
+      const promise = await userOpenFile();
+      const file = promise.file;
+      const data = promise.result;
 
-    const resource = getApp()
-    const username = GetUserName()
-    const socket = resource.socket
+      const textDecoder = new TextDecoder('utf-8');
+      const text = textDecoder.decode(data);
+      const newfile = new File(file, text)
 
-    setSession(newfile, socket, username)
-    const sessionId = getSession()
-    sessionId.setCode(sessionId.file.data)
-    StartFileShare(sessionId, username)
+      const resource = getApp()
+      const username = GetUserName()
+      const socket = resource.socket
 
-
-
+      setSession(newfile, socket, username)
+      const sessionId = getSession()
+      sessionId.setCode(sessionId.file.data)
+      StartFileShare(sessionId, username)
+    } catch (error) {
+      console.log(error);
+    }
   }
+
 
 
   return (

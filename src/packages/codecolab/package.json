@@ -55,6 +55,7 @@
     "@fortawesome/react-fontawesome": "^0.2.0",
     "crypto": "^1.0.1",
     "framer-motion": "^11.0.5",
+    "monaco-editor": "^0.46.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-modal": "^3.16.1",

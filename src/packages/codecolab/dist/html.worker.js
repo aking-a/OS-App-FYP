@@ -729,7 +729,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   assertFn: () => (/* binding */ assertFn),
 /* harmony export */   assertNever: () => (/* binding */ assertNever),
 /* harmony export */   checkAdjacentItems: () => (/* binding */ checkAdjacentItems),
-/* harmony export */   ok: () => (/* binding */ ok)
+/* harmony export */   ok: () => (/* binding */ ok),
+/* harmony export */   softAssert: () => (/* binding */ softAssert)
 /* harmony export */ });
 /* harmony import */ var _errors_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./errors.js */ "./node_modules/monaco-editor/esm/vs/base/common/errors.js");
 /*---------------------------------------------------------------------------------------------
@@ -758,6 +759,11 @@ function ok(value, message) {
 }
 function assertNever(value, message = 'Unreachable') {
     throw new Error(message);
+}
+function softAssert(condition) {
+    if (!condition) {
+        (0,_errors_js__WEBPACK_IMPORTED_MODULE_0__.onUnexpectedError)(new _errors_js__WEBPACK_IMPORTED_MODULE_0__.BugIndicatingError('Assertion Failed'));
+    }
 }
 /**
  * condition must be side-effect free!
@@ -1057,6 +1063,7 @@ const Codicon = {
     closeDirty: register('close-dirty', 0xea71),
     debugBreakpoint: register('debug-breakpoint', 0xea71),
     debugBreakpointDisabled: register('debug-breakpoint-disabled', 0xea71),
+    debugBreakpointPending: register('debug-breakpoint-pending', 0xebd9),
     debugHint: register('debug-hint', 0xea71),
     primitiveSquare: register('primitive-square', 0xea72),
     edit: register('edit', 0xea73),
@@ -1532,6 +1539,28 @@ const Codicon = {
     sparkle: register('sparkle', 0xec10),
     insert: register('insert', 0xec11),
     mic: register('mic', 0xec12),
+    thumbsDownFilled: register('thumbsdown-filled', 0xec13),
+    thumbsUpFilled: register('thumbsup-filled', 0xec14),
+    coffee: register('coffee', 0xec15),
+    snake: register('snake', 0xec16),
+    game: register('game', 0xec17),
+    vr: register('vr', 0xec18),
+    chip: register('chip', 0xec19),
+    piano: register('piano', 0xec1a),
+    music: register('music', 0xec1b),
+    micFilled: register('mic-filled', 0xec1c),
+    gitFetch: register('git-fetch', 0xec1d),
+    copilot: register('copilot', 0xec1e),
+    lightbulbSparkle: register('lightbulb-sparkle', 0xec1f),
+    lightbulbSparkleAutofix: register('lightbulb-sparkle-autofix', 0xec1f),
+    robot: register('robot', 0xec20),
+    sparkleFilled: register('sparkle-filled', 0xec21),
+    diffSingle: register('diff-single', 0xec22),
+    diffMultiple: register('diff-multiple', 0xec23),
+    surroundWith: register('surround-with', 0xec24),
+    gitStash: register('git-stash', 0xec26),
+    gitStashApply: register('git-stash-apply', 0xec27),
+    gitStashPop: register('git-stash-pop', 0xec28),
     // derived icons, that could become separate icons
     dialogError: register('dialog-error', 'error'),
     dialogWarning: register('dialog-warning', 'warning'),
@@ -3690,39 +3719,11 @@ var Event;
         return result.event;
     }
     Event.fromPromise = fromPromise;
-    /**
-     * Adds a listener to an event and calls the listener immediately with undefined as the event object.
-     *
-     * @example
-     * ```
-     * // Initialize the UI and update it when dataChangeEvent fires
-     * runAndSubscribe(dataChangeEvent, () => this._updateUI());
-     * ```
-     */
-    function runAndSubscribe(event, handler) {
-        handler(undefined);
+    function runAndSubscribe(event, handler, initial) {
+        handler(initial);
         return event(e => handler(e));
     }
     Event.runAndSubscribe = runAndSubscribe;
-    /**
-     * Adds a listener to an event and calls the listener immediately with undefined as the event object. A new
-     * {@link DisposableStore} is passed to the listener which is disposed when the returned disposable is disposed.
-     */
-    function runAndSubscribeWithStore(event, handler) {
-        let store = null;
-        function run(e) {
-            store === null || store === void 0 ? void 0 : store.dispose();
-            store = new _lifecycle_js__WEBPACK_IMPORTED_MODULE_2__.DisposableStore();
-            handler(e, store);
-        }
-        run(undefined);
-        const disposable = event(e => run(e));
-        return (0,_lifecycle_js__WEBPACK_IMPORTED_MODULE_2__.toDisposable)(() => {
-            disposable.dispose();
-            store === null || store === void 0 ? void 0 : store.dispose();
-        });
-    }
-    Event.runAndSubscribeWithStore = runAndSubscribeWithStore;
     class EmitterObserver {
         constructor(_observable, store) {
             this._observable = _observable;
@@ -3780,7 +3781,7 @@ var Event;
      * Each listener is attached to the observable directly.
      */
     function fromObservableLight(observable) {
-        return (listener) => {
+        return (listener, thisArgs, disposables) => {
             let count = 0;
             let didChange = false;
             const observer = {
@@ -3793,7 +3794,7 @@ var Event;
                         observable.reportChanges();
                         if (didChange) {
                             didChange = false;
-                            listener();
+                            listener.call(thisArgs);
                         }
                     }
                 },
@@ -3806,11 +3807,18 @@ var Event;
             };
             observable.addObserver(observer);
             observable.reportChanges();
-            return {
+            const disposable = {
                 dispose() {
                     observable.removeObserver(observer);
                 }
             };
+            if (disposables instanceof _lifecycle_js__WEBPACK_IMPORTED_MODULE_2__.DisposableStore) {
+                disposables.add(disposable);
+            }
+            else if (Array.isArray(disposables)) {
+                disposables.push(disposable);
+            }
+            return disposable;
         };
     }
     Event.fromObservableLight = fromObservableLight;
@@ -4406,7 +4414,7 @@ __webpack_require__.r(__webpack_exports__);
 /**
  * Given a function, returns a function that is only calling that function once.
  */
-function createSingleCallFunction(fn) {
+function createSingleCallFunction(fn, fnDidRunCallback) {
     const _this = this;
     let didCall = false;
     let result;
@@ -4415,7 +4423,17 @@ function createSingleCallFunction(fn) {
             return result;
         }
         didCall = true;
-        result = fn.apply(_this, arguments);
+        if (fnDidRunCallback) {
+            try {
+                result = fn.apply(_this, arguments);
+            }
+            finally {
+                fnDidRunCallback();
+            }
+        }
+        else {
+            result = fn.apply(_this, arguments);
+        }
         return result;
     };
 }
@@ -4792,9 +4810,7 @@ var Iterable;
     Iterable.map = map;
     function* concat(...iterables) {
         for (const iterable of iterables) {
-            for (const element of iterable) {
-                yield element;
-            }
+            yield* iterable;
         }
     }
     Iterable.concat = concat;
@@ -4844,6 +4860,14 @@ var Iterable;
         return [consumed, { [Symbol.iterator]() { return iterator; } }];
     }
     Iterable.consume = consume;
+    async function asyncToArray(iterable) {
+        const result = [];
+        for await (const item of iterable) {
+            result.push(item);
+        }
+        return Promise.resolve(result);
+    }
+    Iterable.asyncToArray = asyncToArray;
 })(Iterable || (Iterable = {}));
 
 
@@ -8004,7 +8028,6 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   LANGUAGE_DEFAULT: () => (/* binding */ LANGUAGE_DEFAULT),
 /* harmony export */   OS: () => (/* binding */ OS),
-/* harmony export */   globals: () => (/* binding */ globals),
 /* harmony export */   isAndroid: () => (/* binding */ isAndroid),
 /* harmony export */   isChrome: () => (/* binding */ isChrome),
 /* harmony export */   isEdge: () => (/* binding */ isEdge),
@@ -8022,7 +8045,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   language: () => (/* binding */ language),
 /* harmony export */   setTimeout0: () => (/* binding */ setTimeout0),
 /* harmony export */   setTimeout0IsFaster: () => (/* binding */ setTimeout0IsFaster),
-/* harmony export */   userAgent: () => (/* binding */ userAgent)
+/* harmony export */   userAgent: () => (/* binding */ userAgent),
+/* harmony export */   webWorkerOrigin: () => (/* binding */ webWorkerOrigin)
 /* harmony export */ });
 /* harmony import */ var _nls_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../nls.js */ "./node_modules/monaco-editor/esm/vs/nls.js");
 var _a;
@@ -8047,14 +8071,11 @@ let _language = LANGUAGE_DEFAULT;
 let _platformLocale = LANGUAGE_DEFAULT;
 let _translationsConfigFile = undefined;
 let _userAgent = undefined;
-/**
- * @deprecated use `globalThis` instead
- */
-const globals = (typeof self === 'object' ? self : typeof __webpack_require__.g === 'object' ? __webpack_require__.g : {});
+const $globalThis = globalThis;
 let nodeProcess = undefined;
-if (typeof globals.vscode !== 'undefined' && typeof globals.vscode.process !== 'undefined') {
+if (typeof $globalThis.vscode !== 'undefined' && typeof $globalThis.vscode.process !== 'undefined') {
     // Native environment (sandboxed)
-    nodeProcess = globals.vscode.process;
+    nodeProcess = $globalThis.vscode.process;
 }
 else if (typeof process !== 'undefined') {
     // Native environment (non-sandboxed)
@@ -8062,27 +8083,8 @@ else if (typeof process !== 'undefined') {
 }
 const isElectronProcess = typeof ((_a = nodeProcess === null || nodeProcess === void 0 ? void 0 : nodeProcess.versions) === null || _a === void 0 ? void 0 : _a.electron) === 'string';
 const isElectronRenderer = isElectronProcess && (nodeProcess === null || nodeProcess === void 0 ? void 0 : nodeProcess.type) === 'renderer';
-// Web environment
-if (typeof navigator === 'object' && !isElectronRenderer) {
-    _userAgent = navigator.userAgent;
-    _isWindows = _userAgent.indexOf('Windows') >= 0;
-    _isMacintosh = _userAgent.indexOf('Macintosh') >= 0;
-    _isIOS = (_userAgent.indexOf('Macintosh') >= 0 || _userAgent.indexOf('iPad') >= 0 || _userAgent.indexOf('iPhone') >= 0) && !!navigator.maxTouchPoints && navigator.maxTouchPoints > 0;
-    _isLinux = _userAgent.indexOf('Linux') >= 0;
-    _isMobile = (_userAgent === null || _userAgent === void 0 ? void 0 : _userAgent.indexOf('Mobi')) >= 0;
-    _isWeb = true;
-    const configuredLocale = _nls_js__WEBPACK_IMPORTED_MODULE_0__.getConfiguredDefaultLocale(
-    // This call _must_ be done in the file that calls `nls.getConfiguredDefaultLocale`
-    // to ensure that the NLS AMD Loader plugin has been loaded and configured.
-    // This is because the loader plugin decides what the default locale is based on
-    // how it's able to resolve the strings.
-    _nls_js__WEBPACK_IMPORTED_MODULE_0__.localize({ key: 'ensureLoaderPluginIsLoaded', comment: ['{Locked}'] }, '_'));
-    _locale = configuredLocale || LANGUAGE_DEFAULT;
-    _language = _locale;
-    _platformLocale = navigator.language;
-}
 // Native environment
-else if (typeof nodeProcess === 'object') {
+if (typeof nodeProcess === 'object') {
     _isWindows = (nodeProcess.platform === 'win32');
     _isMacintosh = (nodeProcess.platform === 'darwin');
     _isLinux = (nodeProcess.platform === 'linux');
@@ -8107,6 +8109,25 @@ else if (typeof nodeProcess === 'object') {
     }
     _isNative = true;
 }
+// Web environment
+else if (typeof navigator === 'object' && !isElectronRenderer) {
+    _userAgent = navigator.userAgent;
+    _isWindows = _userAgent.indexOf('Windows') >= 0;
+    _isMacintosh = _userAgent.indexOf('Macintosh') >= 0;
+    _isIOS = (_userAgent.indexOf('Macintosh') >= 0 || _userAgent.indexOf('iPad') >= 0 || _userAgent.indexOf('iPhone') >= 0) && !!navigator.maxTouchPoints && navigator.maxTouchPoints > 0;
+    _isLinux = _userAgent.indexOf('Linux') >= 0;
+    _isMobile = (_userAgent === null || _userAgent === void 0 ? void 0 : _userAgent.indexOf('Mobi')) >= 0;
+    _isWeb = true;
+    const configuredLocale = _nls_js__WEBPACK_IMPORTED_MODULE_0__.getConfiguredDefaultLocale(
+    // This call _must_ be done in the file that calls `nls.getConfiguredDefaultLocale`
+    // to ensure that the NLS AMD Loader plugin has been loaded and configured.
+    // This is because the loader plugin decides what the default locale is based on
+    // how it's able to resolve the strings.
+    _nls_js__WEBPACK_IMPORTED_MODULE_0__.localize({ key: 'ensureLoaderPluginIsLoaded', comment: ['{Locked}'] }, '_'));
+    _locale = configuredLocale || LANGUAGE_DEFAULT;
+    _language = _locale;
+    _platformLocale = navigator.language;
+}
 // Unknown environment
 else {
     console.error('Unable to resolve platform.');
@@ -8126,7 +8147,8 @@ const isMacintosh = _isMacintosh;
 const isLinux = _isLinux;
 const isNative = _isNative;
 const isWeb = _isWeb;
-const isWebWorker = (_isWeb && typeof globals.importScripts === 'function');
+const isWebWorker = (_isWeb && typeof $globalThis.importScripts === 'function');
+const webWorkerOrigin = isWebWorker ? $globalThis.origin : undefined;
 const isIOS = _isIOS;
 const isMobile = _isMobile;
 const userAgent = _userAgent;
@@ -8136,7 +8158,7 @@ const userAgent = _userAgent;
  * Chinese)
  */
 const language = _language;
-const setTimeout0IsFaster = (typeof globals.postMessage === 'function' && !globals.importScripts);
+const setTimeout0IsFaster = (typeof $globalThis.postMessage === 'function' && !$globalThis.importScripts);
 /**
  * See https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#:~:text=than%204%2C%20then-,set%20timeout%20to%204,-.
  *
@@ -8146,7 +8168,7 @@ const setTimeout0IsFaster = (typeof globals.postMessage === 'function' && !globa
 const setTimeout0 = (() => {
     if (setTimeout0IsFaster) {
         const pending = [];
-        globals.addEventListener('message', (e) => {
+        $globalThis.addEventListener('message', (e) => {
             if (e.data && e.data.vscodeScheduleAsyncWork) {
                 for (let i = 0, len = pending.length; i < len; i++) {
                     const candidate = pending[i];
@@ -8165,7 +8187,7 @@ const setTimeout0 = (() => {
                 id: myId,
                 callback: callback
             });
-            globals.postMessage({ vscodeScheduleAsyncWork: myId }, '*');
+            $globalThis.postMessage({ vscodeScheduleAsyncWork: myId }, '*');
         };
     }
     return (callback) => setTimeout(callback);
@@ -8213,8 +8235,9 @@ __webpack_require__.r(__webpack_exports__);
 
 let safeProcess;
 // Native sandbox environment
-if (typeof _platform_js__WEBPACK_IMPORTED_MODULE_0__.globals.vscode !== 'undefined' && typeof _platform_js__WEBPACK_IMPORTED_MODULE_0__.globals.vscode.process !== 'undefined') {
-    const sandboxProcess = _platform_js__WEBPACK_IMPORTED_MODULE_0__.globals.vscode.process;
+const vscodeGlobal = globalThis.vscode;
+if (typeof vscodeGlobal !== 'undefined' && typeof vscodeGlobal.process !== 'undefined') {
+    const sandboxProcess = vscodeGlobal.process;
     safeProcess = {
         get platform() { return sandboxProcess.platform; },
         get arch() { return sandboxProcess.arch; },
@@ -8340,6 +8363,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   getLeadingWhitespace: () => (/* binding */ getLeadingWhitespace),
 /* harmony export */   getLeftDeleteOffset: () => (/* binding */ getLeftDeleteOffset),
 /* harmony export */   getNextCodePoint: () => (/* binding */ getNextCodePoint),
+/* harmony export */   htmlAttributeEncodeValue: () => (/* binding */ htmlAttributeEncodeValue),
 /* harmony export */   isAsciiDigit: () => (/* binding */ isAsciiDigit),
 /* harmony export */   isBasicASCII: () => (/* binding */ isBasicASCII),
 /* harmony export */   isEmojiImprecise: () => (/* binding */ isEmojiImprecise),
@@ -8394,6 +8418,24 @@ function format(value, ...args) {
         return isNaN(idx) || idx < 0 || idx >= args.length ?
             match :
             args[idx];
+    });
+}
+/**
+ * Encodes the given value so that it can be used as literal value in html attributes.
+ *
+ * In other words, computes `$val`, such that `attr` in `<div attr="$val" />` has the runtime value `value`.
+ * This prevents XSS injection.
+ */
+function htmlAttributeEncodeValue(value) {
+    return value.replace(/[<>"'&]/g, ch => {
+        switch (ch) {
+            case '<': return '&lt;';
+            case '>': return '&gt;';
+            case '"': return '&quot;';
+            case '\'': return '&apos;';
+            case '&': return '&amp;';
+        }
+        return ch;
     });
 }
 /**
@@ -10414,7 +10456,7 @@ class SimpleWorkerServer {
                     delete loaderConfig.paths['vs'];
                 }
             }
-            if (typeof loaderConfig.trustedTypesPolicy !== undefined) {
+            if (typeof loaderConfig.trustedTypesPolicy !== 'undefined') {
                 // don't use, it has been destroyed during serialize
                 delete loaderConfig['trustedTypesPolicy'];
             }
@@ -10551,8 +10593,8 @@ __webpack_require__.r(__webpack_exports__);
  * A range of lines (1-based).
  */
 class LineRange {
-    static fromRange(range) {
-        return new LineRange(range.startLineNumber, range.endLineNumber);
+    static fromRangeInclusive(range) {
+        return new LineRange(range.startLineNumber, range.endLineNumber + 1);
     }
     /**
      * @param lineRanges An array of sorted line ranges.
@@ -10719,6 +10761,10 @@ class LineRangeSet {
         const rangeThatStartsBeforeEnd = (0,_base_common_arraysFind_js__WEBPACK_IMPORTED_MODULE_3__.findLastMonotonous)(this._normalizedRanges, r => r.startLineNumber <= lineNumber);
         return !!rangeThatStartsBeforeEnd && rangeThatStartsBeforeEnd.endLineNumberExclusive > lineNumber;
     }
+    intersects(range) {
+        const rangeThatStartsBeforeEnd = (0,_base_common_arraysFind_js__WEBPACK_IMPORTED_MODULE_3__.findLastMonotonous)(this._normalizedRanges, r => r.startLineNumber < range.endLineNumberExclusive);
+        return !!rangeThatStartsBeforeEnd && rangeThatStartsBeforeEnd.endLineNumberExclusive > range.startLineNumber;
+    }
     getUnion(other) {
         if (this._normalizedRanges.length === 0) {
             return other;
@@ -10867,14 +10913,11 @@ class OffsetRange {
             sortedRanges.splice(i, j - i, new OffsetRange(start, end));
         }
     }
-    static tryCreate(start, endExclusive) {
-        if (start > endExclusive) {
-            return undefined;
-        }
-        return new OffsetRange(start, endExclusive);
-    }
     static ofLength(length) {
         return new OffsetRange(0, length);
+    }
+    static ofStartAndLength(start, length) {
+        return new OffsetRange(start, start + length);
     }
     constructor(start, endExclusive) {
         this.start = start;
@@ -10901,12 +10944,6 @@ class OffsetRange {
     toString() {
         return `[${this.start}, ${this.endExclusive})`;
     }
-    equals(other) {
-        return this.start === other.start && this.endExclusive === other.endExclusive;
-    }
-    containsRange(other) {
-        return this.start <= other.start && other.endExclusive <= this.endExclusive;
-    }
     contains(offset) {
         return this.start <= offset && offset < this.endExclusive;
     }
@@ -10930,6 +10967,17 @@ class OffsetRange {
             return new OffsetRange(start, end);
         }
         return undefined;
+    }
+    intersects(other) {
+        const start = Math.max(this.start, other.start);
+        const end = Math.min(this.endExclusive, other.endExclusive);
+        return start < end;
+    }
+    isBefore(other) {
+        return this.endExclusive <= other.start;
+    }
+    isAfter(other) {
+        return this.start >= other.endExclusive;
     }
     slice(arr) {
         return arr.slice(this.start, this.endExclusive);
@@ -11168,6 +11216,12 @@ class Position {
         return (obj
             && (typeof obj.lineNumber === 'number')
             && (typeof obj.column === 'number'));
+    }
+    toJSON() {
+        return {
+            lineNumber: this.lineNumber,
+            column: this.column
+        };
     }
 }
 
@@ -11860,6 +11914,8 @@ _defaultConfig.unshift({
     timeBudget: 150
 });
 function getWordAtText(column, wordDefinition, text, textOffset, config) {
+    // Ensure the regex has the 'g' flag, otherwise this will loop forever
+    wordDefinition = ensureValidWordDefinition(wordDefinition);
     if (!config) {
         config = _base_common_iterator_js__WEBPACK_IMPORTED_MODULE_0__.Iterable.first(_defaultConfig);
     }
@@ -12034,6 +12090,15 @@ class OffsetPair {
     }
     toString() {
         return `${this.offset1} <-> ${this.offset2}`;
+    }
+    delta(offset) {
+        if (offset === 0) {
+            return this;
+        }
+        return new OffsetPair(this.offset1 + offset, this.offset2 + offset);
+    }
+    equals(other) {
+        return this.offset1 === other.offset1 && this.offset2 === other.offset2;
     }
 }
 OffsetPair.zero = new OffsetPair(0, 0);
@@ -12403,11 +12468,21 @@ function computeMovedLines(changes, originalLines, modifiedLines, hashedOriginal
     moves = joinCloseConsecutiveMoves(moves);
     // Ignore too short moves
     moves = moves.filter(current => {
-        const originalText = current.original.toOffsetRange().slice(originalLines).map(l => l.trim()).join('\n');
-        return originalText.length >= 10;
+        const lines = current.original.toOffsetRange().slice(originalLines).map(l => l.trim());
+        const originalText = lines.join('\n');
+        return originalText.length >= 15 && countWhere(lines, l => l.length >= 2) >= 2;
     });
     moves = removeMovesInSameDiff(changes, moves);
     return moves;
+}
+function countWhere(arr, predicate) {
+    let count = 0;
+    for (const t of arr) {
+        if (predicate(t)) {
+            count++;
+        }
+    }
+    return count;
 }
 function computeMovesFromSimpleDeletionsToSimpleInsertions(changes, originalLines, modifiedLines, timeout) {
     const moves = [];
@@ -12606,9 +12681,9 @@ function joinCloseConsecutiveMoves(moves) {
 function removeMovesInSameDiff(changes, moves) {
     const changesMonotonous = new _base_common_arraysFind_js__WEBPACK_IMPORTED_MODULE_3__.MonotonousArray(changes);
     moves = moves.filter(m => {
-        const diffBeforeEndOfMoveOriginal = changesMonotonous.findLastMonotonous(c => c.original.endLineNumberExclusive < m.original.endLineNumberExclusive)
+        const diffBeforeEndOfMoveOriginal = changesMonotonous.findLastMonotonous(c => c.original.startLineNumber < m.original.endLineNumberExclusive)
             || new _rangeMapping_js__WEBPACK_IMPORTED_MODULE_1__.LineRangeMapping(new _core_lineRange_js__WEBPACK_IMPORTED_MODULE_5__.LineRange(1, 1), new _core_lineRange_js__WEBPACK_IMPORTED_MODULE_5__.LineRange(1, 1));
-        const diffBeforeEndOfMoveModified = (0,_base_common_arraysFind_js__WEBPACK_IMPORTED_MODULE_3__.findLastMonotonous)(changes, c => c.modified.endLineNumberExclusive < m.modified.endLineNumberExclusive);
+        const diffBeforeEndOfMoveModified = (0,_base_common_arraysFind_js__WEBPACK_IMPORTED_MODULE_3__.findLastMonotonous)(changes, c => c.modified.startLineNumber < m.modified.endLineNumberExclusive);
         const differentDiffs = diffBeforeEndOfMoveOriginal !== diffBeforeEndOfMoveModified;
         return differentDiffs;
     });
@@ -12895,6 +12970,9 @@ __webpack_require__.r(__webpack_exports__);
 function optimizeSequenceDiffs(sequence1, sequence2, sequenceDiffs) {
     let result = sequenceDiffs;
     result = joinSequenceDiffsByShifting(sequence1, sequence2, result);
+    // Sometimes, calling this function twice improves the result.
+    // Uncomment the second invocation and run the tests to see the difference.
+    result = joinSequenceDiffsByShifting(sequence1, sequence2, result);
     result = shiftSequenceDiffs(sequence1, sequence2, result);
     return result;
 }
@@ -12990,8 +13068,8 @@ function shiftSequenceDiffs(sequence1, sequence2, sequenceDiffs) {
         const prevDiff = (i > 0 ? sequenceDiffs[i - 1] : undefined);
         const diff = sequenceDiffs[i];
         const nextDiff = (i + 1 < sequenceDiffs.length ? sequenceDiffs[i + 1] : undefined);
-        const seq1ValidRange = new _core_offsetRange_js__WEBPACK_IMPORTED_MODULE_1__.OffsetRange(prevDiff ? prevDiff.seq1Range.start + 1 : 0, nextDiff ? nextDiff.seq1Range.endExclusive - 1 : sequence1.length);
-        const seq2ValidRange = new _core_offsetRange_js__WEBPACK_IMPORTED_MODULE_1__.OffsetRange(prevDiff ? prevDiff.seq2Range.start + 1 : 0, nextDiff ? nextDiff.seq2Range.endExclusive - 1 : sequence2.length);
+        const seq1ValidRange = new _core_offsetRange_js__WEBPACK_IMPORTED_MODULE_1__.OffsetRange(prevDiff ? prevDiff.seq1Range.endExclusive + 1 : 0, nextDiff ? nextDiff.seq1Range.start - 1 : sequence1.length);
+        const seq2ValidRange = new _core_offsetRange_js__WEBPACK_IMPORTED_MODULE_1__.OffsetRange(prevDiff ? prevDiff.seq2Range.endExclusive + 1 : 0, nextDiff ? nextDiff.seq2Range.start - 1 : sequence2.length);
         if (diff.seq1Range.isEmpty) {
             sequenceDiffs[i] = shiftDiffToBetterPosition(diff, sequence1, sequence2, seq1ValidRange, seq2ValidRange);
         }
@@ -13055,62 +13133,60 @@ function removeShortMatches(sequence1, sequence2, sequenceDiffs) {
     return result;
 }
 function extendDiffsToEntireWordIfAppropriate(sequence1, sequence2, sequenceDiffs) {
+    const equalMappings = _algorithms_diffAlgorithm_js__WEBPACK_IMPORTED_MODULE_2__.SequenceDiff.invert(sequenceDiffs, sequence1.length);
     const additional = [];
-    let lastModifiedWord = undefined;
-    function maybePushWordToAdditional() {
-        if (!lastModifiedWord) {
+    let lastPoint = new _algorithms_diffAlgorithm_js__WEBPACK_IMPORTED_MODULE_2__.OffsetPair(0, 0);
+    function scanWord(pair, equalMapping) {
+        if (pair.offset1 < lastPoint.offset1 || pair.offset2 < lastPoint.offset2) {
             return;
         }
-        const originalLength1 = lastModifiedWord.s1Range.length - lastModifiedWord.deleted;
-        const originalLength2 = lastModifiedWord.s2Range.length - lastModifiedWord.added;
-        if (originalLength1 !== originalLength2) {
-            // TODO figure out why this happens
+        const w1 = sequence1.findWordContaining(pair.offset1);
+        const w2 = sequence2.findWordContaining(pair.offset2);
+        if (!w1 || !w2) {
+            return;
         }
-        if (Math.max(lastModifiedWord.deleted, lastModifiedWord.added) + (lastModifiedWord.count - 1) > originalLength1) {
-            additional.push(new _algorithms_diffAlgorithm_js__WEBPACK_IMPORTED_MODULE_2__.SequenceDiff(lastModifiedWord.s1Range, lastModifiedWord.s2Range));
+        let w = new _algorithms_diffAlgorithm_js__WEBPACK_IMPORTED_MODULE_2__.SequenceDiff(w1, w2);
+        const equalPart = w.intersect(equalMapping);
+        let equalChars1 = equalPart.seq1Range.length;
+        let equalChars2 = equalPart.seq2Range.length;
+        // The words do not touch previous equals mappings, as we would have processed them already.
+        // But they might touch the next ones.
+        while (equalMappings.length > 0) {
+            const next = equalMappings[0];
+            const intersects = next.seq1Range.intersects(w1) || next.seq2Range.intersects(w2);
+            if (!intersects) {
+                break;
+            }
+            const v1 = sequence1.findWordContaining(next.seq1Range.start);
+            const v2 = sequence2.findWordContaining(next.seq2Range.start);
+            // Because there is an intersection, we know that the words are not empty.
+            const v = new _algorithms_diffAlgorithm_js__WEBPACK_IMPORTED_MODULE_2__.SequenceDiff(v1, v2);
+            const equalPart = v.intersect(next);
+            equalChars1 += equalPart.seq1Range.length;
+            equalChars2 += equalPart.seq2Range.length;
+            w = w.join(v);
+            if (w.seq1Range.endExclusive >= next.seq1Range.endExclusive) {
+                // The word extends beyond the next equal mapping.
+                equalMappings.shift();
+            }
+            else {
+                break;
+            }
         }
-        lastModifiedWord = undefined;
+        if (equalChars1 + equalChars2 < (w.seq1Range.length + w.seq2Range.length) * 2 / 3) {
+            additional.push(w);
+        }
+        lastPoint = w.getEndExclusives();
     }
-    for (const s of sequenceDiffs) {
-        function processWord(s1Range, s2Range) {
-            var _a, _b, _c, _d;
-            if (!lastModifiedWord || !lastModifiedWord.s1Range.containsRange(s1Range) || !lastModifiedWord.s2Range.containsRange(s2Range)) {
-                if (lastModifiedWord && !(lastModifiedWord.s1Range.endExclusive < s1Range.start && lastModifiedWord.s2Range.endExclusive < s2Range.start)) {
-                    const s1Added = _core_offsetRange_js__WEBPACK_IMPORTED_MODULE_1__.OffsetRange.tryCreate(lastModifiedWord.s1Range.endExclusive, s1Range.start);
-                    const s2Added = _core_offsetRange_js__WEBPACK_IMPORTED_MODULE_1__.OffsetRange.tryCreate(lastModifiedWord.s2Range.endExclusive, s2Range.start);
-                    lastModifiedWord.deleted += (_a = s1Added === null || s1Added === void 0 ? void 0 : s1Added.length) !== null && _a !== void 0 ? _a : 0;
-                    lastModifiedWord.added += (_b = s2Added === null || s2Added === void 0 ? void 0 : s2Added.length) !== null && _b !== void 0 ? _b : 0;
-                    lastModifiedWord.s1Range = lastModifiedWord.s1Range.join(s1Range);
-                    lastModifiedWord.s2Range = lastModifiedWord.s2Range.join(s2Range);
-                }
-                else {
-                    maybePushWordToAdditional();
-                    lastModifiedWord = { added: 0, deleted: 0, count: 0, s1Range: s1Range, s2Range: s2Range };
-                }
-            }
-            const changedS1 = s1Range.intersect(s.seq1Range);
-            const changedS2 = s2Range.intersect(s.seq2Range);
-            lastModifiedWord.count++;
-            lastModifiedWord.deleted += (_c = changedS1 === null || changedS1 === void 0 ? void 0 : changedS1.length) !== null && _c !== void 0 ? _c : 0;
-            lastModifiedWord.added += (_d = changedS2 === null || changedS2 === void 0 ? void 0 : changedS2.length) !== null && _d !== void 0 ? _d : 0;
+    while (equalMappings.length > 0) {
+        const next = equalMappings.shift();
+        if (next.seq1Range.isEmpty) {
+            continue;
         }
-        const w1Before = sequence1.findWordContaining(s.seq1Range.start - 1);
-        const w2Before = sequence2.findWordContaining(s.seq2Range.start - 1);
-        const w1After = sequence1.findWordContaining(s.seq1Range.endExclusive);
-        const w2After = sequence2.findWordContaining(s.seq2Range.endExclusive);
-        if (w1Before && w1After && w2Before && w2After && w1Before.equals(w1After) && w2Before.equals(w2After)) {
-            processWord(w1Before, w2Before);
-        }
-        else {
-            if (w1Before && w2Before) {
-                processWord(w1Before, w2Before);
-            }
-            if (w1After && w2After) {
-                processWord(w1After, w2After);
-            }
-        }
+        scanWord(next.getStarts(), next);
+        // The equal parts are not empty, so -1 gives us a character that is equal in both parts.
+        scanWord(next.getEndExclusives().delta(-1), next);
     }
-    maybePushWordToAdditional();
     const merged = mergeSequenceDiffs(sequenceDiffs, additional);
     return merged;
 }
@@ -13212,7 +13288,7 @@ function removeVeryShortMatchingTextBetweenLongDiffs(sequence1, sequence2, seque
                     return Math.min(v, max);
                 }
                 if (Math.pow(Math.pow(cap(beforeLineCount1 * 40 + beforeSeq1Length), 1.5) + Math.pow(cap(beforeLineCount2 * 40 + beforeSeq2Length), 1.5), 1.5)
-                    + Math.pow(Math.pow(cap(afterLineCount1 * 40 + afterSeq1Length), 1.5) + Math.pow(cap(afterLineCount2 * 40 + afterSeq2Length), 1.5), 1.5) > (Math.pow((Math.pow(max, 1.5)), 1.5)) * 1.3) {
+                    + Math.pow(Math.pow(cap(afterLineCount1 * 40 + afterSeq1Length), 1.5) + Math.pow(cap(afterLineCount2 * 40 + afterSeq2Length), 1.5), 1.5) > ((max ** 1.5) ** 1.5) * 1.3) {
                     return true;
                 }
                 return false;
@@ -13246,7 +13322,12 @@ function removeVeryShortMatchingTextBetweenLongDiffs(sequence1, sequence2, seque
         }
         const availableSpace = _algorithms_diffAlgorithm_js__WEBPACK_IMPORTED_MODULE_2__.SequenceDiff.fromOffsetPairs(prev ? prev.getEndExclusives() : _algorithms_diffAlgorithm_js__WEBPACK_IMPORTED_MODULE_2__.OffsetPair.zero, next ? next.getStarts() : _algorithms_diffAlgorithm_js__WEBPACK_IMPORTED_MODULE_2__.OffsetPair.max);
         const result = newDiff.intersect(availableSpace);
-        newDiffs.push(result);
+        if (newDiffs.length > 0 && result.getStarts().equals(newDiffs[newDiffs.length - 1].getEndExclusives())) {
+            newDiffs[newDiffs.length - 1] = newDiffs[newDiffs.length - 1].join(result);
+        }
+        else {
+            newDiffs.push(result);
+        }
     });
     return newDiffs;
 }
@@ -13390,9 +13471,13 @@ class LinesSliceCharSequence {
         // 11  0   0   12  15  6   13  0   0   11
         const prevCategory = getCategory(length > 0 ? this.elements[length - 1] : -1);
         const nextCategory = getCategory(length < this.elements.length ? this.elements[length] : -1);
-        if (prevCategory === 6 /* CharBoundaryCategory.LineBreakCR */ && nextCategory === 7 /* CharBoundaryCategory.LineBreakLF */) {
+        if (prevCategory === 7 /* CharBoundaryCategory.LineBreakCR */ && nextCategory === 8 /* CharBoundaryCategory.LineBreakLF */) {
             // don't break between \r and \n
             return 0;
+        }
+        if (prevCategory === 8 /* CharBoundaryCategory.LineBreakLF */) {
+            // prefer the linebreak before the change
+            return 150;
         }
         let score = 0;
         if (prevCategory !== nextCategory) {
@@ -13462,22 +13547,23 @@ const score = {
     [2 /* CharBoundaryCategory.WordNumber */]: 0,
     [3 /* CharBoundaryCategory.End */]: 10,
     [4 /* CharBoundaryCategory.Other */]: 2,
-    [5 /* CharBoundaryCategory.Space */]: 3,
-    [6 /* CharBoundaryCategory.LineBreakCR */]: 10,
-    [7 /* CharBoundaryCategory.LineBreakLF */]: 10,
+    [5 /* CharBoundaryCategory.Separator */]: 30,
+    [6 /* CharBoundaryCategory.Space */]: 3,
+    [7 /* CharBoundaryCategory.LineBreakCR */]: 10,
+    [8 /* CharBoundaryCategory.LineBreakLF */]: 10,
 };
 function getCategoryBoundaryScore(category) {
     return score[category];
 }
 function getCategory(charCode) {
     if (charCode === 10 /* CharCode.LineFeed */) {
-        return 7 /* CharBoundaryCategory.LineBreakLF */;
+        return 8 /* CharBoundaryCategory.LineBreakLF */;
     }
     else if (charCode === 13 /* CharCode.CarriageReturn */) {
-        return 6 /* CharBoundaryCategory.LineBreakCR */;
+        return 7 /* CharBoundaryCategory.LineBreakCR */;
     }
     else if ((0,_utils_js__WEBPACK_IMPORTED_MODULE_4__.isSpace)(charCode)) {
-        return 5 /* CharBoundaryCategory.Space */;
+        return 6 /* CharBoundaryCategory.Space */;
     }
     else if (charCode >= 97 /* CharCode.a */ && charCode <= 122 /* CharCode.z */) {
         return 0 /* CharBoundaryCategory.WordLower */;
@@ -13490,6 +13576,9 @@ function getCategory(charCode) {
     }
     else if (charCode === -1) {
         return 3 /* CharBoundaryCategory.End */;
+    }
+    else if (charCode === 44 /* CharCode.Comma */ || charCode === 59 /* CharCode.Semicolon */) {
+        return 5 /* CharBoundaryCategory.Separator */;
     }
     else {
         return 4 /* CharBoundaryCategory.Other */;
@@ -14159,16 +14248,27 @@ class LineRangeMapping {
         let lastOriginalEndLineNumber = 1;
         let lastModifiedEndLineNumber = 1;
         for (const m of mapping) {
-            const r = new DetailedLineRangeMapping(new _core_lineRange_js__WEBPACK_IMPORTED_MODULE_0__.LineRange(lastOriginalEndLineNumber, m.original.startLineNumber), new _core_lineRange_js__WEBPACK_IMPORTED_MODULE_0__.LineRange(lastModifiedEndLineNumber, m.modified.startLineNumber), undefined);
+            const r = new LineRangeMapping(new _core_lineRange_js__WEBPACK_IMPORTED_MODULE_0__.LineRange(lastOriginalEndLineNumber, m.original.startLineNumber), new _core_lineRange_js__WEBPACK_IMPORTED_MODULE_0__.LineRange(lastModifiedEndLineNumber, m.modified.startLineNumber));
             if (!r.modified.isEmpty) {
                 result.push(r);
             }
             lastOriginalEndLineNumber = m.original.endLineNumberExclusive;
             lastModifiedEndLineNumber = m.modified.endLineNumberExclusive;
         }
-        const r = new DetailedLineRangeMapping(new _core_lineRange_js__WEBPACK_IMPORTED_MODULE_0__.LineRange(lastOriginalEndLineNumber, originalLineCount + 1), new _core_lineRange_js__WEBPACK_IMPORTED_MODULE_0__.LineRange(lastModifiedEndLineNumber, modifiedLineCount + 1), undefined);
+        const r = new LineRangeMapping(new _core_lineRange_js__WEBPACK_IMPORTED_MODULE_0__.LineRange(lastOriginalEndLineNumber, originalLineCount + 1), new _core_lineRange_js__WEBPACK_IMPORTED_MODULE_0__.LineRange(lastModifiedEndLineNumber, modifiedLineCount + 1));
         if (!r.modified.isEmpty) {
             result.push(r);
+        }
+        return result;
+    }
+    static clip(mapping, originalRange, modifiedRange) {
+        const result = [];
+        for (const m of mapping) {
+            const original = m.original.intersect(originalRange);
+            const modified = m.modified.intersect(modifiedRange);
+            if (original && !original.isEmpty && modified && !modified.isEmpty) {
+                result.push(new LineRangeMapping(original, modified));
+            }
         }
         return result;
     }
@@ -15200,7 +15300,8 @@ var OverviewRulerLane;
 var GlyphMarginLane;
 (function (GlyphMarginLane) {
     GlyphMarginLane[GlyphMarginLane["Left"] = 1] = "Left";
-    GlyphMarginLane[GlyphMarginLane["Right"] = 2] = "Right";
+    GlyphMarginLane[GlyphMarginLane["Center"] = 2] = "Center";
+    GlyphMarginLane[GlyphMarginLane["Right"] = 3] = "Right";
 })(GlyphMarginLane || (GlyphMarginLane = {}));
 /**
  * Position in the minimap to render the decoration.
@@ -16264,15 +16365,6 @@ __webpack_require__.r(__webpack_exports__);
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 
 
 
@@ -16508,25 +16600,22 @@ class EditorSimpleWorker {
         }
         delete this._models[strURL];
     }
-    computeUnicodeHighlights(url, options, range) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const model = this._getModel(url);
-            if (!model) {
-                return { ranges: [], hasMore: false, ambiguousCharacterCount: 0, invisibleCharacterCount: 0, nonBasicAsciiCharacterCount: 0 };
-            }
-            return _unicodeTextModelHighlighter_js__WEBPACK_IMPORTED_MODULE_10__.UnicodeTextModelHighlighter.computeUnicodeHighlights(model, options, range);
-        });
+    async computeUnicodeHighlights(url, options, range) {
+        const model = this._getModel(url);
+        if (!model) {
+            return { ranges: [], hasMore: false, ambiguousCharacterCount: 0, invisibleCharacterCount: 0, nonBasicAsciiCharacterCount: 0 };
+        }
+        return _unicodeTextModelHighlighter_js__WEBPACK_IMPORTED_MODULE_10__.UnicodeTextModelHighlighter.computeUnicodeHighlights(model, options, range);
     }
     // ---- BEGIN diff --------------------------------------------------------------------------
-    computeDiff(originalUrl, modifiedUrl, options, algorithm) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const original = this._getModel(originalUrl);
-            const modified = this._getModel(modifiedUrl);
-            if (!original || !modified) {
-                return null;
-            }
-            return EditorSimpleWorker.computeDiff(original, modified, options, algorithm);
-        });
+    async computeDiff(originalUrl, modifiedUrl, options, algorithm) {
+        const original = this._getModel(originalUrl);
+        const modified = this._getModel(modifiedUrl);
+        if (!original || !modified) {
+            return null;
+        }
+        const result = EditorSimpleWorker.computeDiff(original, modified, options, algorithm);
+        return result;
     }
     static computeDiff(originalTextModel, modifiedTextModel, options, algorithm) {
         const diffAlgorithm = algorithm === 'advanced' ? _diff_linesDiffComputers_js__WEBPACK_IMPORTED_MODULE_11__.linesDiffComputers.getDefault() : _diff_linesDiffComputers_js__WEBPACK_IMPORTED_MODULE_11__.linesDiffComputers.getLegacy();
@@ -16577,176 +16666,164 @@ class EditorSimpleWorker {
         }
         return true;
     }
-    computeMoreMinimalEdits(modelUrl, edits, pretty) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const model = this._getModel(modelUrl);
-            if (!model) {
-                return edits;
+    async computeMoreMinimalEdits(modelUrl, edits, pretty) {
+        const model = this._getModel(modelUrl);
+        if (!model) {
+            return edits;
+        }
+        const result = [];
+        let lastEol = undefined;
+        edits = edits.slice(0).sort((a, b) => {
+            if (a.range && b.range) {
+                return _core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.compareRangesUsingStarts(a.range, b.range);
             }
-            const result = [];
-            let lastEol = undefined;
-            edits = edits.slice(0).sort((a, b) => {
-                if (a.range && b.range) {
-                    return _core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.compareRangesUsingStarts(a.range, b.range);
-                }
-                // eol only changes should go to the end
-                const aRng = a.range ? 0 : 1;
-                const bRng = b.range ? 0 : 1;
-                return aRng - bRng;
-            });
-            // merge adjacent edits
-            let writeIndex = 0;
-            for (let readIndex = 1; readIndex < edits.length; readIndex++) {
-                if (_core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.getEndPosition(edits[writeIndex].range).equals(_core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.getStartPosition(edits[readIndex].range))) {
-                    edits[writeIndex].range = _core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.fromPositions(_core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.getStartPosition(edits[writeIndex].range), _core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.getEndPosition(edits[readIndex].range));
-                    edits[writeIndex].text += edits[readIndex].text;
-                }
-                else {
-                    writeIndex++;
-                    edits[writeIndex] = edits[readIndex];
-                }
-            }
-            edits.length = writeIndex + 1;
-            for (let { range, text, eol } of edits) {
-                if (typeof eol === 'number') {
-                    lastEol = eol;
-                }
-                if (_core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.isEmpty(range) && !text) {
-                    // empty change
-                    continue;
-                }
-                const original = model.getValueInRange(range);
-                text = text.replace(/\r\n|\n|\r/g, model.eol);
-                if (original === text) {
-                    // noop
-                    continue;
-                }
-                // make sure diff won't take too long
-                if (Math.max(text.length, original.length) > EditorSimpleWorker._diffLimit) {
-                    result.push({ range, text });
-                    continue;
-                }
-                // compute diff between original and edit.text
-                const changes = (0,_base_common_diff_diff_js__WEBPACK_IMPORTED_MODULE_0__.stringDiff)(original, text, pretty);
-                const editOffset = model.offsetAt(_core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.lift(range).getStartPosition());
-                for (const change of changes) {
-                    const start = model.positionAt(editOffset + change.originalStart);
-                    const end = model.positionAt(editOffset + change.originalStart + change.originalLength);
-                    const newEdit = {
-                        text: text.substr(change.modifiedStart, change.modifiedLength),
-                        range: { startLineNumber: start.lineNumber, startColumn: start.column, endLineNumber: end.lineNumber, endColumn: end.column }
-                    };
-                    if (model.getValueInRange(newEdit.range) !== newEdit.text) {
-                        result.push(newEdit);
-                    }
-                }
-            }
-            if (typeof lastEol === 'number') {
-                result.push({ eol: lastEol, text: '', range: { startLineNumber: 0, startColumn: 0, endLineNumber: 0, endColumn: 0 } });
-            }
-            return result;
+            // eol only changes should go to the end
+            const aRng = a.range ? 0 : 1;
+            const bRng = b.range ? 0 : 1;
+            return aRng - bRng;
         });
+        // merge adjacent edits
+        let writeIndex = 0;
+        for (let readIndex = 1; readIndex < edits.length; readIndex++) {
+            if (_core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.getEndPosition(edits[writeIndex].range).equals(_core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.getStartPosition(edits[readIndex].range))) {
+                edits[writeIndex].range = _core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.fromPositions(_core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.getStartPosition(edits[writeIndex].range), _core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.getEndPosition(edits[readIndex].range));
+                edits[writeIndex].text += edits[readIndex].text;
+            }
+            else {
+                writeIndex++;
+                edits[writeIndex] = edits[readIndex];
+            }
+        }
+        edits.length = writeIndex + 1;
+        for (let { range, text, eol } of edits) {
+            if (typeof eol === 'number') {
+                lastEol = eol;
+            }
+            if (_core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.isEmpty(range) && !text) {
+                // empty change
+                continue;
+            }
+            const original = model.getValueInRange(range);
+            text = text.replace(/\r\n|\n|\r/g, model.eol);
+            if (original === text) {
+                // noop
+                continue;
+            }
+            // make sure diff won't take too long
+            if (Math.max(text.length, original.length) > EditorSimpleWorker._diffLimit) {
+                result.push({ range, text });
+                continue;
+            }
+            // compute diff between original and edit.text
+            const changes = (0,_base_common_diff_diff_js__WEBPACK_IMPORTED_MODULE_0__.stringDiff)(original, text, pretty);
+            const editOffset = model.offsetAt(_core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.lift(range).getStartPosition());
+            for (const change of changes) {
+                const start = model.positionAt(editOffset + change.originalStart);
+                const end = model.positionAt(editOffset + change.originalStart + change.originalLength);
+                const newEdit = {
+                    text: text.substr(change.modifiedStart, change.modifiedLength),
+                    range: { startLineNumber: start.lineNumber, startColumn: start.column, endLineNumber: end.lineNumber, endColumn: end.column }
+                };
+                if (model.getValueInRange(newEdit.range) !== newEdit.text) {
+                    result.push(newEdit);
+                }
+            }
+        }
+        if (typeof lastEol === 'number') {
+            result.push({ eol: lastEol, text: '', range: { startLineNumber: 0, startColumn: 0, endLineNumber: 0, endColumn: 0 } });
+        }
+        return result;
     }
     // ---- END minimal edits ---------------------------------------------------------------
-    computeLinks(modelUrl) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const model = this._getModel(modelUrl);
-            if (!model) {
-                return null;
-            }
-            return (0,_languages_linkComputer_js__WEBPACK_IMPORTED_MODULE_6__.computeLinks)(model);
-        });
+    async computeLinks(modelUrl) {
+        const model = this._getModel(modelUrl);
+        if (!model) {
+            return null;
+        }
+        return (0,_languages_linkComputer_js__WEBPACK_IMPORTED_MODULE_6__.computeLinks)(model);
     }
     // --- BEGIN default document colors -----------------------------------------------------------
-    computeDefaultDocumentColors(modelUrl) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const model = this._getModel(modelUrl);
-            if (!model) {
-                return null;
-            }
-            return (0,_languages_defaultDocumentColorsComputer_js__WEBPACK_IMPORTED_MODULE_13__.computeDefaultDocumentColors)(model);
-        });
+    async computeDefaultDocumentColors(modelUrl) {
+        const model = this._getModel(modelUrl);
+        if (!model) {
+            return null;
+        }
+        return (0,_languages_defaultDocumentColorsComputer_js__WEBPACK_IMPORTED_MODULE_13__.computeDefaultDocumentColors)(model);
     }
-    textualSuggest(modelUrls, leadingWord, wordDef, wordDefFlags) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const sw = new _base_common_stopwatch_js__WEBPACK_IMPORTED_MODULE_9__.StopWatch();
-            const wordDefRegExp = new RegExp(wordDef, wordDefFlags);
-            const seen = new Set();
-            outer: for (const url of modelUrls) {
-                const model = this._getModel(url);
-                if (!model) {
+    async textualSuggest(modelUrls, leadingWord, wordDef, wordDefFlags) {
+        const sw = new _base_common_stopwatch_js__WEBPACK_IMPORTED_MODULE_9__.StopWatch();
+        const wordDefRegExp = new RegExp(wordDef, wordDefFlags);
+        const seen = new Set();
+        outer: for (const url of modelUrls) {
+            const model = this._getModel(url);
+            if (!model) {
+                continue;
+            }
+            for (const word of model.words(wordDefRegExp)) {
+                if (word === leadingWord || !isNaN(Number(word))) {
                     continue;
                 }
-                for (const word of model.words(wordDefRegExp)) {
-                    if (word === leadingWord || !isNaN(Number(word))) {
-                        continue;
-                    }
-                    seen.add(word);
-                    if (seen.size > EditorSimpleWorker._suggestionsLimit) {
-                        break outer;
-                    }
+                seen.add(word);
+                if (seen.size > EditorSimpleWorker._suggestionsLimit) {
+                    break outer;
                 }
             }
-            return { words: Array.from(seen), duration: sw.elapsed() };
-        });
+        }
+        return { words: Array.from(seen), duration: sw.elapsed() };
     }
     // ---- END suggest --------------------------------------------------------------------------
     //#region -- word ranges --
-    computeWordRanges(modelUrl, range, wordDef, wordDefFlags) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const model = this._getModel(modelUrl);
-            if (!model) {
-                return Object.create(null);
-            }
-            const wordDefRegExp = new RegExp(wordDef, wordDefFlags);
-            const result = Object.create(null);
-            for (let line = range.startLineNumber; line < range.endLineNumber; line++) {
-                const words = model.getLineWords(line, wordDefRegExp);
-                for (const word of words) {
-                    if (!isNaN(Number(word.word))) {
-                        continue;
-                    }
-                    let array = result[word.word];
-                    if (!array) {
-                        array = [];
-                        result[word.word] = array;
-                    }
-                    array.push({
-                        startLineNumber: line,
-                        startColumn: word.startColumn,
-                        endLineNumber: line,
-                        endColumn: word.endColumn
-                    });
+    async computeWordRanges(modelUrl, range, wordDef, wordDefFlags) {
+        const model = this._getModel(modelUrl);
+        if (!model) {
+            return Object.create(null);
+        }
+        const wordDefRegExp = new RegExp(wordDef, wordDefFlags);
+        const result = Object.create(null);
+        for (let line = range.startLineNumber; line < range.endLineNumber; line++) {
+            const words = model.getLineWords(line, wordDefRegExp);
+            for (const word of words) {
+                if (!isNaN(Number(word.word))) {
+                    continue;
                 }
+                let array = result[word.word];
+                if (!array) {
+                    array = [];
+                    result[word.word] = array;
+                }
+                array.push({
+                    startLineNumber: line,
+                    startColumn: word.startColumn,
+                    endLineNumber: line,
+                    endColumn: word.endColumn
+                });
             }
-            return result;
-        });
+        }
+        return result;
     }
     //#endregion
-    navigateValueSet(modelUrl, range, up, wordDef, wordDefFlags) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const model = this._getModel(modelUrl);
-            if (!model) {
-                return null;
-            }
-            const wordDefRegExp = new RegExp(wordDef, wordDefFlags);
-            if (range.startColumn === range.endColumn) {
-                range = {
-                    startLineNumber: range.startLineNumber,
-                    startColumn: range.startColumn,
-                    endLineNumber: range.endLineNumber,
-                    endColumn: range.endColumn + 1
-                };
-            }
-            const selectionText = model.getValueInRange(range);
-            const wordRange = model.getWordAtPosition({ lineNumber: range.startLineNumber, column: range.startColumn }, wordDefRegExp);
-            if (!wordRange) {
-                return null;
-            }
-            const word = model.getValueInRange(wordRange);
-            const result = _languages_supports_inplaceReplaceSupport_js__WEBPACK_IMPORTED_MODULE_7__.BasicInplaceReplace.INSTANCE.navigateValueSet(range, selectionText, wordRange, word, up);
-            return result;
-        });
+    async navigateValueSet(modelUrl, range, up, wordDef, wordDefFlags) {
+        const model = this._getModel(modelUrl);
+        if (!model) {
+            return null;
+        }
+        const wordDefRegExp = new RegExp(wordDef, wordDefFlags);
+        if (range.startColumn === range.endColumn) {
+            range = {
+                startLineNumber: range.startLineNumber,
+                startColumn: range.startColumn,
+                endLineNumber: range.endLineNumber,
+                endColumn: range.endColumn + 1
+            };
+        }
+        const selectionText = model.getValueInRange(range);
+        const wordRange = model.getWordAtPosition({ lineNumber: range.startLineNumber, column: range.startColumn }, wordDefRegExp);
+        if (!wordRange) {
+            return null;
+        }
+        const word = model.getValueInRange(wordRange);
+        const result = _languages_supports_inplaceReplaceSupport_js__WEBPACK_IMPORTED_MODULE_7__.BasicInplaceReplace.INSTANCE.navigateValueSet(range, selectionText, wordRange, word, up);
+        return result;
     }
     // ---- BEGIN foreign module support --------------------------------------------------------------------------
     loadForeignModule(moduleId, createData, foreignHostMethods) {
@@ -17056,6 +17133,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   ScrollType: () => (/* binding */ ScrollType),
 /* harmony export */   ScrollbarVisibility: () => (/* binding */ ScrollbarVisibility),
 /* harmony export */   SelectionDirection: () => (/* binding */ SelectionDirection),
+/* harmony export */   ShowLightbulbIconMode: () => (/* binding */ ShowLightbulbIconMode),
 /* harmony export */   SignatureHelpTriggerKind: () => (/* binding */ SignatureHelpTriggerKind),
 /* harmony export */   SymbolKind: () => (/* binding */ SymbolKind),
 /* harmony export */   SymbolTag: () => (/* binding */ SymbolTag),
@@ -17424,7 +17502,8 @@ var EndOfLineSequence;
 var GlyphMarginLane;
 (function (GlyphMarginLane) {
     GlyphMarginLane[GlyphMarginLane["Left"] = 1] = "Left";
-    GlyphMarginLane[GlyphMarginLane["Right"] = 2] = "Right";
+    GlyphMarginLane[GlyphMarginLane["Center"] = 2] = "Center";
+    GlyphMarginLane[GlyphMarginLane["Right"] = 3] = "Right";
 })(GlyphMarginLane || (GlyphMarginLane = {}));
 /**
  * Describes what to do with the indentation when pressing Enter.
@@ -17855,6 +17934,12 @@ var SelectionDirection;
      */
     SelectionDirection[SelectionDirection["RTL"] = 1] = "RTL";
 })(SelectionDirection || (SelectionDirection = {}));
+var ShowLightbulbIconMode;
+(function (ShowLightbulbIconMode) {
+    ShowLightbulbIconMode["Off"] = "off";
+    ShowLightbulbIconMode["OnCode"] = "onCode";
+    ShowLightbulbIconMode["On"] = "on";
+})(ShowLightbulbIconMode || (ShowLightbulbIconMode = {}));
 var SignatureHelpTriggerKind;
 (function (SignatureHelpTriggerKind) {
     SignatureHelpTriggerKind[SignatureHelpTriggerKind["Invoke"] = 1] = "Invoke";
@@ -18010,15 +18095,6 @@ __webpack_require__.r(__webpack_exports__);
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 
 
 class TokenizationRegistry {
@@ -18063,21 +18139,19 @@ class TokenizationRegistry {
             v.dispose();
         });
     }
-    getOrCreate(languageId) {
-        return __awaiter(this, void 0, void 0, function* () {
-            // check first if the support is already set
-            const tokenizationSupport = this.get(languageId);
-            if (tokenizationSupport) {
-                return tokenizationSupport;
-            }
-            const factory = this._factories.get(languageId);
-            if (!factory || factory.isResolved) {
-                // no factory or factory.resolve already finished
-                return null;
-            }
-            yield factory.resolve();
-            return this.get(languageId);
-        });
+    async getOrCreate(languageId) {
+        // check first if the support is already set
+        const tokenizationSupport = this.get(languageId);
+        if (tokenizationSupport) {
+            return tokenizationSupport;
+        }
+        const factory = this._factories.get(languageId);
+        if (!factory || factory.isResolved) {
+            // no factory or factory.resolve already finished
+            return null;
+        }
+        await factory.resolve();
+        return this.get(languageId);
     }
     isResolved(languageId) {
         const tokenizationSupport = this.get(languageId);
@@ -18124,22 +18198,18 @@ class TokenizationSupportFactoryData extends _base_common_lifecycle_js__WEBPACK_
         this._isDisposed = true;
         super.dispose();
     }
-    resolve() {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (!this._resolvePromise) {
-                this._resolvePromise = this._create();
-            }
-            return this._resolvePromise;
-        });
+    async resolve() {
+        if (!this._resolvePromise) {
+            this._resolvePromise = this._create();
+        }
+        return this._resolvePromise;
     }
-    _create() {
-        return __awaiter(this, void 0, void 0, function* () {
-            const value = yield this._factory.tokenizationSupport;
-            this._isResolved = true;
-            if (value && !this._isDisposed) {
-                this._register(this._registry.register(this._languageId, value));
-            }
-        });
+    async _create() {
+        const value = await this._factory.tokenizationSupport;
+        this._isResolved = true;
+        if (value && !this._isDisposed) {
+            this._register(this._registry.register(this._languageId, value));
+        }
     }
 }
 
@@ -18199,21 +18269,13 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   getConfiguredDefaultLocale: () => (/* binding */ getConfiguredDefaultLocale),
 /* harmony export */   load: () => (/* binding */ load),
 /* harmony export */   localize: () => (/* binding */ localize),
+/* harmony export */   localize2: () => (/* binding */ localize2),
 /* harmony export */   setPseudoTranslation: () => (/* binding */ setPseudoTranslation)
 /* harmony export */ });
 /*---------------------------------------------------------------------------------------------
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 let isPseudo = (typeof document !== 'undefined' && document.location && document.location.hash.indexOf('pseudo=true') >= 0);
 const DEFAULT_TAG = 'i-default';
 function _format(message, args) {
@@ -18258,16 +18320,14 @@ function endWithSlash(path) {
     }
     return path + '/';
 }
-function getMessagesFromTranslationsService(translationServiceUrl, language, name) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const url = endWithSlash(translationServiceUrl) + endWithSlash(language) + 'vscode/' + endWithSlash(name);
-        const res = yield fetch(url);
-        if (res.ok) {
-            const messages = yield res.json();
-            return messages;
-        }
-        throw new Error(`${res.status} - ${res.statusText}`);
-    });
+async function getMessagesFromTranslationsService(translationServiceUrl, language, name) {
+    const url = endWithSlash(translationServiceUrl) + endWithSlash(language) + 'vscode/' + endWithSlash(name);
+    const res = await fetch(url);
+    if (res.ok) {
+        const messages = await res.json();
+        return messages;
+    }
+    throw new Error(`${res.status} - ${res.statusText}`);
 }
 function createScopedLocalize(scope) {
     return function (idx, defaultValue) {
@@ -18275,11 +18335,27 @@ function createScopedLocalize(scope) {
         return _format(scope[idx], restArgs);
     };
 }
+function createScopedLocalize2(scope) {
+    return (idx, defaultValue, ...args) => ({
+        value: _format(scope[idx], args),
+        original: _format(defaultValue, args)
+    });
+}
 /**
  * @skipMangle
  */
 function localize(data, message, ...args) {
     return _format(message, args);
+}
+/**
+ * @skipMangle
+ */
+function localize2(data, message, ...args) {
+    const original = _format(message, args);
+    return {
+        value: original,
+        original
+    };
 }
 /**
  * @skipMangle
@@ -18303,6 +18379,7 @@ function create(key, data) {
     var _a;
     return {
         localize: createScopedLocalize(data[key]),
+        localize2: createScopedLocalize2(data[key]),
         getConfiguredDefaultLocale: (_a = data.getConfiguredDefaultLocale) !== null && _a !== void 0 ? _a : ((_) => undefined)
     };
 }
@@ -18317,6 +18394,7 @@ function load(name, req, load, config) {
         // TODO: We need to give back the mangled names here
         return load({
             localize: localize,
+            localize2: localize2,
             getConfiguredDefaultLocale: () => { var _a; return (_a = pluginConfig.availableLanguages) === null || _a === void 0 ? void 0 : _a['*']; }
         });
     }
@@ -18329,9 +18407,11 @@ function load(name, req, load, config) {
     const messagesLoaded = (messages) => {
         if (Array.isArray(messages)) {
             messages.localize = createScopedLocalize(messages);
+            messages.localize2 = createScopedLocalize2(messages);
         }
         else {
             messages.localize = createScopedLocalize(messages[name]);
+            messages.localize2 = createScopedLocalize2(messages[name]);
         }
         messages.getConfiguredDefaultLocale = () => { var _a; return (_a = pluginConfig.availableLanguages) === null || _a === void 0 ? void 0 : _a['*']; };
         load(messages);
@@ -18348,10 +18428,10 @@ function load(name, req, load, config) {
         });
     }
     else if (pluginConfig.translationServiceUrl && !useDefaultLanguage) {
-        (() => __awaiter(this, void 0, void 0, function* () {
-            var _b;
+        (async () => {
+            var _a;
             try {
-                const messages = yield getMessagesFromTranslationsService(pluginConfig.translationServiceUrl, language, name);
+                const messages = await getMessagesFromTranslationsService(pluginConfig.translationServiceUrl, language, name);
                 return messagesLoaded(messages);
             }
             catch (err) {
@@ -18365,9 +18445,9 @@ function load(name, req, load, config) {
                     // Since we were unable to load the specific language, try to load the generic language. Ex. we failed to find a
                     // Swiss German (de-CH), so try to load the generic German (de) messages instead.
                     const genericLanguage = language.split('-')[0];
-                    const messages = yield getMessagesFromTranslationsService(pluginConfig.translationServiceUrl, genericLanguage, name);
+                    const messages = await getMessagesFromTranslationsService(pluginConfig.translationServiceUrl, genericLanguage, name);
                     // We got some messages, so we configure the configuration to use the generic language for this session.
-                    (_b = pluginConfig.availableLanguages) !== null && _b !== void 0 ? _b : (pluginConfig.availableLanguages = {});
+                    (_a = pluginConfig.availableLanguages) !== null && _a !== void 0 ? _a : (pluginConfig.availableLanguages = {});
                     pluginConfig.availableLanguages['*'] = genericLanguage;
                     return messagesLoaded(messages);
                 }
@@ -18376,7 +18456,7 @@ function load(name, req, load, config) {
                     return req([name + '.nls'], messagesLoaded);
                 }
             }
-        }))();
+        })();
     }
     else {
         req([name + suffix], messagesLoaded, (err) => {
@@ -18432,18 +18512,6 @@ function load(name, req, load, config) {
 /******/ 		};
 /******/ 	})();
 /******/ 	
-/******/ 	/* webpack/runtime/global */
-/******/ 	(() => {
-/******/ 		__webpack_require__.g = (function() {
-/******/ 			if (typeof globalThis === 'object') return globalThis;
-/******/ 			try {
-/******/ 				return this || new Function('return this')();
-/******/ 			} catch (e) {
-/******/ 				if (typeof window === 'object') return window;
-/******/ 			}
-/******/ 		})();
-/******/ 	})();
-/******/ 	
 /******/ 	/* webpack/runtime/hasOwnProperty shorthand */
 /******/ 	(() => {
 /******/ 		__webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
@@ -18471,10 +18539,11 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _editor_editor_worker_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../editor/editor.worker.js */ "./node_modules/monaco-editor/esm/vs/editor/editor.worker.js");
 /*!-----------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation. All rights reserved.
- * Version: 0.44.0(3e047efd345ff102c8c61b5398fb30845aaac166)
+ * Version: 0.46.0(21007360cad28648bdf46282a2592cb47c3a7a6f)
  * Released under the MIT license
  * https://github.com/microsoft/monaco-editor/blob/main/LICENSE.txt
  *-----------------------------------------------------------------------------*/
+
 
 // src/language/html/html.worker.ts
 
@@ -18890,281 +18959,294 @@ var WorkspaceEdit;
   }
   WorkspaceEdit2.is = is;
 })(WorkspaceEdit || (WorkspaceEdit = {}));
-var TextEditChangeImpl = function() {
-  function TextEditChangeImpl2(edits, changeAnnotations) {
-    this.edits = edits;
-    this.changeAnnotations = changeAnnotations;
-  }
-  TextEditChangeImpl2.prototype.insert = function(position, newText, annotation) {
-    var edit;
-    var id;
-    if (annotation === void 0) {
-      edit = TextEdit.insert(position, newText);
-    } else if (ChangeAnnotationIdentifier.is(annotation)) {
-      id = annotation;
-      edit = AnnotatedTextEdit.insert(position, newText, annotation);
-    } else {
-      this.assertChangeAnnotations(this.changeAnnotations);
-      id = this.changeAnnotations.manage(annotation);
-      edit = AnnotatedTextEdit.insert(position, newText, id);
+var TextEditChangeImpl = (
+  /** @class */
+  function() {
+    function TextEditChangeImpl2(edits, changeAnnotations) {
+      this.edits = edits;
+      this.changeAnnotations = changeAnnotations;
     }
-    this.edits.push(edit);
-    if (id !== void 0) {
-      return id;
-    }
-  };
-  TextEditChangeImpl2.prototype.replace = function(range, newText, annotation) {
-    var edit;
-    var id;
-    if (annotation === void 0) {
-      edit = TextEdit.replace(range, newText);
-    } else if (ChangeAnnotationIdentifier.is(annotation)) {
-      id = annotation;
-      edit = AnnotatedTextEdit.replace(range, newText, annotation);
-    } else {
-      this.assertChangeAnnotations(this.changeAnnotations);
-      id = this.changeAnnotations.manage(annotation);
-      edit = AnnotatedTextEdit.replace(range, newText, id);
-    }
-    this.edits.push(edit);
-    if (id !== void 0) {
-      return id;
-    }
-  };
-  TextEditChangeImpl2.prototype.delete = function(range, annotation) {
-    var edit;
-    var id;
-    if (annotation === void 0) {
-      edit = TextEdit.del(range);
-    } else if (ChangeAnnotationIdentifier.is(annotation)) {
-      id = annotation;
-      edit = AnnotatedTextEdit.del(range, annotation);
-    } else {
-      this.assertChangeAnnotations(this.changeAnnotations);
-      id = this.changeAnnotations.manage(annotation);
-      edit = AnnotatedTextEdit.del(range, id);
-    }
-    this.edits.push(edit);
-    if (id !== void 0) {
-      return id;
-    }
-  };
-  TextEditChangeImpl2.prototype.add = function(edit) {
-    this.edits.push(edit);
-  };
-  TextEditChangeImpl2.prototype.all = function() {
-    return this.edits;
-  };
-  TextEditChangeImpl2.prototype.clear = function() {
-    this.edits.splice(0, this.edits.length);
-  };
-  TextEditChangeImpl2.prototype.assertChangeAnnotations = function(value) {
-    if (value === void 0) {
-      throw new Error("Text edit change is not configured to manage change annotations.");
-    }
-  };
-  return TextEditChangeImpl2;
-}();
-var ChangeAnnotations = function() {
-  function ChangeAnnotations2(annotations) {
-    this._annotations = annotations === void 0 ? /* @__PURE__ */ Object.create(null) : annotations;
-    this._counter = 0;
-    this._size = 0;
-  }
-  ChangeAnnotations2.prototype.all = function() {
-    return this._annotations;
-  };
-  Object.defineProperty(ChangeAnnotations2.prototype, "size", {
-    get: function() {
-      return this._size;
-    },
-    enumerable: false,
-    configurable: true
-  });
-  ChangeAnnotations2.prototype.manage = function(idOrAnnotation, annotation) {
-    var id;
-    if (ChangeAnnotationIdentifier.is(idOrAnnotation)) {
-      id = idOrAnnotation;
-    } else {
-      id = this.nextId();
-      annotation = idOrAnnotation;
-    }
-    if (this._annotations[id] !== void 0) {
-      throw new Error("Id " + id + " is already in use.");
-    }
-    if (annotation === void 0) {
-      throw new Error("No annotation provided for id " + id);
-    }
-    this._annotations[id] = annotation;
-    this._size++;
-    return id;
-  };
-  ChangeAnnotations2.prototype.nextId = function() {
-    this._counter++;
-    return this._counter.toString();
-  };
-  return ChangeAnnotations2;
-}();
-var WorkspaceChange = function() {
-  function WorkspaceChange2(workspaceEdit) {
-    var _this = this;
-    this._textEditChanges = /* @__PURE__ */ Object.create(null);
-    if (workspaceEdit !== void 0) {
-      this._workspaceEdit = workspaceEdit;
-      if (workspaceEdit.documentChanges) {
-        this._changeAnnotations = new ChangeAnnotations(workspaceEdit.changeAnnotations);
-        workspaceEdit.changeAnnotations = this._changeAnnotations.all();
-        workspaceEdit.documentChanges.forEach(function(change) {
-          if (TextDocumentEdit.is(change)) {
-            var textEditChange = new TextEditChangeImpl(change.edits, _this._changeAnnotations);
-            _this._textEditChanges[change.textDocument.uri] = textEditChange;
-          }
-        });
-      } else if (workspaceEdit.changes) {
-        Object.keys(workspaceEdit.changes).forEach(function(key) {
-          var textEditChange = new TextEditChangeImpl(workspaceEdit.changes[key]);
-          _this._textEditChanges[key] = textEditChange;
-        });
+    TextEditChangeImpl2.prototype.insert = function(position, newText, annotation) {
+      var edit;
+      var id;
+      if (annotation === void 0) {
+        edit = TextEdit.insert(position, newText);
+      } else if (ChangeAnnotationIdentifier.is(annotation)) {
+        id = annotation;
+        edit = AnnotatedTextEdit.insert(position, newText, annotation);
+      } else {
+        this.assertChangeAnnotations(this.changeAnnotations);
+        id = this.changeAnnotations.manage(annotation);
+        edit = AnnotatedTextEdit.insert(position, newText, id);
       }
-    } else {
-      this._workspaceEdit = {};
+      this.edits.push(edit);
+      if (id !== void 0) {
+        return id;
+      }
+    };
+    TextEditChangeImpl2.prototype.replace = function(range, newText, annotation) {
+      var edit;
+      var id;
+      if (annotation === void 0) {
+        edit = TextEdit.replace(range, newText);
+      } else if (ChangeAnnotationIdentifier.is(annotation)) {
+        id = annotation;
+        edit = AnnotatedTextEdit.replace(range, newText, annotation);
+      } else {
+        this.assertChangeAnnotations(this.changeAnnotations);
+        id = this.changeAnnotations.manage(annotation);
+        edit = AnnotatedTextEdit.replace(range, newText, id);
+      }
+      this.edits.push(edit);
+      if (id !== void 0) {
+        return id;
+      }
+    };
+    TextEditChangeImpl2.prototype.delete = function(range, annotation) {
+      var edit;
+      var id;
+      if (annotation === void 0) {
+        edit = TextEdit.del(range);
+      } else if (ChangeAnnotationIdentifier.is(annotation)) {
+        id = annotation;
+        edit = AnnotatedTextEdit.del(range, annotation);
+      } else {
+        this.assertChangeAnnotations(this.changeAnnotations);
+        id = this.changeAnnotations.manage(annotation);
+        edit = AnnotatedTextEdit.del(range, id);
+      }
+      this.edits.push(edit);
+      if (id !== void 0) {
+        return id;
+      }
+    };
+    TextEditChangeImpl2.prototype.add = function(edit) {
+      this.edits.push(edit);
+    };
+    TextEditChangeImpl2.prototype.all = function() {
+      return this.edits;
+    };
+    TextEditChangeImpl2.prototype.clear = function() {
+      this.edits.splice(0, this.edits.length);
+    };
+    TextEditChangeImpl2.prototype.assertChangeAnnotations = function(value) {
+      if (value === void 0) {
+        throw new Error("Text edit change is not configured to manage change annotations.");
+      }
+    };
+    return TextEditChangeImpl2;
+  }()
+);
+var ChangeAnnotations = (
+  /** @class */
+  function() {
+    function ChangeAnnotations2(annotations) {
+      this._annotations = annotations === void 0 ? /* @__PURE__ */ Object.create(null) : annotations;
+      this._counter = 0;
+      this._size = 0;
     }
-  }
-  Object.defineProperty(WorkspaceChange2.prototype, "edit", {
-    get: function() {
-      this.initDocumentChanges();
-      if (this._changeAnnotations !== void 0) {
-        if (this._changeAnnotations.size === 0) {
-          this._workspaceEdit.changeAnnotations = void 0;
-        } else {
-          this._workspaceEdit.changeAnnotations = this._changeAnnotations.all();
+    ChangeAnnotations2.prototype.all = function() {
+      return this._annotations;
+    };
+    Object.defineProperty(ChangeAnnotations2.prototype, "size", {
+      get: function() {
+        return this._size;
+      },
+      enumerable: false,
+      configurable: true
+    });
+    ChangeAnnotations2.prototype.manage = function(idOrAnnotation, annotation) {
+      var id;
+      if (ChangeAnnotationIdentifier.is(idOrAnnotation)) {
+        id = idOrAnnotation;
+      } else {
+        id = this.nextId();
+        annotation = idOrAnnotation;
+      }
+      if (this._annotations[id] !== void 0) {
+        throw new Error("Id " + id + " is already in use.");
+      }
+      if (annotation === void 0) {
+        throw new Error("No annotation provided for id " + id);
+      }
+      this._annotations[id] = annotation;
+      this._size++;
+      return id;
+    };
+    ChangeAnnotations2.prototype.nextId = function() {
+      this._counter++;
+      return this._counter.toString();
+    };
+    return ChangeAnnotations2;
+  }()
+);
+var WorkspaceChange = (
+  /** @class */
+  function() {
+    function WorkspaceChange2(workspaceEdit) {
+      var _this = this;
+      this._textEditChanges = /* @__PURE__ */ Object.create(null);
+      if (workspaceEdit !== void 0) {
+        this._workspaceEdit = workspaceEdit;
+        if (workspaceEdit.documentChanges) {
+          this._changeAnnotations = new ChangeAnnotations(workspaceEdit.changeAnnotations);
+          workspaceEdit.changeAnnotations = this._changeAnnotations.all();
+          workspaceEdit.documentChanges.forEach(function(change) {
+            if (TextDocumentEdit.is(change)) {
+              var textEditChange = new TextEditChangeImpl(change.edits, _this._changeAnnotations);
+              _this._textEditChanges[change.textDocument.uri] = textEditChange;
+            }
+          });
+        } else if (workspaceEdit.changes) {
+          Object.keys(workspaceEdit.changes).forEach(function(key) {
+            var textEditChange = new TextEditChangeImpl(workspaceEdit.changes[key]);
+            _this._textEditChanges[key] = textEditChange;
+          });
         }
+      } else {
+        this._workspaceEdit = {};
       }
-      return this._workspaceEdit;
-    },
-    enumerable: false,
-    configurable: true
-  });
-  WorkspaceChange2.prototype.getTextEditChange = function(key) {
-    if (OptionalVersionedTextDocumentIdentifier.is(key)) {
+    }
+    Object.defineProperty(WorkspaceChange2.prototype, "edit", {
+      /**
+       * Returns the underlying [WorkspaceEdit](#WorkspaceEdit) literal
+       * use to be returned from a workspace edit operation like rename.
+       */
+      get: function() {
+        this.initDocumentChanges();
+        if (this._changeAnnotations !== void 0) {
+          if (this._changeAnnotations.size === 0) {
+            this._workspaceEdit.changeAnnotations = void 0;
+          } else {
+            this._workspaceEdit.changeAnnotations = this._changeAnnotations.all();
+          }
+        }
+        return this._workspaceEdit;
+      },
+      enumerable: false,
+      configurable: true
+    });
+    WorkspaceChange2.prototype.getTextEditChange = function(key) {
+      if (OptionalVersionedTextDocumentIdentifier.is(key)) {
+        this.initDocumentChanges();
+        if (this._workspaceEdit.documentChanges === void 0) {
+          throw new Error("Workspace edit is not configured for document changes.");
+        }
+        var textDocument = { uri: key.uri, version: key.version };
+        var result = this._textEditChanges[textDocument.uri];
+        if (!result) {
+          var edits = [];
+          var textDocumentEdit = {
+            textDocument,
+            edits
+          };
+          this._workspaceEdit.documentChanges.push(textDocumentEdit);
+          result = new TextEditChangeImpl(edits, this._changeAnnotations);
+          this._textEditChanges[textDocument.uri] = result;
+        }
+        return result;
+      } else {
+        this.initChanges();
+        if (this._workspaceEdit.changes === void 0) {
+          throw new Error("Workspace edit is not configured for normal text edit changes.");
+        }
+        var result = this._textEditChanges[key];
+        if (!result) {
+          var edits = [];
+          this._workspaceEdit.changes[key] = edits;
+          result = new TextEditChangeImpl(edits);
+          this._textEditChanges[key] = result;
+        }
+        return result;
+      }
+    };
+    WorkspaceChange2.prototype.initDocumentChanges = function() {
+      if (this._workspaceEdit.documentChanges === void 0 && this._workspaceEdit.changes === void 0) {
+        this._changeAnnotations = new ChangeAnnotations();
+        this._workspaceEdit.documentChanges = [];
+        this._workspaceEdit.changeAnnotations = this._changeAnnotations.all();
+      }
+    };
+    WorkspaceChange2.prototype.initChanges = function() {
+      if (this._workspaceEdit.documentChanges === void 0 && this._workspaceEdit.changes === void 0) {
+        this._workspaceEdit.changes = /* @__PURE__ */ Object.create(null);
+      }
+    };
+    WorkspaceChange2.prototype.createFile = function(uri, optionsOrAnnotation, options) {
       this.initDocumentChanges();
       if (this._workspaceEdit.documentChanges === void 0) {
         throw new Error("Workspace edit is not configured for document changes.");
       }
-      var textDocument = { uri: key.uri, version: key.version };
-      var result = this._textEditChanges[textDocument.uri];
-      if (!result) {
-        var edits = [];
-        var textDocumentEdit = {
-          textDocument,
-          edits
-        };
-        this._workspaceEdit.documentChanges.push(textDocumentEdit);
-        result = new TextEditChangeImpl(edits, this._changeAnnotations);
-        this._textEditChanges[textDocument.uri] = result;
+      var annotation;
+      if (ChangeAnnotation.is(optionsOrAnnotation) || ChangeAnnotationIdentifier.is(optionsOrAnnotation)) {
+        annotation = optionsOrAnnotation;
+      } else {
+        options = optionsOrAnnotation;
       }
-      return result;
-    } else {
-      this.initChanges();
-      if (this._workspaceEdit.changes === void 0) {
-        throw new Error("Workspace edit is not configured for normal text edit changes.");
+      var operation;
+      var id;
+      if (annotation === void 0) {
+        operation = CreateFile.create(uri, options);
+      } else {
+        id = ChangeAnnotationIdentifier.is(annotation) ? annotation : this._changeAnnotations.manage(annotation);
+        operation = CreateFile.create(uri, options, id);
       }
-      var result = this._textEditChanges[key];
-      if (!result) {
-        var edits = [];
-        this._workspaceEdit.changes[key] = edits;
-        result = new TextEditChangeImpl(edits);
-        this._textEditChanges[key] = result;
+      this._workspaceEdit.documentChanges.push(operation);
+      if (id !== void 0) {
+        return id;
       }
-      return result;
-    }
-  };
-  WorkspaceChange2.prototype.initDocumentChanges = function() {
-    if (this._workspaceEdit.documentChanges === void 0 && this._workspaceEdit.changes === void 0) {
-      this._changeAnnotations = new ChangeAnnotations();
-      this._workspaceEdit.documentChanges = [];
-      this._workspaceEdit.changeAnnotations = this._changeAnnotations.all();
-    }
-  };
-  WorkspaceChange2.prototype.initChanges = function() {
-    if (this._workspaceEdit.documentChanges === void 0 && this._workspaceEdit.changes === void 0) {
-      this._workspaceEdit.changes = /* @__PURE__ */ Object.create(null);
-    }
-  };
-  WorkspaceChange2.prototype.createFile = function(uri, optionsOrAnnotation, options) {
-    this.initDocumentChanges();
-    if (this._workspaceEdit.documentChanges === void 0) {
-      throw new Error("Workspace edit is not configured for document changes.");
-    }
-    var annotation;
-    if (ChangeAnnotation.is(optionsOrAnnotation) || ChangeAnnotationIdentifier.is(optionsOrAnnotation)) {
-      annotation = optionsOrAnnotation;
-    } else {
-      options = optionsOrAnnotation;
-    }
-    var operation;
-    var id;
-    if (annotation === void 0) {
-      operation = CreateFile.create(uri, options);
-    } else {
-      id = ChangeAnnotationIdentifier.is(annotation) ? annotation : this._changeAnnotations.manage(annotation);
-      operation = CreateFile.create(uri, options, id);
-    }
-    this._workspaceEdit.documentChanges.push(operation);
-    if (id !== void 0) {
-      return id;
-    }
-  };
-  WorkspaceChange2.prototype.renameFile = function(oldUri, newUri, optionsOrAnnotation, options) {
-    this.initDocumentChanges();
-    if (this._workspaceEdit.documentChanges === void 0) {
-      throw new Error("Workspace edit is not configured for document changes.");
-    }
-    var annotation;
-    if (ChangeAnnotation.is(optionsOrAnnotation) || ChangeAnnotationIdentifier.is(optionsOrAnnotation)) {
-      annotation = optionsOrAnnotation;
-    } else {
-      options = optionsOrAnnotation;
-    }
-    var operation;
-    var id;
-    if (annotation === void 0) {
-      operation = RenameFile.create(oldUri, newUri, options);
-    } else {
-      id = ChangeAnnotationIdentifier.is(annotation) ? annotation : this._changeAnnotations.manage(annotation);
-      operation = RenameFile.create(oldUri, newUri, options, id);
-    }
-    this._workspaceEdit.documentChanges.push(operation);
-    if (id !== void 0) {
-      return id;
-    }
-  };
-  WorkspaceChange2.prototype.deleteFile = function(uri, optionsOrAnnotation, options) {
-    this.initDocumentChanges();
-    if (this._workspaceEdit.documentChanges === void 0) {
-      throw new Error("Workspace edit is not configured for document changes.");
-    }
-    var annotation;
-    if (ChangeAnnotation.is(optionsOrAnnotation) || ChangeAnnotationIdentifier.is(optionsOrAnnotation)) {
-      annotation = optionsOrAnnotation;
-    } else {
-      options = optionsOrAnnotation;
-    }
-    var operation;
-    var id;
-    if (annotation === void 0) {
-      operation = DeleteFile.create(uri, options);
-    } else {
-      id = ChangeAnnotationIdentifier.is(annotation) ? annotation : this._changeAnnotations.manage(annotation);
-      operation = DeleteFile.create(uri, options, id);
-    }
-    this._workspaceEdit.documentChanges.push(operation);
-    if (id !== void 0) {
-      return id;
-    }
-  };
-  return WorkspaceChange2;
-}();
+    };
+    WorkspaceChange2.prototype.renameFile = function(oldUri, newUri, optionsOrAnnotation, options) {
+      this.initDocumentChanges();
+      if (this._workspaceEdit.documentChanges === void 0) {
+        throw new Error("Workspace edit is not configured for document changes.");
+      }
+      var annotation;
+      if (ChangeAnnotation.is(optionsOrAnnotation) || ChangeAnnotationIdentifier.is(optionsOrAnnotation)) {
+        annotation = optionsOrAnnotation;
+      } else {
+        options = optionsOrAnnotation;
+      }
+      var operation;
+      var id;
+      if (annotation === void 0) {
+        operation = RenameFile.create(oldUri, newUri, options);
+      } else {
+        id = ChangeAnnotationIdentifier.is(annotation) ? annotation : this._changeAnnotations.manage(annotation);
+        operation = RenameFile.create(oldUri, newUri, options, id);
+      }
+      this._workspaceEdit.documentChanges.push(operation);
+      if (id !== void 0) {
+        return id;
+      }
+    };
+    WorkspaceChange2.prototype.deleteFile = function(uri, optionsOrAnnotation, options) {
+      this.initDocumentChanges();
+      if (this._workspaceEdit.documentChanges === void 0) {
+        throw new Error("Workspace edit is not configured for document changes.");
+      }
+      var annotation;
+      if (ChangeAnnotation.is(optionsOrAnnotation) || ChangeAnnotationIdentifier.is(optionsOrAnnotation)) {
+        annotation = optionsOrAnnotation;
+      } else {
+        options = optionsOrAnnotation;
+      }
+      var operation;
+      var id;
+      if (annotation === void 0) {
+        operation = DeleteFile.create(uri, options);
+      } else {
+        id = ChangeAnnotationIdentifier.is(annotation) ? annotation : this._changeAnnotations.manage(annotation);
+        operation = DeleteFile.create(uri, options, id);
+      }
+      this._workspaceEdit.documentChanges.push(operation);
+      if (id !== void 0) {
+        return id;
+      }
+    };
+    return WorkspaceChange2;
+  }()
+);
 var TextDocumentIdentifier;
 (function(TextDocumentIdentifier2) {
   function create(uri) {
@@ -19604,109 +19686,112 @@ var TextDocument;
     return data;
   }
 })(TextDocument || (TextDocument = {}));
-var FullTextDocument = function() {
-  function FullTextDocument3(uri, languageId, version, content) {
-    this._uri = uri;
-    this._languageId = languageId;
-    this._version = version;
-    this._content = content;
-    this._lineOffsets = void 0;
-  }
-  Object.defineProperty(FullTextDocument3.prototype, "uri", {
-    get: function() {
-      return this._uri;
-    },
-    enumerable: false,
-    configurable: true
-  });
-  Object.defineProperty(FullTextDocument3.prototype, "languageId", {
-    get: function() {
-      return this._languageId;
-    },
-    enumerable: false,
-    configurable: true
-  });
-  Object.defineProperty(FullTextDocument3.prototype, "version", {
-    get: function() {
-      return this._version;
-    },
-    enumerable: false,
-    configurable: true
-  });
-  FullTextDocument3.prototype.getText = function(range) {
-    if (range) {
-      var start = this.offsetAt(range.start);
-      var end = this.offsetAt(range.end);
-      return this._content.substring(start, end);
+var FullTextDocument = (
+  /** @class */
+  function() {
+    function FullTextDocument3(uri, languageId, version, content) {
+      this._uri = uri;
+      this._languageId = languageId;
+      this._version = version;
+      this._content = content;
+      this._lineOffsets = void 0;
     }
-    return this._content;
-  };
-  FullTextDocument3.prototype.update = function(event, version) {
-    this._content = event.text;
-    this._version = version;
-    this._lineOffsets = void 0;
-  };
-  FullTextDocument3.prototype.getLineOffsets = function() {
-    if (this._lineOffsets === void 0) {
-      var lineOffsets = [];
-      var text = this._content;
-      var isLineStart = true;
-      for (var i = 0; i < text.length; i++) {
-        if (isLineStart) {
-          lineOffsets.push(i);
-          isLineStart = false;
+    Object.defineProperty(FullTextDocument3.prototype, "uri", {
+      get: function() {
+        return this._uri;
+      },
+      enumerable: false,
+      configurable: true
+    });
+    Object.defineProperty(FullTextDocument3.prototype, "languageId", {
+      get: function() {
+        return this._languageId;
+      },
+      enumerable: false,
+      configurable: true
+    });
+    Object.defineProperty(FullTextDocument3.prototype, "version", {
+      get: function() {
+        return this._version;
+      },
+      enumerable: false,
+      configurable: true
+    });
+    FullTextDocument3.prototype.getText = function(range) {
+      if (range) {
+        var start = this.offsetAt(range.start);
+        var end = this.offsetAt(range.end);
+        return this._content.substring(start, end);
+      }
+      return this._content;
+    };
+    FullTextDocument3.prototype.update = function(event, version) {
+      this._content = event.text;
+      this._version = version;
+      this._lineOffsets = void 0;
+    };
+    FullTextDocument3.prototype.getLineOffsets = function() {
+      if (this._lineOffsets === void 0) {
+        var lineOffsets = [];
+        var text = this._content;
+        var isLineStart = true;
+        for (var i = 0; i < text.length; i++) {
+          if (isLineStart) {
+            lineOffsets.push(i);
+            isLineStart = false;
+          }
+          var ch = text.charAt(i);
+          isLineStart = ch === "\r" || ch === "\n";
+          if (ch === "\r" && i + 1 < text.length && text.charAt(i + 1) === "\n") {
+            i++;
+          }
         }
-        var ch = text.charAt(i);
-        isLineStart = ch === "\r" || ch === "\n";
-        if (ch === "\r" && i + 1 < text.length && text.charAt(i + 1) === "\n") {
-          i++;
+        if (isLineStart && text.length > 0) {
+          lineOffsets.push(text.length);
+        }
+        this._lineOffsets = lineOffsets;
+      }
+      return this._lineOffsets;
+    };
+    FullTextDocument3.prototype.positionAt = function(offset) {
+      offset = Math.max(Math.min(offset, this._content.length), 0);
+      var lineOffsets = this.getLineOffsets();
+      var low = 0, high = lineOffsets.length;
+      if (high === 0) {
+        return Position.create(0, offset);
+      }
+      while (low < high) {
+        var mid = Math.floor((low + high) / 2);
+        if (lineOffsets[mid] > offset) {
+          high = mid;
+        } else {
+          low = mid + 1;
         }
       }
-      if (isLineStart && text.length > 0) {
-        lineOffsets.push(text.length);
+      var line = low - 1;
+      return Position.create(line, offset - lineOffsets[line]);
+    };
+    FullTextDocument3.prototype.offsetAt = function(position) {
+      var lineOffsets = this.getLineOffsets();
+      if (position.line >= lineOffsets.length) {
+        return this._content.length;
+      } else if (position.line < 0) {
+        return 0;
       }
-      this._lineOffsets = lineOffsets;
-    }
-    return this._lineOffsets;
-  };
-  FullTextDocument3.prototype.positionAt = function(offset) {
-    offset = Math.max(Math.min(offset, this._content.length), 0);
-    var lineOffsets = this.getLineOffsets();
-    var low = 0, high = lineOffsets.length;
-    if (high === 0) {
-      return Position.create(0, offset);
-    }
-    while (low < high) {
-      var mid = Math.floor((low + high) / 2);
-      if (lineOffsets[mid] > offset) {
-        high = mid;
-      } else {
-        low = mid + 1;
-      }
-    }
-    var line = low - 1;
-    return Position.create(line, offset - lineOffsets[line]);
-  };
-  FullTextDocument3.prototype.offsetAt = function(position) {
-    var lineOffsets = this.getLineOffsets();
-    if (position.line >= lineOffsets.length) {
-      return this._content.length;
-    } else if (position.line < 0) {
-      return 0;
-    }
-    var lineOffset = lineOffsets[position.line];
-    var nextLineOffset = position.line + 1 < lineOffsets.length ? lineOffsets[position.line + 1] : this._content.length;
-    return Math.max(Math.min(lineOffset + position.character, nextLineOffset), lineOffset);
-  };
-  Object.defineProperty(FullTextDocument3.prototype, "lineCount", {
-    get: function() {
-      return this.getLineOffsets().length;
-    },
-    enumerable: false,
-    configurable: true
-  });
-  return FullTextDocument3;
-}();
+      var lineOffset = lineOffsets[position.line];
+      var nextLineOffset = position.line + 1 < lineOffsets.length ? lineOffsets[position.line + 1] : this._content.length;
+      return Math.max(Math.min(lineOffset + position.character, nextLineOffset), lineOffset);
+    };
+    Object.defineProperty(FullTextDocument3.prototype, "lineCount", {
+      get: function() {
+        return this.getLineOffsets().length;
+      },
+      enumerable: false,
+      configurable: true
+    });
+    return FullTextDocument3;
+  }()
+);
 var Is;
 (function(Is2) {
   var toString = Object.prototype.toString;
@@ -19757,7 +19842,7 @@ var Is;
 })(Is || (Is = {}));
 
 // node_modules/vscode-languageserver-textdocument/lib/esm/main.js
-var FullTextDocument2 = class {
+var FullTextDocument2 = class _FullTextDocument {
   constructor(uri, languageId, version, content) {
     this._uri = uri;
     this._languageId = languageId;
@@ -19784,7 +19869,7 @@ var FullTextDocument2 = class {
   }
   update(changes, version) {
     for (let change of changes) {
-      if (FullTextDocument2.isIncremental(change)) {
+      if (_FullTextDocument.isIncremental(change)) {
         const range = getWellformedRange(change.range);
         const startOffset = this.offsetAt(range.start);
         const endOffset = this.offsetAt(range.end);
@@ -19810,7 +19895,7 @@ var FullTextDocument2 = class {
             lineOffsets[i] = lineOffsets[i] + diff;
           }
         }
-      } else if (FullTextDocument2.isFull(change)) {
+      } else if (_FullTextDocument.isFull(change)) {
         this._content = change.text;
         this._lineOffsets = void 0;
       } else {
@@ -20031,119 +20116,122 @@ var FileType;
 
 // node_modules/vscode-html-languageservice/lib/esm/parser/htmlScanner.js
 var localize2 = loadMessageBundle();
-var MultiLineStream = function() {
-  function MultiLineStream2(source, position) {
-    this.source = source;
-    this.len = source.length;
-    this.position = position;
-  }
-  MultiLineStream2.prototype.eos = function() {
-    return this.len <= this.position;
-  };
-  MultiLineStream2.prototype.getSource = function() {
-    return this.source;
-  };
-  MultiLineStream2.prototype.pos = function() {
-    return this.position;
-  };
-  MultiLineStream2.prototype.goBackTo = function(pos) {
-    this.position = pos;
-  };
-  MultiLineStream2.prototype.goBack = function(n) {
-    this.position -= n;
-  };
-  MultiLineStream2.prototype.advance = function(n) {
-    this.position += n;
-  };
-  MultiLineStream2.prototype.goToEnd = function() {
-    this.position = this.source.length;
-  };
-  MultiLineStream2.prototype.nextChar = function() {
-    return this.source.charCodeAt(this.position++) || 0;
-  };
-  MultiLineStream2.prototype.peekChar = function(n) {
-    if (n === void 0) {
-      n = 0;
+var MultiLineStream = (
+  /** @class */
+  function() {
+    function MultiLineStream2(source, position) {
+      this.source = source;
+      this.len = source.length;
+      this.position = position;
     }
-    return this.source.charCodeAt(this.position + n) || 0;
-  };
-  MultiLineStream2.prototype.advanceIfChar = function(ch) {
-    if (ch === this.source.charCodeAt(this.position)) {
-      this.position++;
-      return true;
-    }
-    return false;
-  };
-  MultiLineStream2.prototype.advanceIfChars = function(ch) {
-    var i;
-    if (this.position + ch.length > this.source.length) {
+    MultiLineStream2.prototype.eos = function() {
+      return this.len <= this.position;
+    };
+    MultiLineStream2.prototype.getSource = function() {
+      return this.source;
+    };
+    MultiLineStream2.prototype.pos = function() {
+      return this.position;
+    };
+    MultiLineStream2.prototype.goBackTo = function(pos) {
+      this.position = pos;
+    };
+    MultiLineStream2.prototype.goBack = function(n) {
+      this.position -= n;
+    };
+    MultiLineStream2.prototype.advance = function(n) {
+      this.position += n;
+    };
+    MultiLineStream2.prototype.goToEnd = function() {
+      this.position = this.source.length;
+    };
+    MultiLineStream2.prototype.nextChar = function() {
+      return this.source.charCodeAt(this.position++) || 0;
+    };
+    MultiLineStream2.prototype.peekChar = function(n) {
+      if (n === void 0) {
+        n = 0;
+      }
+      return this.source.charCodeAt(this.position + n) || 0;
+    };
+    MultiLineStream2.prototype.advanceIfChar = function(ch) {
+      if (ch === this.source.charCodeAt(this.position)) {
+        this.position++;
+        return true;
+      }
       return false;
-    }
-    for (i = 0; i < ch.length; i++) {
-      if (this.source.charCodeAt(this.position + i) !== ch[i]) {
+    };
+    MultiLineStream2.prototype.advanceIfChars = function(ch) {
+      var i;
+      if (this.position + ch.length > this.source.length) {
         return false;
       }
-    }
-    this.advance(i);
-    return true;
-  };
-  MultiLineStream2.prototype.advanceIfRegExp = function(regex) {
-    var str = this.source.substr(this.position);
-    var match = str.match(regex);
-    if (match) {
-      this.position = this.position + match.index + match[0].length;
-      return match[0];
-    }
-    return "";
-  };
-  MultiLineStream2.prototype.advanceUntilRegExp = function(regex) {
-    var str = this.source.substr(this.position);
-    var match = str.match(regex);
-    if (match) {
-      this.position = this.position + match.index;
-      return match[0];
-    } else {
+      for (i = 0; i < ch.length; i++) {
+        if (this.source.charCodeAt(this.position + i) !== ch[i]) {
+          return false;
+        }
+      }
+      this.advance(i);
+      return true;
+    };
+    MultiLineStream2.prototype.advanceIfRegExp = function(regex) {
+      var str = this.source.substr(this.position);
+      var match = str.match(regex);
+      if (match) {
+        this.position = this.position + match.index + match[0].length;
+        return match[0];
+      }
+      return "";
+    };
+    MultiLineStream2.prototype.advanceUntilRegExp = function(regex) {
+      var str = this.source.substr(this.position);
+      var match = str.match(regex);
+      if (match) {
+        this.position = this.position + match.index;
+        return match[0];
+      } else {
+        this.goToEnd();
+      }
+      return "";
+    };
+    MultiLineStream2.prototype.advanceUntilChar = function(ch) {
+      while (this.position < this.source.length) {
+        if (this.source.charCodeAt(this.position) === ch) {
+          return true;
+        }
+        this.advance(1);
+      }
+      return false;
+    };
+    MultiLineStream2.prototype.advanceUntilChars = function(ch) {
+      while (this.position + ch.length <= this.source.length) {
+        var i = 0;
+        for (; i < ch.length && this.source.charCodeAt(this.position + i) === ch[i]; i++) {
+        }
+        if (i === ch.length) {
+          return true;
+        }
+        this.advance(1);
+      }
       this.goToEnd();
-    }
-    return "";
-  };
-  MultiLineStream2.prototype.advanceUntilChar = function(ch) {
-    while (this.position < this.source.length) {
-      if (this.source.charCodeAt(this.position) === ch) {
-        return true;
+      return false;
+    };
+    MultiLineStream2.prototype.skipWhitespace = function() {
+      var n = this.advanceWhileChar(function(ch) {
+        return ch === _WSP || ch === _TAB || ch === _NWL || ch === _LFD || ch === _CAR;
+      });
+      return n > 0;
+    };
+    MultiLineStream2.prototype.advanceWhileChar = function(condition) {
+      var posNow = this.position;
+      while (this.position < this.len && condition(this.source.charCodeAt(this.position))) {
+        this.position++;
       }
-      this.advance(1);
-    }
-    return false;
-  };
-  MultiLineStream2.prototype.advanceUntilChars = function(ch) {
-    while (this.position + ch.length <= this.source.length) {
-      var i = 0;
-      for (; i < ch.length && this.source.charCodeAt(this.position + i) === ch[i]; i++) {
-      }
-      if (i === ch.length) {
-        return true;
-      }
-      this.advance(1);
-    }
-    this.goToEnd();
-    return false;
-  };
-  MultiLineStream2.prototype.skipWhitespace = function() {
-    var n = this.advanceWhileChar(function(ch) {
-      return ch === _WSP || ch === _TAB || ch === _NWL || ch === _LFD || ch === _CAR;
-    });
-    return n > 0;
-  };
-  MultiLineStream2.prototype.advanceWhileChar = function(condition) {
-    var posNow = this.position;
-    while (this.position < this.len && condition(this.source.charCodeAt(this.position))) {
-      this.position++;
-    }
-    return this.position - posNow;
-  };
-  return MultiLineStream2;
-}();
+      return this.position - posNow;
+    };
+    return MultiLineStream2;
+  }()
+);
 var _BNG = "!".charCodeAt(0);
 var _MIN = "-".charCodeAt(0);
 var _LAN = "<".charCodeAt(0);
@@ -20159,6 +20247,7 @@ var _WSP = " ".charCodeAt(0);
 var _TAB = "	".charCodeAt(0);
 var htmlScriptContents = {
   "text/x-handlebars-template": true,
+  // Fix for https://github.com/microsoft/vscode/issues/77977
   "text/html": true
 };
 function createScanner(input, initialOffset, initialState, emitPseudoCloseTags) {
@@ -20483,75 +20572,78 @@ function isVoidElement(e) {
 }
 
 // node_modules/vscode-html-languageservice/lib/esm/parser/htmlParser.js
-var Node = function() {
-  function Node2(start, end, children, parent) {
-    this.start = start;
-    this.end = end;
-    this.children = children;
-    this.parent = parent;
-    this.closed = false;
-  }
-  Object.defineProperty(Node2.prototype, "attributeNames", {
-    get: function() {
-      return this.attributes ? Object.keys(this.attributes) : [];
-    },
-    enumerable: false,
-    configurable: true
-  });
-  Node2.prototype.isSameTag = function(tagInLowerCase) {
-    if (this.tag === void 0) {
-      return tagInLowerCase === void 0;
-    } else {
-      return tagInLowerCase !== void 0 && this.tag.length === tagInLowerCase.length && this.tag.toLowerCase() === tagInLowerCase;
+var Node = (
+  /** @class */
+  function() {
+    function Node2(start, end, children, parent) {
+      this.start = start;
+      this.end = end;
+      this.children = children;
+      this.parent = parent;
+      this.closed = false;
     }
-  };
-  Object.defineProperty(Node2.prototype, "firstChild", {
-    get: function() {
-      return this.children[0];
-    },
-    enumerable: false,
-    configurable: true
-  });
-  Object.defineProperty(Node2.prototype, "lastChild", {
-    get: function() {
-      return this.children.length ? this.children[this.children.length - 1] : void 0;
-    },
-    enumerable: false,
-    configurable: true
-  });
-  Node2.prototype.findNodeBefore = function(offset) {
-    var idx = findFirst(this.children, function(c) {
-      return offset <= c.start;
-    }) - 1;
-    if (idx >= 0) {
-      var child = this.children[idx];
-      if (offset > child.start) {
-        if (offset < child.end) {
-          return child.findNodeBefore(offset);
-        }
-        var lastChild = child.lastChild;
-        if (lastChild && lastChild.end === child.end) {
-          return child.findNodeBefore(offset);
-        }
-        return child;
+    Object.defineProperty(Node2.prototype, "attributeNames", {
+      get: function() {
+        return this.attributes ? Object.keys(this.attributes) : [];
+      },
+      enumerable: false,
+      configurable: true
+    });
+    Node2.prototype.isSameTag = function(tagInLowerCase) {
+      if (this.tag === void 0) {
+        return tagInLowerCase === void 0;
+      } else {
+        return tagInLowerCase !== void 0 && this.tag.length === tagInLowerCase.length && this.tag.toLowerCase() === tagInLowerCase;
       }
-    }
-    return this;
-  };
-  Node2.prototype.findNodeAt = function(offset) {
-    var idx = findFirst(this.children, function(c) {
-      return offset <= c.start;
-    }) - 1;
-    if (idx >= 0) {
-      var child = this.children[idx];
-      if (offset > child.start && offset <= child.end) {
-        return child.findNodeAt(offset);
+    };
+    Object.defineProperty(Node2.prototype, "firstChild", {
+      get: function() {
+        return this.children[0];
+      },
+      enumerable: false,
+      configurable: true
+    });
+    Object.defineProperty(Node2.prototype, "lastChild", {
+      get: function() {
+        return this.children.length ? this.children[this.children.length - 1] : void 0;
+      },
+      enumerable: false,
+      configurable: true
+    });
+    Node2.prototype.findNodeBefore = function(offset) {
+      var idx = findFirst(this.children, function(c) {
+        return offset <= c.start;
+      }) - 1;
+      if (idx >= 0) {
+        var child = this.children[idx];
+        if (offset > child.start) {
+          if (offset < child.end) {
+            return child.findNodeBefore(offset);
+          }
+          var lastChild = child.lastChild;
+          if (lastChild && lastChild.end === child.end) {
+            return child.findNodeBefore(offset);
+          }
+          return child;
+        }
       }
-    }
-    return this;
-  };
-  return Node2;
-}();
+      return this;
+    };
+    Node2.prototype.findNodeAt = function(offset) {
+      var idx = findFirst(this.children, function(c) {
+        return offset <= c.start;
+      }) - 1;
+      if (idx >= 0) {
+        var child = this.children[idx];
+        if (offset > child.start && offset <= child.end) {
+          return child.findNodeAt(offset);
+        }
+      }
+      return this;
+    };
+    return Node2;
+  }()
+);
 function parse(text) {
   var scanner = createScanner(text, void 0, void 0, true);
   var htmlDocument = new Node(0, text.length, [], void 0);
@@ -22951,76 +23043,79 @@ function normalizeMarkupContent(input) {
 }
 
 // node_modules/vscode-html-languageservice/lib/esm/languageFacts/dataProvider.js
-var HTMLDataProvider = function() {
-  function HTMLDataProvider2(id, customData) {
-    var _this = this;
-    this.id = id;
-    this._tags = [];
-    this._tagMap = {};
-    this._valueSetMap = {};
-    this._tags = customData.tags || [];
-    this._globalAttributes = customData.globalAttributes || [];
-    this._tags.forEach(function(t) {
-      _this._tagMap[t.name.toLowerCase()] = t;
-    });
-    if (customData.valueSets) {
-      customData.valueSets.forEach(function(vs) {
-        _this._valueSetMap[vs.name] = vs.values;
+var HTMLDataProvider = (
+  /** @class */
+  function() {
+    function HTMLDataProvider2(id, customData) {
+      var _this = this;
+      this.id = id;
+      this._tags = [];
+      this._tagMap = {};
+      this._valueSetMap = {};
+      this._tags = customData.tags || [];
+      this._globalAttributes = customData.globalAttributes || [];
+      this._tags.forEach(function(t) {
+        _this._tagMap[t.name.toLowerCase()] = t;
       });
+      if (customData.valueSets) {
+        customData.valueSets.forEach(function(vs) {
+          _this._valueSetMap[vs.name] = vs.values;
+        });
+      }
     }
-  }
-  HTMLDataProvider2.prototype.isApplicable = function() {
-    return true;
-  };
-  HTMLDataProvider2.prototype.getId = function() {
-    return this.id;
-  };
-  HTMLDataProvider2.prototype.provideTags = function() {
-    return this._tags;
-  };
-  HTMLDataProvider2.prototype.provideAttributes = function(tag) {
-    var attributes = [];
-    var processAttribute = function(a) {
-      attributes.push(a);
+    HTMLDataProvider2.prototype.isApplicable = function() {
+      return true;
     };
-    var tagEntry = this._tagMap[tag.toLowerCase()];
-    if (tagEntry) {
-      tagEntry.attributes.forEach(processAttribute);
-    }
-    this._globalAttributes.forEach(processAttribute);
-    return attributes;
-  };
-  HTMLDataProvider2.prototype.provideValues = function(tag, attribute) {
-    var _this = this;
-    var values = [];
-    attribute = attribute.toLowerCase();
-    var processAttributes = function(attributes) {
-      attributes.forEach(function(a) {
-        if (a.name.toLowerCase() === attribute) {
-          if (a.values) {
-            a.values.forEach(function(v) {
-              values.push(v);
-            });
-          }
-          if (a.valueSet) {
-            if (_this._valueSetMap[a.valueSet]) {
-              _this._valueSetMap[a.valueSet].forEach(function(v) {
+    HTMLDataProvider2.prototype.getId = function() {
+      return this.id;
+    };
+    HTMLDataProvider2.prototype.provideTags = function() {
+      return this._tags;
+    };
+    HTMLDataProvider2.prototype.provideAttributes = function(tag) {
+      var attributes = [];
+      var processAttribute = function(a) {
+        attributes.push(a);
+      };
+      var tagEntry = this._tagMap[tag.toLowerCase()];
+      if (tagEntry) {
+        tagEntry.attributes.forEach(processAttribute);
+      }
+      this._globalAttributes.forEach(processAttribute);
+      return attributes;
+    };
+    HTMLDataProvider2.prototype.provideValues = function(tag, attribute) {
+      var _this = this;
+      var values = [];
+      attribute = attribute.toLowerCase();
+      var processAttributes = function(attributes) {
+        attributes.forEach(function(a) {
+          if (a.name.toLowerCase() === attribute) {
+            if (a.values) {
+              a.values.forEach(function(v) {
                 values.push(v);
               });
             }
+            if (a.valueSet) {
+              if (_this._valueSetMap[a.valueSet]) {
+                _this._valueSetMap[a.valueSet].forEach(function(v) {
+                  values.push(v);
+                });
+              }
+            }
           }
-        }
-      });
+        });
+      };
+      var tagEntry = this._tagMap[tag.toLowerCase()];
+      if (tagEntry) {
+        processAttributes(tagEntry.attributes);
+      }
+      processAttributes(this._globalAttributes);
+      return values;
     };
-    var tagEntry = this._tagMap[tag.toLowerCase()];
-    if (tagEntry) {
-      processAttributes(tagEntry.attributes);
-    }
-    processAttributes(this._globalAttributes);
-    return values;
-  };
-  return HTMLDataProvider2;
-}();
+    return HTMLDataProvider2;
+  }()
+);
 function generateDocumentation(item, settings, doesSupportMarkdown) {
   if (settings === void 0) {
     settings = {};
@@ -23159,90 +23254,93 @@ var __generator = function(thisArg, body) {
     return { value: op[0] ? op[1] : void 0, done: true };
   }
 };
-var PathCompletionParticipant = function() {
-  function PathCompletionParticipant2(readDirectory) {
-    this.readDirectory = readDirectory;
-    this.atributeCompletions = [];
-  }
-  PathCompletionParticipant2.prototype.onHtmlAttributeValue = function(context) {
-    if (isPathAttribute(context.tag, context.attribute)) {
-      this.atributeCompletions.push(context);
+var PathCompletionParticipant = (
+  /** @class */
+  function() {
+    function PathCompletionParticipant2(readDirectory) {
+      this.readDirectory = readDirectory;
+      this.atributeCompletions = [];
     }
-  };
-  PathCompletionParticipant2.prototype.computeCompletions = function(document, documentContext) {
-    return __awaiter(this, void 0, void 0, function() {
-      var result, _i, _a2, attributeCompletion, fullValue, replaceRange, suggestions, _b, suggestions_1, item;
-      return __generator(this, function(_c) {
-        switch (_c.label) {
-          case 0:
-            result = { items: [], isIncomplete: false };
-            _i = 0, _a2 = this.atributeCompletions;
-            _c.label = 1;
-          case 1:
-            if (!(_i < _a2.length))
-              return [3, 5];
-            attributeCompletion = _a2[_i];
-            fullValue = stripQuotes(document.getText(attributeCompletion.range));
-            if (!isCompletablePath(fullValue))
+    PathCompletionParticipant2.prototype.onHtmlAttributeValue = function(context) {
+      if (isPathAttribute(context.tag, context.attribute)) {
+        this.atributeCompletions.push(context);
+      }
+    };
+    PathCompletionParticipant2.prototype.computeCompletions = function(document, documentContext) {
+      return __awaiter(this, void 0, void 0, function() {
+        var result, _i, _a2, attributeCompletion, fullValue, replaceRange, suggestions, _b, suggestions_1, item;
+        return __generator(this, function(_c) {
+          switch (_c.label) {
+            case 0:
+              result = { items: [], isIncomplete: false };
+              _i = 0, _a2 = this.atributeCompletions;
+              _c.label = 1;
+            case 1:
+              if (!(_i < _a2.length))
+                return [3, 5];
+              attributeCompletion = _a2[_i];
+              fullValue = stripQuotes(document.getText(attributeCompletion.range));
+              if (!isCompletablePath(fullValue))
+                return [3, 4];
+              if (!(fullValue === "." || fullValue === ".."))
+                return [3, 2];
+              result.isIncomplete = true;
               return [3, 4];
-            if (!(fullValue === "." || fullValue === ".."))
-              return [3, 2];
-            result.isIncomplete = true;
-            return [3, 4];
-          case 2:
-            replaceRange = pathToReplaceRange(attributeCompletion.value, fullValue, attributeCompletion.range);
-            return [4, this.providePathSuggestions(attributeCompletion.value, replaceRange, document, documentContext)];
-          case 3:
-            suggestions = _c.sent();
-            for (_b = 0, suggestions_1 = suggestions; _b < suggestions_1.length; _b++) {
-              item = suggestions_1[_b];
-              result.items.push(item);
-            }
-            _c.label = 4;
-          case 4:
-            _i++;
-            return [3, 1];
-          case 5:
-            return [2, result];
-        }
-      });
-    });
-  };
-  PathCompletionParticipant2.prototype.providePathSuggestions = function(valueBeforeCursor, replaceRange, document, documentContext) {
-    return __awaiter(this, void 0, void 0, function() {
-      var valueBeforeLastSlash, parentDir, result, infos, _i, infos_1, _a2, name, type, e_1;
-      return __generator(this, function(_b) {
-        switch (_b.label) {
-          case 0:
-            valueBeforeLastSlash = valueBeforeCursor.substring(0, valueBeforeCursor.lastIndexOf("/") + 1);
-            parentDir = documentContext.resolveReference(valueBeforeLastSlash || ".", document.uri);
-            if (!parentDir)
-              return [3, 4];
-            _b.label = 1;
-          case 1:
-            _b.trys.push([1, 3, , 4]);
-            result = [];
-            return [4, this.readDirectory(parentDir)];
-          case 2:
-            infos = _b.sent();
-            for (_i = 0, infos_1 = infos; _i < infos_1.length; _i++) {
-              _a2 = infos_1[_i], name = _a2[0], type = _a2[1];
-              if (name.charCodeAt(0) !== CharCode_dot) {
-                result.push(createCompletionItem(name, type === FileType.Directory, replaceRange));
+            case 2:
+              replaceRange = pathToReplaceRange(attributeCompletion.value, fullValue, attributeCompletion.range);
+              return [4, this.providePathSuggestions(attributeCompletion.value, replaceRange, document, documentContext)];
+            case 3:
+              suggestions = _c.sent();
+              for (_b = 0, suggestions_1 = suggestions; _b < suggestions_1.length; _b++) {
+                item = suggestions_1[_b];
+                result.items.push(item);
               }
-            }
-            return [2, result];
-          case 3:
-            e_1 = _b.sent();
-            return [3, 4];
-          case 4:
-            return [2, []];
-        }
+              _c.label = 4;
+            case 4:
+              _i++;
+              return [3, 1];
+            case 5:
+              return [2, result];
+          }
+        });
       });
-    });
-  };
-  return PathCompletionParticipant2;
-}();
+    };
+    PathCompletionParticipant2.prototype.providePathSuggestions = function(valueBeforeCursor, replaceRange, document, documentContext) {
+      return __awaiter(this, void 0, void 0, function() {
+        var valueBeforeLastSlash, parentDir, result, infos, _i, infos_1, _a2, name, type, e_1;
+        return __generator(this, function(_b) {
+          switch (_b.label) {
+            case 0:
+              valueBeforeLastSlash = valueBeforeCursor.substring(0, valueBeforeCursor.lastIndexOf("/") + 1);
+              parentDir = documentContext.resolveReference(valueBeforeLastSlash || ".", document.uri);
+              if (!parentDir)
+                return [3, 4];
+              _b.label = 1;
+            case 1:
+              _b.trys.push([1, 3, , 4]);
+              result = [];
+              return [4, this.readDirectory(parentDir)];
+            case 2:
+              infos = _b.sent();
+              for (_i = 0, infos_1 = infos; _i < infos_1.length; _i++) {
+                _a2 = infos_1[_i], name = _a2[0], type = _a2[1];
+                if (name.charCodeAt(0) !== CharCode_dot) {
+                  result.push(createCompletionItem(name, type === FileType.Directory, replaceRange));
+                }
+              }
+              return [2, result];
+            case 3:
+              e_1 = _b.sent();
+              return [3, 4];
+            case 4:
+              return [2, []];
+          }
+        });
+      });
+    };
+    return PathCompletionParticipant2;
+  }()
+);
 var CharCode_dot = ".".charCodeAt(0);
 function stripQuotes(fullValue) {
   if (startsWith(fullValue, "'") || startsWith(fullValue, '"')) {
@@ -23319,6 +23417,7 @@ function shiftRange(range, startOffset, endOffset) {
   return Range.create(start, end);
 }
 var PATH_TAG_AND_ATTR = {
+  // HTML 4
   a: "href",
   area: "href",
   body: "background",
@@ -23331,6 +23430,7 @@ var PATH_TAG_AND_ATTR = {
   object: "data",
   q: "cite",
   script: "src",
+  // HTML 5
   audio: "src",
   button: "formaction",
   command: "icon",
@@ -23447,565 +23547,574 @@ var __generator2 = function(thisArg, body) {
   }
 };
 var localize3 = loadMessageBundle();
-var HTMLCompletion = function() {
-  function HTMLCompletion2(lsOptions, dataManager) {
-    this.lsOptions = lsOptions;
-    this.dataManager = dataManager;
-    this.completionParticipants = [];
-  }
-  HTMLCompletion2.prototype.setCompletionParticipants = function(registeredCompletionParticipants) {
-    this.completionParticipants = registeredCompletionParticipants || [];
-  };
-  HTMLCompletion2.prototype.doComplete2 = function(document, position, htmlDocument, documentContext, settings) {
-    return __awaiter2(this, void 0, void 0, function() {
-      var participant, contributedParticipants, result, pathCompletionResult;
-      return __generator2(this, function(_a2) {
-        switch (_a2.label) {
-          case 0:
-            if (!this.lsOptions.fileSystemProvider || !this.lsOptions.fileSystemProvider.readDirectory) {
-              return [2, this.doComplete(document, position, htmlDocument, settings)];
-            }
-            participant = new PathCompletionParticipant(this.lsOptions.fileSystemProvider.readDirectory);
-            contributedParticipants = this.completionParticipants;
-            this.completionParticipants = [participant].concat(contributedParticipants);
-            result = this.doComplete(document, position, htmlDocument, settings);
-            _a2.label = 1;
-          case 1:
-            _a2.trys.push([1, , 3, 4]);
-            return [4, participant.computeCompletions(document, documentContext)];
-          case 2:
-            pathCompletionResult = _a2.sent();
-            return [2, {
-              isIncomplete: result.isIncomplete || pathCompletionResult.isIncomplete,
-              items: pathCompletionResult.items.concat(result.items)
-            }];
-          case 3:
-            this.completionParticipants = contributedParticipants;
-            return [7];
-          case 4:
-            return [2];
-        }
-      });
-    });
-  };
-  HTMLCompletion2.prototype.doComplete = function(document, position, htmlDocument, settings) {
-    var result = this._doComplete(document, position, htmlDocument, settings);
-    return this.convertCompletionList(result);
-  };
-  HTMLCompletion2.prototype._doComplete = function(document, position, htmlDocument, settings) {
-    var result = {
-      isIncomplete: false,
-      items: []
+var HTMLCompletion = (
+  /** @class */
+  function() {
+    function HTMLCompletion2(lsOptions, dataManager) {
+      this.lsOptions = lsOptions;
+      this.dataManager = dataManager;
+      this.completionParticipants = [];
+    }
+    HTMLCompletion2.prototype.setCompletionParticipants = function(registeredCompletionParticipants) {
+      this.completionParticipants = registeredCompletionParticipants || [];
     };
-    var completionParticipants = this.completionParticipants;
-    var dataProviders = this.dataManager.getDataProviders().filter(function(p) {
-      return p.isApplicable(document.languageId) && (!settings || settings[p.getId()] !== false);
-    });
-    var doesSupportMarkdown = this.doesSupportMarkdown();
-    var text = document.getText();
-    var offset = document.offsetAt(position);
-    var node = htmlDocument.findNodeBefore(offset);
-    if (!node) {
-      return result;
-    }
-    var scanner = createScanner(text, node.start);
-    var currentTag = "";
-    var currentAttributeName;
-    function getReplaceRange(replaceStart, replaceEnd) {
-      if (replaceEnd === void 0) {
-        replaceEnd = offset;
-      }
-      if (replaceStart > offset) {
-        replaceStart = offset;
-      }
-      return { start: document.positionAt(replaceStart), end: document.positionAt(replaceEnd) };
-    }
-    function collectOpenTagSuggestions(afterOpenBracket2, tagNameEnd) {
-      var range = getReplaceRange(afterOpenBracket2, tagNameEnd);
-      dataProviders.forEach(function(provider) {
-        provider.provideTags().forEach(function(tag) {
-          result.items.push({
-            label: tag.name,
-            kind: CompletionItemKind.Property,
-            documentation: generateDocumentation(tag, void 0, doesSupportMarkdown),
-            textEdit: TextEdit.replace(range, tag.name),
-            insertTextFormat: InsertTextFormat.PlainText
-          });
+    HTMLCompletion2.prototype.doComplete2 = function(document, position, htmlDocument, documentContext, settings) {
+      return __awaiter2(this, void 0, void 0, function() {
+        var participant, contributedParticipants, result, pathCompletionResult;
+        return __generator2(this, function(_a2) {
+          switch (_a2.label) {
+            case 0:
+              if (!this.lsOptions.fileSystemProvider || !this.lsOptions.fileSystemProvider.readDirectory) {
+                return [2, this.doComplete(document, position, htmlDocument, settings)];
+              }
+              participant = new PathCompletionParticipant(this.lsOptions.fileSystemProvider.readDirectory);
+              contributedParticipants = this.completionParticipants;
+              this.completionParticipants = [participant].concat(contributedParticipants);
+              result = this.doComplete(document, position, htmlDocument, settings);
+              _a2.label = 1;
+            case 1:
+              _a2.trys.push([1, , 3, 4]);
+              return [4, participant.computeCompletions(document, documentContext)];
+            case 2:
+              pathCompletionResult = _a2.sent();
+              return [2, {
+                isIncomplete: result.isIncomplete || pathCompletionResult.isIncomplete,
+                items: pathCompletionResult.items.concat(result.items)
+              }];
+            case 3:
+              this.completionParticipants = contributedParticipants;
+              return [
+                7
+                /*endfinally*/
+              ];
+            case 4:
+              return [
+                2
+                /*return*/
+              ];
+          }
         });
       });
-      return result;
-    }
-    function getLineIndent(offset2) {
-      var start2 = offset2;
-      while (start2 > 0) {
-        var ch2 = text.charAt(start2 - 1);
-        if ("\n\r".indexOf(ch2) >= 0) {
-          return text.substring(start2, offset2);
-        }
-        if (!isWhiteSpace(ch2)) {
-          return null;
-        }
-        start2--;
-      }
-      return text.substring(0, offset2);
-    }
-    function collectCloseTagSuggestions(afterOpenBracket2, inOpenTag, tagNameEnd) {
-      if (tagNameEnd === void 0) {
-        tagNameEnd = offset;
-      }
-      var range = getReplaceRange(afterOpenBracket2, tagNameEnd);
-      var closeTag = isFollowedBy(text, tagNameEnd, ScannerState.WithinEndTag, TokenType.EndTagClose) ? "" : ">";
-      var curr = node;
-      if (inOpenTag) {
-        curr = curr.parent;
-      }
-      while (curr) {
-        var tag = curr.tag;
-        if (tag && (!curr.closed || curr.endTagStart && curr.endTagStart > offset)) {
-          var item = {
-            label: "/" + tag,
-            kind: CompletionItemKind.Property,
-            filterText: "/" + tag,
-            textEdit: TextEdit.replace(range, "/" + tag + closeTag),
-            insertTextFormat: InsertTextFormat.PlainText
-          };
-          var startIndent = getLineIndent(curr.start);
-          var endIndent = getLineIndent(afterOpenBracket2 - 1);
-          if (startIndent !== null && endIndent !== null && startIndent !== endIndent) {
-            var insertText = startIndent + "</" + tag + closeTag;
-            item.textEdit = TextEdit.replace(getReplaceRange(afterOpenBracket2 - 1 - endIndent.length), insertText);
-            item.filterText = endIndent + "</" + tag;
-          }
-          result.items.push(item);
-          return result;
-        }
-        curr = curr.parent;
-      }
-      if (inOpenTag) {
+    };
+    HTMLCompletion2.prototype.doComplete = function(document, position, htmlDocument, settings) {
+      var result = this._doComplete(document, position, htmlDocument, settings);
+      return this.convertCompletionList(result);
+    };
+    HTMLCompletion2.prototype._doComplete = function(document, position, htmlDocument, settings) {
+      var result = {
+        isIncomplete: false,
+        items: []
+      };
+      var completionParticipants = this.completionParticipants;
+      var dataProviders = this.dataManager.getDataProviders().filter(function(p) {
+        return p.isApplicable(document.languageId) && (!settings || settings[p.getId()] !== false);
+      });
+      var doesSupportMarkdown = this.doesSupportMarkdown();
+      var text = document.getText();
+      var offset = document.offsetAt(position);
+      var node = htmlDocument.findNodeBefore(offset);
+      if (!node) {
         return result;
       }
-      dataProviders.forEach(function(provider) {
-        provider.provideTags().forEach(function(tag2) {
-          result.items.push({
-            label: "/" + tag2.name,
-            kind: CompletionItemKind.Property,
-            documentation: generateDocumentation(tag2, void 0, doesSupportMarkdown),
-            filterText: "/" + tag2.name + closeTag,
-            textEdit: TextEdit.replace(range, "/" + tag2.name + closeTag),
-            insertTextFormat: InsertTextFormat.PlainText
-          });
-        });
-      });
-      return result;
-    }
-    function collectAutoCloseTagSuggestion(tagCloseEnd, tag) {
-      if (settings && settings.hideAutoCompleteProposals) {
-        return result;
-      }
-      if (!isVoidElement(tag)) {
-        var pos = document.positionAt(tagCloseEnd);
-        result.items.push({
-          label: "</" + tag + ">",
-          kind: CompletionItemKind.Property,
-          filterText: "</" + tag + ">",
-          textEdit: TextEdit.insert(pos, "$0</" + tag + ">"),
-          insertTextFormat: InsertTextFormat.Snippet
-        });
-      }
-      return result;
-    }
-    function collectTagSuggestions(tagStart, tagEnd) {
-      collectOpenTagSuggestions(tagStart, tagEnd);
-      collectCloseTagSuggestions(tagStart, true, tagEnd);
-      return result;
-    }
-    function getExistingAttributes() {
-      var existingAttributes = /* @__PURE__ */ Object.create(null);
-      node.attributeNames.forEach(function(attribute) {
-        existingAttributes[attribute] = true;
-      });
-      return existingAttributes;
-    }
-    function collectAttributeNameSuggestions(nameStart, nameEnd) {
-      var _a2;
-      if (nameEnd === void 0) {
-        nameEnd = offset;
-      }
-      var replaceEnd = offset;
-      while (replaceEnd < nameEnd && text[replaceEnd] !== "<") {
-        replaceEnd++;
-      }
-      var currentAttribute = text.substring(nameStart, nameEnd);
-      var range = getReplaceRange(nameStart, replaceEnd);
-      var value = "";
-      if (!isFollowedBy(text, nameEnd, ScannerState.AfterAttributeName, TokenType.DelimiterAssign)) {
-        var defaultValue = (_a2 = settings === null || settings === void 0 ? void 0 : settings.attributeDefaultValue) !== null && _a2 !== void 0 ? _a2 : "doublequotes";
-        if (defaultValue === "empty") {
-          value = "=$1";
-        } else if (defaultValue === "singlequotes") {
-          value = "='$1'";
-        } else {
-          value = '="$1"';
+      var scanner = createScanner(text, node.start);
+      var currentTag = "";
+      var currentAttributeName;
+      function getReplaceRange(replaceStart, replaceEnd) {
+        if (replaceEnd === void 0) {
+          replaceEnd = offset;
         }
-      }
-      var seenAttributes = getExistingAttributes();
-      seenAttributes[currentAttribute] = false;
-      dataProviders.forEach(function(provider) {
-        provider.provideAttributes(currentTag).forEach(function(attr) {
-          if (seenAttributes[attr.name]) {
-            return;
-          }
-          seenAttributes[attr.name] = true;
-          var codeSnippet = attr.name;
-          var command;
-          if (attr.valueSet !== "v" && value.length) {
-            codeSnippet = codeSnippet + value;
-            if (attr.valueSet || attr.name === "style") {
-              command = {
-                title: "Suggest",
-                command: "editor.action.triggerSuggest"
-              };
-            }
-          }
-          result.items.push({
-            label: attr.name,
-            kind: attr.valueSet === "handler" ? CompletionItemKind.Function : CompletionItemKind.Value,
-            documentation: generateDocumentation(attr, void 0, doesSupportMarkdown),
-            textEdit: TextEdit.replace(range, codeSnippet),
-            insertTextFormat: InsertTextFormat.Snippet,
-            command
-          });
-        });
-      });
-      collectDataAttributesSuggestions(range, seenAttributes);
-      return result;
-    }
-    function collectDataAttributesSuggestions(range, seenAttributes) {
-      var dataAttr = "data-";
-      var dataAttributes = {};
-      dataAttributes[dataAttr] = "".concat(dataAttr, '$1="$2"');
-      function addNodeDataAttributes(node2) {
-        node2.attributeNames.forEach(function(attr) {
-          if (startsWith(attr, dataAttr) && !dataAttributes[attr] && !seenAttributes[attr]) {
-            dataAttributes[attr] = attr + '="$1"';
-          }
-        });
-        node2.children.forEach(function(child) {
-          return addNodeDataAttributes(child);
-        });
-      }
-      if (htmlDocument) {
-        htmlDocument.roots.forEach(function(root) {
-          return addNodeDataAttributes(root);
-        });
-      }
-      Object.keys(dataAttributes).forEach(function(attr) {
-        return result.items.push({
-          label: attr,
-          kind: CompletionItemKind.Value,
-          textEdit: TextEdit.replace(range, dataAttributes[attr]),
-          insertTextFormat: InsertTextFormat.Snippet
-        });
-      });
-    }
-    function collectAttributeValueSuggestions(valueStart, valueEnd) {
-      if (valueEnd === void 0) {
-        valueEnd = offset;
-      }
-      var range;
-      var addQuotes;
-      var valuePrefix;
-      if (offset > valueStart && offset <= valueEnd && isQuote(text[valueStart])) {
-        var valueContentStart = valueStart + 1;
-        var valueContentEnd = valueEnd;
-        if (valueEnd > valueStart && text[valueEnd - 1] === text[valueStart]) {
-          valueContentEnd--;
+        if (replaceStart > offset) {
+          replaceStart = offset;
         }
-        var wsBefore = getWordStart(text, offset, valueContentStart);
-        var wsAfter = getWordEnd(text, offset, valueContentEnd);
-        range = getReplaceRange(wsBefore, wsAfter);
-        valuePrefix = offset >= valueContentStart && offset <= valueContentEnd ? text.substring(valueContentStart, offset) : "";
-        addQuotes = false;
-      } else {
-        range = getReplaceRange(valueStart, valueEnd);
-        valuePrefix = text.substring(valueStart, offset);
-        addQuotes = true;
+        return { start: document.positionAt(replaceStart), end: document.positionAt(replaceEnd) };
       }
-      if (completionParticipants.length > 0) {
-        var tag = currentTag.toLowerCase();
-        var attribute = currentAttributeName.toLowerCase();
-        var fullRange = getReplaceRange(valueStart, valueEnd);
-        for (var _i = 0, completionParticipants_1 = completionParticipants; _i < completionParticipants_1.length; _i++) {
-          var participant = completionParticipants_1[_i];
-          if (participant.onHtmlAttributeValue) {
-            participant.onHtmlAttributeValue({ document, position, tag, attribute, value: valuePrefix, range: fullRange });
-          }
-        }
-      }
-      dataProviders.forEach(function(provider) {
-        provider.provideValues(currentTag, currentAttributeName).forEach(function(value) {
-          var insertText = addQuotes ? '"' + value.name + '"' : value.name;
-          result.items.push({
-            label: value.name,
-            filterText: insertText,
-            kind: CompletionItemKind.Unit,
-            documentation: generateDocumentation(value, void 0, doesSupportMarkdown),
-            textEdit: TextEdit.replace(range, insertText),
-            insertTextFormat: InsertTextFormat.PlainText
-          });
-        });
-      });
-      collectCharacterEntityProposals();
-      return result;
-    }
-    function scanNextForEndPos(nextToken) {
-      if (offset === scanner.getTokenEnd()) {
-        token = scanner.scan();
-        if (token === nextToken && scanner.getTokenOffset() === offset) {
-          return scanner.getTokenEnd();
-        }
-      }
-      return offset;
-    }
-    function collectInsideContent() {
-      for (var _i = 0, completionParticipants_2 = completionParticipants; _i < completionParticipants_2.length; _i++) {
-        var participant = completionParticipants_2[_i];
-        if (participant.onHtmlContent) {
-          participant.onHtmlContent({ document, position });
-        }
-      }
-      return collectCharacterEntityProposals();
-    }
-    function collectCharacterEntityProposals() {
-      var k = offset - 1;
-      var characterStart = position.character;
-      while (k >= 0 && isLetterOrDigit(text, k)) {
-        k--;
-        characterStart--;
-      }
-      if (k >= 0 && text[k] === "&") {
-        var range = Range.create(Position.create(position.line, characterStart - 1), position);
-        for (var entity in entities) {
-          if (endsWith(entity, ";")) {
-            var label = "&" + entity;
+      function collectOpenTagSuggestions(afterOpenBracket2, tagNameEnd) {
+        var range = getReplaceRange(afterOpenBracket2, tagNameEnd);
+        dataProviders.forEach(function(provider) {
+          provider.provideTags().forEach(function(tag) {
             result.items.push({
-              label,
-              kind: CompletionItemKind.Keyword,
-              documentation: localize3("entity.propose", "Character entity representing '".concat(entities[entity], "'")),
-              textEdit: TextEdit.replace(range, label),
+              label: tag.name,
+              kind: CompletionItemKind.Property,
+              documentation: generateDocumentation(tag, void 0, doesSupportMarkdown),
+              textEdit: TextEdit.replace(range, tag.name),
               insertTextFormat: InsertTextFormat.PlainText
             });
-          }
-        }
+          });
+        });
+        return result;
       }
-      return result;
-    }
-    function suggestDoctype(replaceStart, replaceEnd) {
-      var range = getReplaceRange(replaceStart, replaceEnd);
-      result.items.push({
-        label: "!DOCTYPE",
-        kind: CompletionItemKind.Property,
-        documentation: "A preamble for an HTML document.",
-        textEdit: TextEdit.replace(range, "!DOCTYPE html>"),
-        insertTextFormat: InsertTextFormat.PlainText
-      });
-    }
-    var token = scanner.scan();
-    while (token !== TokenType.EOS && scanner.getTokenOffset() <= offset) {
-      switch (token) {
-        case TokenType.StartTagOpen:
-          if (scanner.getTokenEnd() === offset) {
-            var endPos = scanNextForEndPos(TokenType.StartTag);
-            if (position.line === 0) {
-              suggestDoctype(offset, endPos);
+      function getLineIndent(offset2) {
+        var start2 = offset2;
+        while (start2 > 0) {
+          var ch2 = text.charAt(start2 - 1);
+          if ("\n\r".indexOf(ch2) >= 0) {
+            return text.substring(start2, offset2);
+          }
+          if (!isWhiteSpace(ch2)) {
+            return null;
+          }
+          start2--;
+        }
+        return text.substring(0, offset2);
+      }
+      function collectCloseTagSuggestions(afterOpenBracket2, inOpenTag, tagNameEnd) {
+        if (tagNameEnd === void 0) {
+          tagNameEnd = offset;
+        }
+        var range = getReplaceRange(afterOpenBracket2, tagNameEnd);
+        var closeTag = isFollowedBy(text, tagNameEnd, ScannerState.WithinEndTag, TokenType.EndTagClose) ? "" : ">";
+        var curr = node;
+        if (inOpenTag) {
+          curr = curr.parent;
+        }
+        while (curr) {
+          var tag = curr.tag;
+          if (tag && (!curr.closed || curr.endTagStart && curr.endTagStart > offset)) {
+            var item = {
+              label: "/" + tag,
+              kind: CompletionItemKind.Property,
+              filterText: "/" + tag,
+              textEdit: TextEdit.replace(range, "/" + tag + closeTag),
+              insertTextFormat: InsertTextFormat.PlainText
+            };
+            var startIndent = getLineIndent(curr.start);
+            var endIndent = getLineIndent(afterOpenBracket2 - 1);
+            if (startIndent !== null && endIndent !== null && startIndent !== endIndent) {
+              var insertText = startIndent + "</" + tag + closeTag;
+              item.textEdit = TextEdit.replace(getReplaceRange(afterOpenBracket2 - 1 - endIndent.length), insertText);
+              item.filterText = endIndent + "</" + tag;
             }
-            return collectTagSuggestions(offset, endPos);
-          }
-          break;
-        case TokenType.StartTag:
-          if (scanner.getTokenOffset() <= offset && offset <= scanner.getTokenEnd()) {
-            return collectOpenTagSuggestions(scanner.getTokenOffset(), scanner.getTokenEnd());
-          }
-          currentTag = scanner.getTokenText();
-          break;
-        case TokenType.AttributeName:
-          if (scanner.getTokenOffset() <= offset && offset <= scanner.getTokenEnd()) {
-            return collectAttributeNameSuggestions(scanner.getTokenOffset(), scanner.getTokenEnd());
-          }
-          currentAttributeName = scanner.getTokenText();
-          break;
-        case TokenType.DelimiterAssign:
-          if (scanner.getTokenEnd() === offset) {
-            var endPos = scanNextForEndPos(TokenType.AttributeValue);
-            return collectAttributeValueSuggestions(offset, endPos);
-          }
-          break;
-        case TokenType.AttributeValue:
-          if (scanner.getTokenOffset() <= offset && offset <= scanner.getTokenEnd()) {
-            return collectAttributeValueSuggestions(scanner.getTokenOffset(), scanner.getTokenEnd());
-          }
-          break;
-        case TokenType.Whitespace:
-          if (offset <= scanner.getTokenEnd()) {
-            switch (scanner.getScannerState()) {
-              case ScannerState.AfterOpeningStartTag:
-                var startPos = scanner.getTokenOffset();
-                var endTagPos = scanNextForEndPos(TokenType.StartTag);
-                return collectTagSuggestions(startPos, endTagPos);
-              case ScannerState.WithinTag:
-              case ScannerState.AfterAttributeName:
-                return collectAttributeNameSuggestions(scanner.getTokenEnd());
-              case ScannerState.BeforeAttributeValue:
-                return collectAttributeValueSuggestions(scanner.getTokenEnd());
-              case ScannerState.AfterOpeningEndTag:
-                return collectCloseTagSuggestions(scanner.getTokenOffset() - 1, false);
-              case ScannerState.WithinContent:
-                return collectInsideContent();
-            }
-          }
-          break;
-        case TokenType.EndTagOpen:
-          if (offset <= scanner.getTokenEnd()) {
-            var afterOpenBracket = scanner.getTokenOffset() + 1;
-            var endOffset = scanNextForEndPos(TokenType.EndTag);
-            return collectCloseTagSuggestions(afterOpenBracket, false, endOffset);
-          }
-          break;
-        case TokenType.EndTag:
-          if (offset <= scanner.getTokenEnd()) {
-            var start = scanner.getTokenOffset() - 1;
-            while (start >= 0) {
-              var ch = text.charAt(start);
-              if (ch === "/") {
-                return collectCloseTagSuggestions(start, false, scanner.getTokenEnd());
-              } else if (!isWhiteSpace(ch)) {
-                break;
-              }
-              start--;
-            }
-          }
-          break;
-        case TokenType.StartTagClose:
-          if (offset <= scanner.getTokenEnd()) {
-            if (currentTag) {
-              return collectAutoCloseTagSuggestion(scanner.getTokenEnd(), currentTag);
-            }
-          }
-          break;
-        case TokenType.Content:
-          if (offset <= scanner.getTokenEnd()) {
-            return collectInsideContent();
-          }
-          break;
-        default:
-          if (offset <= scanner.getTokenEnd()) {
+            result.items.push(item);
             return result;
           }
-          break;
+          curr = curr.parent;
+        }
+        if (inOpenTag) {
+          return result;
+        }
+        dataProviders.forEach(function(provider) {
+          provider.provideTags().forEach(function(tag2) {
+            result.items.push({
+              label: "/" + tag2.name,
+              kind: CompletionItemKind.Property,
+              documentation: generateDocumentation(tag2, void 0, doesSupportMarkdown),
+              filterText: "/" + tag2.name + closeTag,
+              textEdit: TextEdit.replace(range, "/" + tag2.name + closeTag),
+              insertTextFormat: InsertTextFormat.PlainText
+            });
+          });
+        });
+        return result;
       }
-      token = scanner.scan();
-    }
-    return result;
-  };
-  HTMLCompletion2.prototype.doQuoteComplete = function(document, position, htmlDocument, settings) {
-    var _a2;
-    var offset = document.offsetAt(position);
-    if (offset <= 0) {
-      return null;
-    }
-    var defaultValue = (_a2 = settings === null || settings === void 0 ? void 0 : settings.attributeDefaultValue) !== null && _a2 !== void 0 ? _a2 : "doublequotes";
-    if (defaultValue === "empty") {
-      return null;
-    }
-    var char = document.getText().charAt(offset - 1);
-    if (char !== "=") {
-      return null;
-    }
-    var value = defaultValue === "doublequotes" ? '"$1"' : "'$1'";
-    var node = htmlDocument.findNodeBefore(offset);
-    if (node && node.attributes && node.start < offset && (!node.endTagStart || node.endTagStart > offset)) {
-      var scanner = createScanner(document.getText(), node.start);
+      function collectAutoCloseTagSuggestion(tagCloseEnd, tag) {
+        if (settings && settings.hideAutoCompleteProposals) {
+          return result;
+        }
+        if (!isVoidElement(tag)) {
+          var pos = document.positionAt(tagCloseEnd);
+          result.items.push({
+            label: "</" + tag + ">",
+            kind: CompletionItemKind.Property,
+            filterText: "</" + tag + ">",
+            textEdit: TextEdit.insert(pos, "$0</" + tag + ">"),
+            insertTextFormat: InsertTextFormat.Snippet
+          });
+        }
+        return result;
+      }
+      function collectTagSuggestions(tagStart, tagEnd) {
+        collectOpenTagSuggestions(tagStart, tagEnd);
+        collectCloseTagSuggestions(tagStart, true, tagEnd);
+        return result;
+      }
+      function getExistingAttributes() {
+        var existingAttributes = /* @__PURE__ */ Object.create(null);
+        node.attributeNames.forEach(function(attribute) {
+          existingAttributes[attribute] = true;
+        });
+        return existingAttributes;
+      }
+      function collectAttributeNameSuggestions(nameStart, nameEnd) {
+        var _a2;
+        if (nameEnd === void 0) {
+          nameEnd = offset;
+        }
+        var replaceEnd = offset;
+        while (replaceEnd < nameEnd && text[replaceEnd] !== "<") {
+          replaceEnd++;
+        }
+        var currentAttribute = text.substring(nameStart, nameEnd);
+        var range = getReplaceRange(nameStart, replaceEnd);
+        var value = "";
+        if (!isFollowedBy(text, nameEnd, ScannerState.AfterAttributeName, TokenType.DelimiterAssign)) {
+          var defaultValue = (_a2 = settings === null || settings === void 0 ? void 0 : settings.attributeDefaultValue) !== null && _a2 !== void 0 ? _a2 : "doublequotes";
+          if (defaultValue === "empty") {
+            value = "=$1";
+          } else if (defaultValue === "singlequotes") {
+            value = "='$1'";
+          } else {
+            value = '="$1"';
+          }
+        }
+        var seenAttributes = getExistingAttributes();
+        seenAttributes[currentAttribute] = false;
+        dataProviders.forEach(function(provider) {
+          provider.provideAttributes(currentTag).forEach(function(attr) {
+            if (seenAttributes[attr.name]) {
+              return;
+            }
+            seenAttributes[attr.name] = true;
+            var codeSnippet = attr.name;
+            var command;
+            if (attr.valueSet !== "v" && value.length) {
+              codeSnippet = codeSnippet + value;
+              if (attr.valueSet || attr.name === "style") {
+                command = {
+                  title: "Suggest",
+                  command: "editor.action.triggerSuggest"
+                };
+              }
+            }
+            result.items.push({
+              label: attr.name,
+              kind: attr.valueSet === "handler" ? CompletionItemKind.Function : CompletionItemKind.Value,
+              documentation: generateDocumentation(attr, void 0, doesSupportMarkdown),
+              textEdit: TextEdit.replace(range, codeSnippet),
+              insertTextFormat: InsertTextFormat.Snippet,
+              command
+            });
+          });
+        });
+        collectDataAttributesSuggestions(range, seenAttributes);
+        return result;
+      }
+      function collectDataAttributesSuggestions(range, seenAttributes) {
+        var dataAttr = "data-";
+        var dataAttributes = {};
+        dataAttributes[dataAttr] = "".concat(dataAttr, '$1="$2"');
+        function addNodeDataAttributes(node2) {
+          node2.attributeNames.forEach(function(attr) {
+            if (startsWith(attr, dataAttr) && !dataAttributes[attr] && !seenAttributes[attr]) {
+              dataAttributes[attr] = attr + '="$1"';
+            }
+          });
+          node2.children.forEach(function(child) {
+            return addNodeDataAttributes(child);
+          });
+        }
+        if (htmlDocument) {
+          htmlDocument.roots.forEach(function(root) {
+            return addNodeDataAttributes(root);
+          });
+        }
+        Object.keys(dataAttributes).forEach(function(attr) {
+          return result.items.push({
+            label: attr,
+            kind: CompletionItemKind.Value,
+            textEdit: TextEdit.replace(range, dataAttributes[attr]),
+            insertTextFormat: InsertTextFormat.Snippet
+          });
+        });
+      }
+      function collectAttributeValueSuggestions(valueStart, valueEnd) {
+        if (valueEnd === void 0) {
+          valueEnd = offset;
+        }
+        var range;
+        var addQuotes;
+        var valuePrefix;
+        if (offset > valueStart && offset <= valueEnd && isQuote(text[valueStart])) {
+          var valueContentStart = valueStart + 1;
+          var valueContentEnd = valueEnd;
+          if (valueEnd > valueStart && text[valueEnd - 1] === text[valueStart]) {
+            valueContentEnd--;
+          }
+          var wsBefore = getWordStart(text, offset, valueContentStart);
+          var wsAfter = getWordEnd(text, offset, valueContentEnd);
+          range = getReplaceRange(wsBefore, wsAfter);
+          valuePrefix = offset >= valueContentStart && offset <= valueContentEnd ? text.substring(valueContentStart, offset) : "";
+          addQuotes = false;
+        } else {
+          range = getReplaceRange(valueStart, valueEnd);
+          valuePrefix = text.substring(valueStart, offset);
+          addQuotes = true;
+        }
+        if (completionParticipants.length > 0) {
+          var tag = currentTag.toLowerCase();
+          var attribute = currentAttributeName.toLowerCase();
+          var fullRange = getReplaceRange(valueStart, valueEnd);
+          for (var _i = 0, completionParticipants_1 = completionParticipants; _i < completionParticipants_1.length; _i++) {
+            var participant = completionParticipants_1[_i];
+            if (participant.onHtmlAttributeValue) {
+              participant.onHtmlAttributeValue({ document, position, tag, attribute, value: valuePrefix, range: fullRange });
+            }
+          }
+        }
+        dataProviders.forEach(function(provider) {
+          provider.provideValues(currentTag, currentAttributeName).forEach(function(value) {
+            var insertText = addQuotes ? '"' + value.name + '"' : value.name;
+            result.items.push({
+              label: value.name,
+              filterText: insertText,
+              kind: CompletionItemKind.Unit,
+              documentation: generateDocumentation(value, void 0, doesSupportMarkdown),
+              textEdit: TextEdit.replace(range, insertText),
+              insertTextFormat: InsertTextFormat.PlainText
+            });
+          });
+        });
+        collectCharacterEntityProposals();
+        return result;
+      }
+      function scanNextForEndPos(nextToken) {
+        if (offset === scanner.getTokenEnd()) {
+          token = scanner.scan();
+          if (token === nextToken && scanner.getTokenOffset() === offset) {
+            return scanner.getTokenEnd();
+          }
+        }
+        return offset;
+      }
+      function collectInsideContent() {
+        for (var _i = 0, completionParticipants_2 = completionParticipants; _i < completionParticipants_2.length; _i++) {
+          var participant = completionParticipants_2[_i];
+          if (participant.onHtmlContent) {
+            participant.onHtmlContent({ document, position });
+          }
+        }
+        return collectCharacterEntityProposals();
+      }
+      function collectCharacterEntityProposals() {
+        var k = offset - 1;
+        var characterStart = position.character;
+        while (k >= 0 && isLetterOrDigit(text, k)) {
+          k--;
+          characterStart--;
+        }
+        if (k >= 0 && text[k] === "&") {
+          var range = Range.create(Position.create(position.line, characterStart - 1), position);
+          for (var entity in entities) {
+            if (endsWith(entity, ";")) {
+              var label = "&" + entity;
+              result.items.push({
+                label,
+                kind: CompletionItemKind.Keyword,
+                documentation: localize3("entity.propose", "Character entity representing '".concat(entities[entity], "'")),
+                textEdit: TextEdit.replace(range, label),
+                insertTextFormat: InsertTextFormat.PlainText
+              });
+            }
+          }
+        }
+        return result;
+      }
+      function suggestDoctype(replaceStart, replaceEnd) {
+        var range = getReplaceRange(replaceStart, replaceEnd);
+        result.items.push({
+          label: "!DOCTYPE",
+          kind: CompletionItemKind.Property,
+          documentation: "A preamble for an HTML document.",
+          textEdit: TextEdit.replace(range, "!DOCTYPE html>"),
+          insertTextFormat: InsertTextFormat.PlainText
+        });
+      }
       var token = scanner.scan();
-      while (token !== TokenType.EOS && scanner.getTokenEnd() <= offset) {
-        if (token === TokenType.AttributeName && scanner.getTokenEnd() === offset - 1) {
-          token = scanner.scan();
-          if (token !== TokenType.DelimiterAssign) {
-            return null;
-          }
-          token = scanner.scan();
-          if (token === TokenType.Unknown || token === TokenType.AttributeValue) {
-            return null;
-          }
-          return value;
+      while (token !== TokenType.EOS && scanner.getTokenOffset() <= offset) {
+        switch (token) {
+          case TokenType.StartTagOpen:
+            if (scanner.getTokenEnd() === offset) {
+              var endPos = scanNextForEndPos(TokenType.StartTag);
+              if (position.line === 0) {
+                suggestDoctype(offset, endPos);
+              }
+              return collectTagSuggestions(offset, endPos);
+            }
+            break;
+          case TokenType.StartTag:
+            if (scanner.getTokenOffset() <= offset && offset <= scanner.getTokenEnd()) {
+              return collectOpenTagSuggestions(scanner.getTokenOffset(), scanner.getTokenEnd());
+            }
+            currentTag = scanner.getTokenText();
+            break;
+          case TokenType.AttributeName:
+            if (scanner.getTokenOffset() <= offset && offset <= scanner.getTokenEnd()) {
+              return collectAttributeNameSuggestions(scanner.getTokenOffset(), scanner.getTokenEnd());
+            }
+            currentAttributeName = scanner.getTokenText();
+            break;
+          case TokenType.DelimiterAssign:
+            if (scanner.getTokenEnd() === offset) {
+              var endPos = scanNextForEndPos(TokenType.AttributeValue);
+              return collectAttributeValueSuggestions(offset, endPos);
+            }
+            break;
+          case TokenType.AttributeValue:
+            if (scanner.getTokenOffset() <= offset && offset <= scanner.getTokenEnd()) {
+              return collectAttributeValueSuggestions(scanner.getTokenOffset(), scanner.getTokenEnd());
+            }
+            break;
+          case TokenType.Whitespace:
+            if (offset <= scanner.getTokenEnd()) {
+              switch (scanner.getScannerState()) {
+                case ScannerState.AfterOpeningStartTag:
+                  var startPos = scanner.getTokenOffset();
+                  var endTagPos = scanNextForEndPos(TokenType.StartTag);
+                  return collectTagSuggestions(startPos, endTagPos);
+                case ScannerState.WithinTag:
+                case ScannerState.AfterAttributeName:
+                  return collectAttributeNameSuggestions(scanner.getTokenEnd());
+                case ScannerState.BeforeAttributeValue:
+                  return collectAttributeValueSuggestions(scanner.getTokenEnd());
+                case ScannerState.AfterOpeningEndTag:
+                  return collectCloseTagSuggestions(scanner.getTokenOffset() - 1, false);
+                case ScannerState.WithinContent:
+                  return collectInsideContent();
+              }
+            }
+            break;
+          case TokenType.EndTagOpen:
+            if (offset <= scanner.getTokenEnd()) {
+              var afterOpenBracket = scanner.getTokenOffset() + 1;
+              var endOffset = scanNextForEndPos(TokenType.EndTag);
+              return collectCloseTagSuggestions(afterOpenBracket, false, endOffset);
+            }
+            break;
+          case TokenType.EndTag:
+            if (offset <= scanner.getTokenEnd()) {
+              var start = scanner.getTokenOffset() - 1;
+              while (start >= 0) {
+                var ch = text.charAt(start);
+                if (ch === "/") {
+                  return collectCloseTagSuggestions(start, false, scanner.getTokenEnd());
+                } else if (!isWhiteSpace(ch)) {
+                  break;
+                }
+                start--;
+              }
+            }
+            break;
+          case TokenType.StartTagClose:
+            if (offset <= scanner.getTokenEnd()) {
+              if (currentTag) {
+                return collectAutoCloseTagSuggestion(scanner.getTokenEnd(), currentTag);
+              }
+            }
+            break;
+          case TokenType.Content:
+            if (offset <= scanner.getTokenEnd()) {
+              return collectInsideContent();
+            }
+            break;
+          default:
+            if (offset <= scanner.getTokenEnd()) {
+              return result;
+            }
+            break;
         }
         token = scanner.scan();
       }
-    }
-    return null;
-  };
-  HTMLCompletion2.prototype.doTagComplete = function(document, position, htmlDocument) {
-    var offset = document.offsetAt(position);
-    if (offset <= 0) {
+      return result;
+    };
+    HTMLCompletion2.prototype.doQuoteComplete = function(document, position, htmlDocument, settings) {
+      var _a2;
+      var offset = document.offsetAt(position);
+      if (offset <= 0) {
+        return null;
+      }
+      var defaultValue = (_a2 = settings === null || settings === void 0 ? void 0 : settings.attributeDefaultValue) !== null && _a2 !== void 0 ? _a2 : "doublequotes";
+      if (defaultValue === "empty") {
+        return null;
+      }
+      var char = document.getText().charAt(offset - 1);
+      if (char !== "=") {
+        return null;
+      }
+      var value = defaultValue === "doublequotes" ? '"$1"' : "'$1'";
+      var node = htmlDocument.findNodeBefore(offset);
+      if (node && node.attributes && node.start < offset && (!node.endTagStart || node.endTagStart > offset)) {
+        var scanner = createScanner(document.getText(), node.start);
+        var token = scanner.scan();
+        while (token !== TokenType.EOS && scanner.getTokenEnd() <= offset) {
+          if (token === TokenType.AttributeName && scanner.getTokenEnd() === offset - 1) {
+            token = scanner.scan();
+            if (token !== TokenType.DelimiterAssign) {
+              return null;
+            }
+            token = scanner.scan();
+            if (token === TokenType.Unknown || token === TokenType.AttributeValue) {
+              return null;
+            }
+            return value;
+          }
+          token = scanner.scan();
+        }
+      }
       return null;
-    }
-    var char = document.getText().charAt(offset - 1);
-    if (char === ">") {
-      var node = htmlDocument.findNodeBefore(offset);
-      if (node && node.tag && !isVoidElement(node.tag) && node.start < offset && (!node.endTagStart || node.endTagStart > offset)) {
-        var scanner = createScanner(document.getText(), node.start);
-        var token = scanner.scan();
-        while (token !== TokenType.EOS && scanner.getTokenEnd() <= offset) {
-          if (token === TokenType.StartTagClose && scanner.getTokenEnd() === offset) {
-            return "$0</".concat(node.tag, ">");
+    };
+    HTMLCompletion2.prototype.doTagComplete = function(document, position, htmlDocument) {
+      var offset = document.offsetAt(position);
+      if (offset <= 0) {
+        return null;
+      }
+      var char = document.getText().charAt(offset - 1);
+      if (char === ">") {
+        var node = htmlDocument.findNodeBefore(offset);
+        if (node && node.tag && !isVoidElement(node.tag) && node.start < offset && (!node.endTagStart || node.endTagStart > offset)) {
+          var scanner = createScanner(document.getText(), node.start);
+          var token = scanner.scan();
+          while (token !== TokenType.EOS && scanner.getTokenEnd() <= offset) {
+            if (token === TokenType.StartTagClose && scanner.getTokenEnd() === offset) {
+              return "$0</".concat(node.tag, ">");
+            }
+            token = scanner.scan();
           }
-          token = scanner.scan();
         }
-      }
-    } else if (char === "/") {
-      var node = htmlDocument.findNodeBefore(offset);
-      while (node && node.closed && !(node.endTagStart && node.endTagStart > offset)) {
-        node = node.parent;
-      }
-      if (node && node.tag) {
-        var scanner = createScanner(document.getText(), node.start);
-        var token = scanner.scan();
-        while (token !== TokenType.EOS && scanner.getTokenEnd() <= offset) {
-          if (token === TokenType.EndTagOpen && scanner.getTokenEnd() === offset) {
-            return "".concat(node.tag, ">");
+      } else if (char === "/") {
+        var node = htmlDocument.findNodeBefore(offset);
+        while (node && node.closed && !(node.endTagStart && node.endTagStart > offset)) {
+          node = node.parent;
+        }
+        if (node && node.tag) {
+          var scanner = createScanner(document.getText(), node.start);
+          var token = scanner.scan();
+          while (token !== TokenType.EOS && scanner.getTokenEnd() <= offset) {
+            if (token === TokenType.EndTagOpen && scanner.getTokenEnd() === offset) {
+              return "".concat(node.tag, ">");
+            }
+            token = scanner.scan();
           }
-          token = scanner.scan();
         }
       }
-    }
-    return null;
-  };
-  HTMLCompletion2.prototype.convertCompletionList = function(list) {
-    if (!this.doesSupportMarkdown()) {
-      list.items.forEach(function(item) {
-        if (item.documentation && typeof item.documentation !== "string") {
-          item.documentation = {
-            kind: "plaintext",
-            value: item.documentation.value
-          };
-        }
-      });
-    }
-    return list;
-  };
-  HTMLCompletion2.prototype.doesSupportMarkdown = function() {
-    var _a2, _b, _c;
-    if (!isDefined(this.supportsMarkdown)) {
-      if (!isDefined(this.lsOptions.clientCapabilities)) {
-        this.supportsMarkdown = true;
-        return this.supportsMarkdown;
+      return null;
+    };
+    HTMLCompletion2.prototype.convertCompletionList = function(list) {
+      if (!this.doesSupportMarkdown()) {
+        list.items.forEach(function(item) {
+          if (item.documentation && typeof item.documentation !== "string") {
+            item.documentation = {
+              kind: "plaintext",
+              value: item.documentation.value
+            };
+          }
+        });
       }
-      var documentationFormat = (_c = (_b = (_a2 = this.lsOptions.clientCapabilities.textDocument) === null || _a2 === void 0 ? void 0 : _a2.completion) === null || _b === void 0 ? void 0 : _b.completionItem) === null || _c === void 0 ? void 0 : _c.documentationFormat;
-      this.supportsMarkdown = Array.isArray(documentationFormat) && documentationFormat.indexOf(MarkupKind.Markdown) !== -1;
-    }
-    return this.supportsMarkdown;
-  };
-  return HTMLCompletion2;
-}();
+      return list;
+    };
+    HTMLCompletion2.prototype.doesSupportMarkdown = function() {
+      var _a2, _b, _c;
+      if (!isDefined(this.supportsMarkdown)) {
+        if (!isDefined(this.lsOptions.clientCapabilities)) {
+          this.supportsMarkdown = true;
+          return this.supportsMarkdown;
+        }
+        var documentationFormat = (_c = (_b = (_a2 = this.lsOptions.clientCapabilities.textDocument) === null || _a2 === void 0 ? void 0 : _a2.completion) === null || _b === void 0 ? void 0 : _b.completionItem) === null || _c === void 0 ? void 0 : _c.documentationFormat;
+        this.supportsMarkdown = Array.isArray(documentationFormat) && documentationFormat.indexOf(MarkupKind.Markdown) !== -1;
+      }
+      return this.supportsMarkdown;
+    };
+    return HTMLCompletion2;
+  }()
+);
 function isQuote(s) {
   return /^["']*$/.test(s);
 }
@@ -24035,260 +24144,263 @@ function getWordEnd(s, offset, limit) {
 
 // node_modules/vscode-html-languageservice/lib/esm/services/htmlHover.js
 var localize4 = loadMessageBundle();
-var HTMLHover = function() {
-  function HTMLHover2(lsOptions, dataManager) {
-    this.lsOptions = lsOptions;
-    this.dataManager = dataManager;
-  }
-  HTMLHover2.prototype.doHover = function(document, position, htmlDocument, options) {
-    var convertContents = this.convertContents.bind(this);
-    var doesSupportMarkdown = this.doesSupportMarkdown();
-    var offset = document.offsetAt(position);
-    var node = htmlDocument.findNodeAt(offset);
-    var text = document.getText();
-    if (!node || !node.tag) {
-      return null;
+var HTMLHover = (
+  /** @class */
+  function() {
+    function HTMLHover2(lsOptions, dataManager) {
+      this.lsOptions = lsOptions;
+      this.dataManager = dataManager;
     }
-    var dataProviders = this.dataManager.getDataProviders().filter(function(p) {
-      return p.isApplicable(document.languageId);
-    });
-    function getTagHover(currTag, range, open) {
-      var _loop_1 = function(provider2) {
-        var hover = null;
-        provider2.provideTags().forEach(function(tag2) {
-          if (tag2.name.toLowerCase() === currTag.toLowerCase()) {
-            var markupContent = generateDocumentation(tag2, options, doesSupportMarkdown);
-            if (!markupContent) {
-              markupContent = {
-                kind: doesSupportMarkdown ? "markdown" : "plaintext",
-                value: ""
-              };
+    HTMLHover2.prototype.doHover = function(document, position, htmlDocument, options) {
+      var convertContents = this.convertContents.bind(this);
+      var doesSupportMarkdown = this.doesSupportMarkdown();
+      var offset = document.offsetAt(position);
+      var node = htmlDocument.findNodeAt(offset);
+      var text = document.getText();
+      if (!node || !node.tag) {
+        return null;
+      }
+      var dataProviders = this.dataManager.getDataProviders().filter(function(p) {
+        return p.isApplicable(document.languageId);
+      });
+      function getTagHover(currTag, range, open) {
+        var _loop_1 = function(provider2) {
+          var hover = null;
+          provider2.provideTags().forEach(function(tag2) {
+            if (tag2.name.toLowerCase() === currTag.toLowerCase()) {
+              var markupContent = generateDocumentation(tag2, options, doesSupportMarkdown);
+              if (!markupContent) {
+                markupContent = {
+                  kind: doesSupportMarkdown ? "markdown" : "plaintext",
+                  value: ""
+                };
+              }
+              hover = { contents: markupContent, range };
             }
-            hover = { contents: markupContent, range };
+          });
+          if (hover) {
+            hover.contents = convertContents(hover.contents);
+            return { value: hover };
           }
-        });
-        if (hover) {
-          hover.contents = convertContents(hover.contents);
-          return { value: hover };
-        }
-      };
-      for (var _i = 0, dataProviders_1 = dataProviders; _i < dataProviders_1.length; _i++) {
-        var provider = dataProviders_1[_i];
-        var state_1 = _loop_1(provider);
-        if (typeof state_1 === "object")
-          return state_1.value;
-      }
-      return null;
-    }
-    function getAttrHover(currTag, currAttr, range) {
-      var _loop_2 = function(provider2) {
-        var hover = null;
-        provider2.provideAttributes(currTag).forEach(function(attr2) {
-          if (currAttr === attr2.name && attr2.description) {
-            var contentsDoc = generateDocumentation(attr2, options, doesSupportMarkdown);
-            if (contentsDoc) {
-              hover = { contents: contentsDoc, range };
-            } else {
-              hover = null;
-            }
-          }
-        });
-        if (hover) {
-          hover.contents = convertContents(hover.contents);
-          return { value: hover };
-        }
-      };
-      for (var _i = 0, dataProviders_2 = dataProviders; _i < dataProviders_2.length; _i++) {
-        var provider = dataProviders_2[_i];
-        var state_2 = _loop_2(provider);
-        if (typeof state_2 === "object")
-          return state_2.value;
-      }
-      return null;
-    }
-    function getAttrValueHover(currTag, currAttr, currAttrValue, range) {
-      var _loop_3 = function(provider2) {
-        var hover = null;
-        provider2.provideValues(currTag, currAttr).forEach(function(attrValue2) {
-          if (currAttrValue === attrValue2.name && attrValue2.description) {
-            var contentsDoc = generateDocumentation(attrValue2, options, doesSupportMarkdown);
-            if (contentsDoc) {
-              hover = { contents: contentsDoc, range };
-            } else {
-              hover = null;
-            }
-          }
-        });
-        if (hover) {
-          hover.contents = convertContents(hover.contents);
-          return { value: hover };
-        }
-      };
-      for (var _i = 0, dataProviders_3 = dataProviders; _i < dataProviders_3.length; _i++) {
-        var provider = dataProviders_3[_i];
-        var state_3 = _loop_3(provider);
-        if (typeof state_3 === "object")
-          return state_3.value;
-      }
-      return null;
-    }
-    function getEntityHover(text2, range) {
-      var currEntity = filterEntity(text2);
-      for (var entity in entities) {
-        var hover = null;
-        var label = "&" + entity;
-        if (currEntity === label) {
-          var code = entities[entity].charCodeAt(0).toString(16).toUpperCase();
-          var hex = "U+";
-          if (code.length < 4) {
-            var zeroes = 4 - code.length;
-            var k = 0;
-            while (k < zeroes) {
-              hex += "0";
-              k += 1;
-            }
-          }
-          hex += code;
-          var contentsDoc = localize4("entity.propose", "Character entity representing '".concat(entities[entity], "', unicode equivalent '").concat(hex, "'"));
-          if (contentsDoc) {
-            hover = { contents: contentsDoc, range };
-          } else {
-            hover = null;
-          }
-        }
-        if (hover) {
-          hover.contents = convertContents(hover.contents);
-          return hover;
-        }
-      }
-      return null;
-    }
-    function getTagNameRange2(tokenType, startOffset) {
-      var scanner = createScanner(document.getText(), startOffset);
-      var token = scanner.scan();
-      while (token !== TokenType.EOS && (scanner.getTokenEnd() < offset || scanner.getTokenEnd() === offset && token !== tokenType)) {
-        token = scanner.scan();
-      }
-      if (token === tokenType && offset <= scanner.getTokenEnd()) {
-        return { start: document.positionAt(scanner.getTokenOffset()), end: document.positionAt(scanner.getTokenEnd()) };
-      }
-      return null;
-    }
-    function getEntityRange() {
-      var k = offset - 1;
-      var characterStart = position.character;
-      while (k >= 0 && isLetterOrDigit(text, k)) {
-        k--;
-        characterStart--;
-      }
-      var n = k + 1;
-      var characterEnd = characterStart;
-      while (isLetterOrDigit(text, n)) {
-        n++;
-        characterEnd++;
-      }
-      if (k >= 0 && text[k] === "&") {
-        var range = null;
-        if (text[n] === ";") {
-          range = Range.create(Position.create(position.line, characterStart), Position.create(position.line, characterEnd + 1));
-        } else {
-          range = Range.create(Position.create(position.line, characterStart), Position.create(position.line, characterEnd));
-        }
-        return range;
-      }
-      return null;
-    }
-    function filterEntity(text2) {
-      var k = offset - 1;
-      var newText = "&";
-      while (k >= 0 && isLetterOrDigit(text2, k)) {
-        k--;
-      }
-      k = k + 1;
-      while (isLetterOrDigit(text2, k)) {
-        newText += text2[k];
-        k += 1;
-      }
-      newText += ";";
-      return newText;
-    }
-    if (node.endTagStart && offset >= node.endTagStart) {
-      var tagRange_1 = getTagNameRange2(TokenType.EndTag, node.endTagStart);
-      if (tagRange_1) {
-        return getTagHover(node.tag, tagRange_1, false);
-      }
-      return null;
-    }
-    var tagRange = getTagNameRange2(TokenType.StartTag, node.start);
-    if (tagRange) {
-      return getTagHover(node.tag, tagRange, true);
-    }
-    var attrRange = getTagNameRange2(TokenType.AttributeName, node.start);
-    if (attrRange) {
-      var tag = node.tag;
-      var attr = document.getText(attrRange);
-      return getAttrHover(tag, attr, attrRange);
-    }
-    var entityRange = getEntityRange();
-    if (entityRange) {
-      return getEntityHover(text, entityRange);
-    }
-    function scanAttrAndAttrValue(nodeStart, attrValueStart) {
-      var scanner = createScanner(document.getText(), nodeStart);
-      var token = scanner.scan();
-      var prevAttr = void 0;
-      while (token !== TokenType.EOS && scanner.getTokenEnd() <= attrValueStart) {
-        token = scanner.scan();
-        if (token === TokenType.AttributeName) {
-          prevAttr = scanner.getTokenText();
-        }
-      }
-      return prevAttr;
-    }
-    var attrValueRange = getTagNameRange2(TokenType.AttributeValue, node.start);
-    if (attrValueRange) {
-      var tag = node.tag;
-      var attrValue = trimQuotes(document.getText(attrValueRange));
-      var matchAttr = scanAttrAndAttrValue(node.start, document.offsetAt(attrValueRange.start));
-      if (matchAttr) {
-        return getAttrValueHover(tag, matchAttr, attrValue, attrValueRange);
-      }
-    }
-    return null;
-  };
-  HTMLHover2.prototype.convertContents = function(contents) {
-    if (!this.doesSupportMarkdown()) {
-      if (typeof contents === "string") {
-        return contents;
-      } else if ("kind" in contents) {
-        return {
-          kind: "plaintext",
-          value: contents.value
         };
-      } else if (Array.isArray(contents)) {
-        contents.map(function(c) {
-          return typeof c === "string" ? c : c.value;
-        });
-      } else {
-        return contents.value;
+        for (var _i = 0, dataProviders_1 = dataProviders; _i < dataProviders_1.length; _i++) {
+          var provider = dataProviders_1[_i];
+          var state_1 = _loop_1(provider);
+          if (typeof state_1 === "object")
+            return state_1.value;
+        }
+        return null;
       }
-    }
-    return contents;
-  };
-  HTMLHover2.prototype.doesSupportMarkdown = function() {
-    var _a2, _b, _c;
-    if (!isDefined(this.supportsMarkdown)) {
-      if (!isDefined(this.lsOptions.clientCapabilities)) {
-        this.supportsMarkdown = true;
-        return this.supportsMarkdown;
+      function getAttrHover(currTag, currAttr, range) {
+        var _loop_2 = function(provider2) {
+          var hover = null;
+          provider2.provideAttributes(currTag).forEach(function(attr2) {
+            if (currAttr === attr2.name && attr2.description) {
+              var contentsDoc = generateDocumentation(attr2, options, doesSupportMarkdown);
+              if (contentsDoc) {
+                hover = { contents: contentsDoc, range };
+              } else {
+                hover = null;
+              }
+            }
+          });
+          if (hover) {
+            hover.contents = convertContents(hover.contents);
+            return { value: hover };
+          }
+        };
+        for (var _i = 0, dataProviders_2 = dataProviders; _i < dataProviders_2.length; _i++) {
+          var provider = dataProviders_2[_i];
+          var state_2 = _loop_2(provider);
+          if (typeof state_2 === "object")
+            return state_2.value;
+        }
+        return null;
       }
-      var contentFormat = (_c = (_b = (_a2 = this.lsOptions.clientCapabilities) === null || _a2 === void 0 ? void 0 : _a2.textDocument) === null || _b === void 0 ? void 0 : _b.hover) === null || _c === void 0 ? void 0 : _c.contentFormat;
-      this.supportsMarkdown = Array.isArray(contentFormat) && contentFormat.indexOf(MarkupKind.Markdown) !== -1;
-    }
-    return this.supportsMarkdown;
-  };
-  return HTMLHover2;
-}();
+      function getAttrValueHover(currTag, currAttr, currAttrValue, range) {
+        var _loop_3 = function(provider2) {
+          var hover = null;
+          provider2.provideValues(currTag, currAttr).forEach(function(attrValue2) {
+            if (currAttrValue === attrValue2.name && attrValue2.description) {
+              var contentsDoc = generateDocumentation(attrValue2, options, doesSupportMarkdown);
+              if (contentsDoc) {
+                hover = { contents: contentsDoc, range };
+              } else {
+                hover = null;
+              }
+            }
+          });
+          if (hover) {
+            hover.contents = convertContents(hover.contents);
+            return { value: hover };
+          }
+        };
+        for (var _i = 0, dataProviders_3 = dataProviders; _i < dataProviders_3.length; _i++) {
+          var provider = dataProviders_3[_i];
+          var state_3 = _loop_3(provider);
+          if (typeof state_3 === "object")
+            return state_3.value;
+        }
+        return null;
+      }
+      function getEntityHover(text2, range) {
+        var currEntity = filterEntity(text2);
+        for (var entity in entities) {
+          var hover = null;
+          var label = "&" + entity;
+          if (currEntity === label) {
+            var code = entities[entity].charCodeAt(0).toString(16).toUpperCase();
+            var hex = "U+";
+            if (code.length < 4) {
+              var zeroes = 4 - code.length;
+              var k = 0;
+              while (k < zeroes) {
+                hex += "0";
+                k += 1;
+              }
+            }
+            hex += code;
+            var contentsDoc = localize4("entity.propose", "Character entity representing '".concat(entities[entity], "', unicode equivalent '").concat(hex, "'"));
+            if (contentsDoc) {
+              hover = { contents: contentsDoc, range };
+            } else {
+              hover = null;
+            }
+          }
+          if (hover) {
+            hover.contents = convertContents(hover.contents);
+            return hover;
+          }
+        }
+        return null;
+      }
+      function getTagNameRange2(tokenType, startOffset) {
+        var scanner = createScanner(document.getText(), startOffset);
+        var token = scanner.scan();
+        while (token !== TokenType.EOS && (scanner.getTokenEnd() < offset || scanner.getTokenEnd() === offset && token !== tokenType)) {
+          token = scanner.scan();
+        }
+        if (token === tokenType && offset <= scanner.getTokenEnd()) {
+          return { start: document.positionAt(scanner.getTokenOffset()), end: document.positionAt(scanner.getTokenEnd()) };
+        }
+        return null;
+      }
+      function getEntityRange() {
+        var k = offset - 1;
+        var characterStart = position.character;
+        while (k >= 0 && isLetterOrDigit(text, k)) {
+          k--;
+          characterStart--;
+        }
+        var n = k + 1;
+        var characterEnd = characterStart;
+        while (isLetterOrDigit(text, n)) {
+          n++;
+          characterEnd++;
+        }
+        if (k >= 0 && text[k] === "&") {
+          var range = null;
+          if (text[n] === ";") {
+            range = Range.create(Position.create(position.line, characterStart), Position.create(position.line, characterEnd + 1));
+          } else {
+            range = Range.create(Position.create(position.line, characterStart), Position.create(position.line, characterEnd));
+          }
+          return range;
+        }
+        return null;
+      }
+      function filterEntity(text2) {
+        var k = offset - 1;
+        var newText = "&";
+        while (k >= 0 && isLetterOrDigit(text2, k)) {
+          k--;
+        }
+        k = k + 1;
+        while (isLetterOrDigit(text2, k)) {
+          newText += text2[k];
+          k += 1;
+        }
+        newText += ";";
+        return newText;
+      }
+      if (node.endTagStart && offset >= node.endTagStart) {
+        var tagRange_1 = getTagNameRange2(TokenType.EndTag, node.endTagStart);
+        if (tagRange_1) {
+          return getTagHover(node.tag, tagRange_1, false);
+        }
+        return null;
+      }
+      var tagRange = getTagNameRange2(TokenType.StartTag, node.start);
+      if (tagRange) {
+        return getTagHover(node.tag, tagRange, true);
+      }
+      var attrRange = getTagNameRange2(TokenType.AttributeName, node.start);
+      if (attrRange) {
+        var tag = node.tag;
+        var attr = document.getText(attrRange);
+        return getAttrHover(tag, attr, attrRange);
+      }
+      var entityRange = getEntityRange();
+      if (entityRange) {
+        return getEntityHover(text, entityRange);
+      }
+      function scanAttrAndAttrValue(nodeStart, attrValueStart) {
+        var scanner = createScanner(document.getText(), nodeStart);
+        var token = scanner.scan();
+        var prevAttr = void 0;
+        while (token !== TokenType.EOS && scanner.getTokenEnd() <= attrValueStart) {
+          token = scanner.scan();
+          if (token === TokenType.AttributeName) {
+            prevAttr = scanner.getTokenText();
+          }
+        }
+        return prevAttr;
+      }
+      var attrValueRange = getTagNameRange2(TokenType.AttributeValue, node.start);
+      if (attrValueRange) {
+        var tag = node.tag;
+        var attrValue = trimQuotes(document.getText(attrValueRange));
+        var matchAttr = scanAttrAndAttrValue(node.start, document.offsetAt(attrValueRange.start));
+        if (matchAttr) {
+          return getAttrValueHover(tag, matchAttr, attrValue, attrValueRange);
+        }
+      }
+      return null;
+    };
+    HTMLHover2.prototype.convertContents = function(contents) {
+      if (!this.doesSupportMarkdown()) {
+        if (typeof contents === "string") {
+          return contents;
+        } else if ("kind" in contents) {
+          return {
+            kind: "plaintext",
+            value: contents.value
+          };
+        } else if (Array.isArray(contents)) {
+          contents.map(function(c) {
+            return typeof c === "string" ? c : c.value;
+          });
+        } else {
+          return contents.value;
+        }
+      }
+      return contents;
+    };
+    HTMLHover2.prototype.doesSupportMarkdown = function() {
+      var _a2, _b, _c;
+      if (!isDefined(this.supportsMarkdown)) {
+        if (!isDefined(this.lsOptions.clientCapabilities)) {
+          this.supportsMarkdown = true;
+          return this.supportsMarkdown;
+        }
+        var contentFormat = (_c = (_b = (_a2 = this.lsOptions.clientCapabilities) === null || _a2 === void 0 ? void 0 : _a2.textDocument) === null || _b === void 0 ? void 0 : _b.hover) === null || _c === void 0 ? void 0 : _c.contentFormat;
+        this.supportsMarkdown = Array.isArray(contentFormat) && contentFormat.indexOf(MarkupKind.Markdown) !== -1;
+      }
+      return this.supportsMarkdown;
+    };
+    return HTMLHover2;
+  }()
+);
 function trimQuotes(s) {
   if (s.length <= 1) {
     return s.replace(/['"]/, "");
@@ -24314,6 +24426,8 @@ var legacy_beautify_css;
   var __webpack_modules__ = [
     ,
     ,
+    /* 2 */
+    /***/
     function(module) {
       function OutputLine(parent) {
         this.__parent = parent;
@@ -24635,6 +24749,8 @@ var legacy_beautify_css;
     ,
     ,
     ,
+    /* 6 */
+    /***/
     function(module) {
       function Options(options, merge_child_field) {
         this.raw_options = _mergeOpts(options, merge_child_field);
@@ -24700,7 +24816,9 @@ var legacy_beautify_css;
       Options.prototype._get_selection = function(name, selection_list, default_value) {
         var result = this._get_selection_list(name, selection_list, default_value);
         if (result.length !== 1) {
-          throw new Error("Invalid Option Value: The option '" + name + "' can only be one of the following values:\n" + selection_list + "\nYou passed in: '" + this.raw_options[name] + "'");
+          throw new Error(
+            "Invalid Option Value: The option '" + name + "' can only be one of the following values:\n" + selection_list + "\nYou passed in: '" + this.raw_options[name] + "'"
+          );
         }
         return result[0];
       };
@@ -24714,7 +24832,9 @@ var legacy_beautify_css;
         }
         var result = this._get_array(name, default_value);
         if (!this._is_valid_selection(result, selection_list)) {
-          throw new Error("Invalid Option Value: The option '" + name + "' can contain only the following values:\n" + selection_list + "\nYou passed in: '" + this.raw_options[name] + "'");
+          throw new Error(
+            "Invalid Option Value: The option '" + name + "' can contain only the following values:\n" + selection_list + "\nYou passed in: '" + this.raw_options[name] + "'"
+          );
         }
         return result;
       };
@@ -24753,6 +24873,8 @@ var legacy_beautify_css;
       module.exports.mergeOpts = _mergeOpts;
     },
     ,
+    /* 8 */
+    /***/
     function(module) {
       var regexp_has_sticky = RegExp.prototype.hasOwnProperty("sticky");
       function InputScanner(input_string) {
@@ -24887,6 +25009,8 @@ var legacy_beautify_css;
     ,
     ,
     ,
+    /* 13 */
+    /***/
     function(module) {
       function Directives(start_block_pattern, end_block_pattern) {
         start_block_pattern = typeof start_block_pattern === "string" ? start_block_pattern : start_block_pattern.source;
@@ -24914,6 +25038,8 @@ var legacy_beautify_css;
       module.exports.Directives = Directives;
     },
     ,
+    /* 15 */
+    /***/
     function(module, __unused_webpack_exports, __webpack_require__2) {
       var Beautifier = __webpack_require__2(16).Beautifier, Options = __webpack_require__2(17).Options;
       function css_beautify2(source_text, options) {
@@ -24925,6 +25051,8 @@ var legacy_beautify_css;
         return new Options();
       };
     },
+    /* 16 */
+    /***/
     function(module, __unused_webpack_exports, __webpack_require__2) {
       var Options = __webpack_require__2(17).Options;
       var Output = __webpack_require__2(2).Output;
@@ -24946,6 +25074,7 @@ var legacy_beautify_css;
           "@page": true,
           "@font-face": true,
           "@keyframes": true,
+          // also in CONDITIONAL_GROUP_RULE below
           "@media": true,
           "@supports": true,
           "@document": true
@@ -25278,6 +25407,8 @@ var legacy_beautify_css;
       };
       module.exports.Beautifier = Beautifier;
     },
+    /* 17 */
+    /***/
     function(module, __unused_webpack_exports, __webpack_require__2) {
       var BaseOptions = __webpack_require__2(6).Options;
       function Options(options) {
@@ -25299,20 +25430,27 @@ var legacy_beautify_css;
       Options.prototype = new BaseOptions();
       module.exports.Options = Options;
     }
+    /******/
   ];
   var __webpack_module_cache__ = {};
-  function __nested_webpack_require_217136__(moduleId) {
+  function __nested_webpack_require_221051__(moduleId) {
     var cachedModule = __webpack_module_cache__[moduleId];
     if (cachedModule !== void 0) {
       return cachedModule.exports;
     }
     var module = __webpack_module_cache__[moduleId] = {
+      /******/
+      // no module.id needed
+      /******/
+      // no module.loaded needed
+      /******/
       exports: {}
+      /******/
     };
-    __webpack_modules__[moduleId](module, module.exports, __nested_webpack_require_217136__);
+    __webpack_modules__[moduleId](module, module.exports, __nested_webpack_require_221051__);
     return module.exports;
   }
-  var __nested_webpack_exports__ = __nested_webpack_require_217136__(15);
+  var __nested_webpack_exports__ = __nested_webpack_require_221051__(15);
   legacy_beautify_css = __nested_webpack_exports__;
 })();
 var css_beautify = legacy_beautify_css;
@@ -25324,6 +25462,8 @@ var legacy_beautify_html;
   var __webpack_modules__ = [
     ,
     ,
+    /* 2 */
+    /***/
     function(module) {
       function OutputLine(parent) {
         this.__parent = parent;
@@ -25642,6 +25782,8 @@ var legacy_beautify_html;
       };
       module.exports.Output = Output;
     },
+    /* 3 */
+    /***/
     function(module) {
       function Token(type, text, newlines, whitespace_before) {
         this.type = type;
@@ -25660,6 +25802,8 @@ var legacy_beautify_html;
     },
     ,
     ,
+    /* 6 */
+    /***/
     function(module) {
       function Options(options, merge_child_field) {
         this.raw_options = _mergeOpts(options, merge_child_field);
@@ -25725,7 +25869,9 @@ var legacy_beautify_html;
       Options.prototype._get_selection = function(name, selection_list, default_value) {
         var result = this._get_selection_list(name, selection_list, default_value);
         if (result.length !== 1) {
-          throw new Error("Invalid Option Value: The option '" + name + "' can only be one of the following values:\n" + selection_list + "\nYou passed in: '" + this.raw_options[name] + "'");
+          throw new Error(
+            "Invalid Option Value: The option '" + name + "' can only be one of the following values:\n" + selection_list + "\nYou passed in: '" + this.raw_options[name] + "'"
+          );
         }
         return result[0];
       };
@@ -25739,7 +25885,9 @@ var legacy_beautify_html;
         }
         var result = this._get_array(name, default_value);
         if (!this._is_valid_selection(result, selection_list)) {
-          throw new Error("Invalid Option Value: The option '" + name + "' can contain only the following values:\n" + selection_list + "\nYou passed in: '" + this.raw_options[name] + "'");
+          throw new Error(
+            "Invalid Option Value: The option '" + name + "' can contain only the following values:\n" + selection_list + "\nYou passed in: '" + this.raw_options[name] + "'"
+          );
         }
         return result;
       };
@@ -25778,6 +25926,8 @@ var legacy_beautify_html;
       module.exports.mergeOpts = _mergeOpts;
     },
     ,
+    /* 8 */
+    /***/
     function(module) {
       var regexp_has_sticky = RegExp.prototype.hasOwnProperty("sticky");
       function InputScanner(input_string) {
@@ -25908,6 +26058,8 @@ var legacy_beautify_html;
       };
       module.exports.InputScanner = InputScanner;
     },
+    /* 9 */
+    /***/
     function(module, __unused_webpack_exports, __webpack_require__2) {
       var InputScanner = __webpack_require__2(8).InputScanner;
       var Token = __webpack_require__2(3).Token;
@@ -25985,7 +26137,12 @@ var legacy_beautify_html;
         return false;
       };
       Tokenizer.prototype._create_token = function(type, text) {
-        var token = new Token(type, text, this._patterns.whitespace.newline_count, this._patterns.whitespace.whitespace_before_token);
+        var token = new Token(
+          type,
+          text,
+          this._patterns.whitespace.newline_count,
+          this._patterns.whitespace.whitespace_before_token
+        );
         return token;
       };
       Tokenizer.prototype._readWhitespace = function() {
@@ -25994,6 +26151,8 @@ var legacy_beautify_html;
       module.exports.Tokenizer = Tokenizer;
       module.exports.TOKEN = TOKEN;
     },
+    /* 10 */
+    /***/
     function(module) {
       function TokenStream(parent_token) {
         this.__tokens = [];
@@ -26036,6 +26195,8 @@ var legacy_beautify_html;
       };
       module.exports.TokenStream = TokenStream;
     },
+    /* 11 */
+    /***/
     function(module, __unused_webpack_exports, __webpack_require__2) {
       var Pattern = __webpack_require__2(12).Pattern;
       function WhitespacePattern(input_scanner, parent) {
@@ -26052,8 +26213,13 @@ var legacy_beautify_html;
       WhitespacePattern.prototype.__set_whitespace_patterns = function(whitespace_chars, newline_chars) {
         whitespace_chars += "\\t ";
         newline_chars += "\\n\\r";
-        this._match_pattern = this._input.get_regexp("[" + whitespace_chars + newline_chars + "]+", true);
-        this._newline_regexp = this._input.get_regexp("\\r\\n|[" + newline_chars + "]");
+        this._match_pattern = this._input.get_regexp(
+          "[" + whitespace_chars + newline_chars + "]+",
+          true
+        );
+        this._newline_regexp = this._input.get_regexp(
+          "\\r\\n|[" + newline_chars + "]"
+        );
       };
       WhitespacePattern.prototype.read = function() {
         this.newline_count = 0;
@@ -26096,6 +26262,8 @@ var legacy_beautify_html;
       };
       module.exports.WhitespacePattern = WhitespacePattern;
     },
+    /* 12 */
+    /***/
     function(module) {
       function Pattern(input_scanner, parent) {
         this._input = input_scanner;
@@ -26153,6 +26321,8 @@ var legacy_beautify_html;
       };
       module.exports.Pattern = Pattern;
     },
+    /* 13 */
+    /***/
     function(module) {
       function Directives(start_block_pattern, end_block_pattern) {
         start_block_pattern = typeof start_block_pattern === "string" ? start_block_pattern : start_block_pattern.source;
@@ -26179,6 +26349,8 @@ var legacy_beautify_html;
       };
       module.exports.Directives = Directives;
     },
+    /* 14 */
+    /***/
     function(module, __unused_webpack_exports, __webpack_require__2) {
       var Pattern = __webpack_require__2(12).Pattern;
       var template_names = {
@@ -26205,6 +26377,7 @@ var legacy_beautify_html;
           handlebars: pattern.starting_with(/{{/).until_after(/}}/),
           php: pattern.starting_with(/<\?(?:[= ]|php)/).until_after(/\?>/),
           erb: pattern.starting_with(/<%[^%]/).until_after(/[^%]%>/),
+          // django coflicts with handlebars a bit.
           django: pattern.starting_with(/{%/).until_after(/%}/),
           django_value: pattern.starting_with(/{{/).until_after(/}}/),
           django_comment: pattern.starting_with(/{#/).until_after(/#}/),
@@ -26327,6 +26500,8 @@ var legacy_beautify_html;
     ,
     ,
     ,
+    /* 18 */
+    /***/
     function(module, __unused_webpack_exports, __webpack_require__2) {
       var Beautifier = __webpack_require__2(19).Beautifier, Options = __webpack_require__2(20).Options;
       function style_html(html_source, options, js_beautify2, css_beautify2) {
@@ -26338,6 +26513,8 @@ var legacy_beautify_html;
         return new Options();
       };
     },
+    /* 19 */
+    /***/
     function(module, __unused_webpack_exports, __webpack_require__2) {
       var Options = __webpack_require__2(20).Options;
       var Output = __webpack_require__2(2).Output;
@@ -26928,6 +27105,8 @@ var legacy_beautify_html;
       };
       module.exports.Beautifier = Beautifier;
     },
+    /* 20 */
+    /***/
     function(module, __unused_webpack_exports, __webpack_require__2) {
       var BaseOptions = __webpack_require__2(6).Options;
       function Options(options) {
@@ -26939,7 +27118,10 @@ var legacy_beautify_html;
         this.indent_body_inner_html = this._get_boolean("indent_body_inner_html", true);
         this.indent_head_inner_html = this._get_boolean("indent_head_inner_html", true);
         this.indent_handlebars = this._get_boolean("indent_handlebars", true);
-        this.wrap_attributes = this._get_selection("wrap_attributes", ["auto", "force", "force-aligned", "force-expand-multiline", "aligned-multiple", "preserve", "preserve-aligned"]);
+        this.wrap_attributes = this._get_selection(
+          "wrap_attributes",
+          ["auto", "force", "force-aligned", "force-expand-multiline", "aligned-multiple", "preserve", "preserve-aligned"]
+        );
         this.wrap_attributes_indent_size = this._get_number("wrap_attributes_indent_size", this.indent_size);
         this.extra_liners = this._get_array("extra_liners", ["head", "body", "/html"]);
         this.inline = this._get_array("inline", [
@@ -26981,6 +27163,7 @@ var legacy_beautify_html;
           "ruby",
           "s",
           "samp",
+          /* 'script', */
           "select",
           "small",
           "span",
@@ -26996,12 +27179,15 @@ var legacy_beautify_html;
           "video",
           "wbr",
           "text",
+          // obsolete inline tags
           "acronym",
           "big",
           "strike",
           "tt"
         ]);
         this.void_elements = this._get_array("void_elements", [
+          // HTLM void elements - aka self-closing tags - aka singletons
+          // https://www.w3.org/html/wg/drafts/html/master/syntax.html#void-elements
           "area",
           "base",
           "br",
@@ -27018,8 +27204,14 @@ var legacy_beautify_html;
           "source",
           "track",
           "wbr",
+          // NOTE: Optional tags are too complex for a simple list
+          // they are hard coded in _do_optional_end_element
+          // Doctype and xml elements
           "!doctype",
           "?xml",
+          // obsolete tags
+          // basefont: https://www.computerhope.com/jargon/h/html-basefont-tag.htm
+          // isndex: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/isindex
           "basefont",
           "isindex"
         ]);
@@ -27034,6 +27226,8 @@ var legacy_beautify_html;
       Options.prototype = new BaseOptions();
       module.exports.Options = Options;
     },
+    /* 21 */
+    /***/
     function(module, __unused_webpack_exports, __webpack_require__2) {
       var BaseTokenizer = __webpack_require__2(9).Tokenizer;
       var BASETOKEN = __webpack_require__2(9).TOKEN;
@@ -27071,6 +27265,7 @@ var legacy_beautify_html;
           handlebars_raw_close: pattern_reader.until(/}}/),
           comment: pattern_reader.starting_with(/<!--/).until_after(/-->/),
           cdata: pattern_reader.starting_with(/<!\[CDATA\[/).until_after(/]]>/),
+          // https://en.wikipedia.org/wiki/Conditional_comment
           conditional_comment: pattern_reader.starting_with(/<!\[/).until_after(/]>/),
           processing: pattern_reader.starting_with(/<\?/).until_after(/\?>/)
         };
@@ -27274,20 +27469,27 @@ var legacy_beautify_html;
       module.exports.Tokenizer = Tokenizer;
       module.exports.TOKEN = TOKEN;
     }
+    /******/
   ];
   var __webpack_module_cache__ = {};
-  function __nested_webpack_require_301153__(moduleId) {
+  function __nested_webpack_require_306394__(moduleId) {
     var cachedModule = __webpack_module_cache__[moduleId];
     if (cachedModule !== void 0) {
       return cachedModule.exports;
     }
     var module = __webpack_module_cache__[moduleId] = {
+      /******/
+      // no module.id needed
+      /******/
+      // no module.loaded needed
+      /******/
       exports: {}
+      /******/
     };
-    __webpack_modules__[moduleId](module, module.exports, __nested_webpack_require_301153__);
+    __webpack_modules__[moduleId](module, module.exports, __nested_webpack_require_306394__);
     return module.exports;
   }
-  var __nested_webpack_exports__ = __nested_webpack_require_301153__(18);
+  var __nested_webpack_exports__ = __nested_webpack_require_306394__(18);
   legacy_beautify_html = __nested_webpack_exports__;
 })();
 function html_beautify(html_source, options) {
@@ -27638,7 +27840,7 @@ LIB = (() => {
     }
     var l = "", p = "/", g = /^(([^:/?#]+?):)?(\/\/([^/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))?/, d = function() {
       function t3(t4, e3, r3, n2, o2, i2) {
-        void 0 === i2 && (i2 = false), "object" == typeof t4 ? (this.scheme = t4.scheme || l, this.authority = t4.authority || l, this.path = t4.path || l, this.query = t4.query || l, this.fragment = t4.fragment || l) : (this.scheme = function(t5, e4) {
+        void 0 === i2 && (i2 = false), "object" == typeof t4 ? (this.scheme = t4.scheme || l, this.authority = t4.authority || l, this.path = t4.path || l, this.query = t4.query || l, this.fragment = t4.fragment || l) : (this.scheme = /* @__PURE__ */ function(t5, e4) {
           return t5 || e4 ? t5 : "file";
         }(t4, i2), this.authority = e3 || l, this.path = function(t5, e4) {
           switch (t5) {
@@ -28072,7 +28274,11 @@ function findLinkedEditingRanges(document, position, htmlDocument) {
   if (!node.endTagStart) {
     return null;
   }
-  if (node.start + "<".length <= offset && offset <= node.start + "<".length + tagLength || node.endTagStart + "</".length <= offset && offset <= node.endTagStart + "</".length + tagLength) {
+  if (
+    // Within open tag, compute close tag
+    node.start + "<".length <= offset && offset <= node.start + "<".length + tagLength || // Within closing tag, compute open tag
+    node.endTagStart + "</".length <= offset && offset <= node.endTagStart + "</".length + tagLength
+  ) {
     return [
       Range.create(document.positionAt(node.start + "<".length), document.positionAt(node.start + "<".length + tagLength)),
       Range.create(document.positionAt(node.endTagStart + "</".length), document.positionAt(node.endTagStart + "</".length + tagLength))
@@ -34392,24 +34598,27 @@ var htmlData = {
 };
 
 // node_modules/vscode-html-languageservice/lib/esm/languageFacts/dataManager.js
-var HTMLDataManager = function() {
-  function HTMLDataManager2(options) {
-    this.dataProviders = [];
-    this.setDataProviders(options.useDefaultDataProvider !== false, options.customDataProviders || []);
-  }
-  HTMLDataManager2.prototype.setDataProviders = function(builtIn, providers) {
-    var _a2;
-    this.dataProviders = [];
-    if (builtIn) {
-      this.dataProviders.push(new HTMLDataProvider("html5", htmlData));
+var HTMLDataManager = (
+  /** @class */
+  function() {
+    function HTMLDataManager2(options) {
+      this.dataProviders = [];
+      this.setDataProviders(options.useDefaultDataProvider !== false, options.customDataProviders || []);
     }
-    (_a2 = this.dataProviders).push.apply(_a2, providers);
-  };
-  HTMLDataManager2.prototype.getDataProviders = function() {
-    return this.dataProviders;
-  };
-  return HTMLDataManager2;
-}();
+    HTMLDataManager2.prototype.setDataProviders = function(builtIn, providers) {
+      var _a2;
+      this.dataProviders = [];
+      if (builtIn) {
+        this.dataProviders.push(new HTMLDataProvider("html5", htmlData));
+      }
+      (_a2 = this.dataProviders).push.apply(_a2, providers);
+    };
+    HTMLDataManager2.prototype.getDataProviders = function() {
+      return this.dataProviders;
+    };
+    return HTMLDataManager2;
+  }()
+);
 
 // node_modules/vscode-html-languageservice/lib/esm/htmlLanguageService.js
 var defaultLanguageServiceOptions = {};
@@ -34450,10 +34659,6 @@ function newHTMLDataProvider(id, customData) {
 
 // src/language/html/htmlWorker.ts
 var HTMLWorker = class {
-  _ctx;
-  _languageService;
-  _languageSettings;
-  _languageId;
   constructor(ctx, createData) {
     this._ctx = ctx;
     this._languageSettings = createData.languageSettings;
@@ -34477,7 +34682,14 @@ var HTMLWorker = class {
       return null;
     }
     let htmlDocument = this._languageService.parseHTMLDocument(document);
-    return Promise.resolve(this._languageService.doComplete(document, position, htmlDocument, this._languageSettings && this._languageSettings.suggest));
+    return Promise.resolve(
+      this._languageService.doComplete(
+        document,
+        position,
+        htmlDocument,
+        this._languageSettings && this._languageSettings.suggest
+      )
+    );
   }
   async format(uri, range, options) {
     let document = this._getTextDocument(uri);
@@ -34511,7 +34723,11 @@ var HTMLWorker = class {
     if (!document) {
       return [];
     }
-    let links = this._languageService.findDocumentLinks(document, null);
+    let links = this._languageService.findDocumentLinks(
+      document,
+      null
+      /*TODO@aeschli*/
+    );
     return Promise.resolve(links);
   }
   async findDocumentSymbols(uri) {
@@ -34552,7 +34768,12 @@ var HTMLWorker = class {
     let models = this._ctx.getMirrorModels();
     for (let model of models) {
       if (model.uri.toString() === uri) {
-        return TextDocument2.create(uri, this._languageId, model.version, model.getValue());
+        return TextDocument2.create(
+          uri,
+          this._languageId,
+          model.version,
+          model.getValue()
+        );
       }
     }
     return null;

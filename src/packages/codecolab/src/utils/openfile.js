@@ -1,4 +1,4 @@
-import {getApp, useSetApp} from '../hooks/useSetApp.js'
+import { getApp, useSetApp } from '../hooks/useSetApp.js'
 
 export async function userOpenFile(options) {
     const data = getApp()
@@ -13,20 +13,20 @@ export async function userOpenFile(options) {
             }
         }, (btn, v) => {
             if (btn === 'ok' && v) {
-                if(v!==null){
-                    const file = v
-                    osjs.make('osjs/vfs').readfile(v, 'bin').then((result)=>{
-                        resolve({file,result})
-                    })
-                }
-                else reject("File not selected");
-            } 
+
+                const file = v
+                osjs.make('osjs/vfs').readfile(v, 'bin').then((result) => {
+                    resolve({ file, result })
+                })
+
+
+            }
             else if ((btn == 'cancle' || btn == 'destroy')) {
                 reject("File not selected");
-              }
-              else {
+            }
+            else {
                 reject("File not selected");
-              }
+            }
         });
     });
 }

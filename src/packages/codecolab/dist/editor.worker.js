@@ -729,7 +729,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   assertFn: () => (/* binding */ assertFn),
 /* harmony export */   assertNever: () => (/* binding */ assertNever),
 /* harmony export */   checkAdjacentItems: () => (/* binding */ checkAdjacentItems),
-/* harmony export */   ok: () => (/* binding */ ok)
+/* harmony export */   ok: () => (/* binding */ ok),
+/* harmony export */   softAssert: () => (/* binding */ softAssert)
 /* harmony export */ });
 /* harmony import */ var _errors_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./errors.js */ "./node_modules/monaco-editor/esm/vs/base/common/errors.js");
 /*---------------------------------------------------------------------------------------------
@@ -758,6 +759,11 @@ function ok(value, message) {
 }
 function assertNever(value, message = 'Unreachable') {
     throw new Error(message);
+}
+function softAssert(condition) {
+    if (!condition) {
+        (0,_errors_js__WEBPACK_IMPORTED_MODULE_0__.onUnexpectedError)(new _errors_js__WEBPACK_IMPORTED_MODULE_0__.BugIndicatingError('Assertion Failed'));
+    }
 }
 /**
  * condition must be side-effect free!
@@ -1057,6 +1063,7 @@ const Codicon = {
     closeDirty: register('close-dirty', 0xea71),
     debugBreakpoint: register('debug-breakpoint', 0xea71),
     debugBreakpointDisabled: register('debug-breakpoint-disabled', 0xea71),
+    debugBreakpointPending: register('debug-breakpoint-pending', 0xebd9),
     debugHint: register('debug-hint', 0xea71),
     primitiveSquare: register('primitive-square', 0xea72),
     edit: register('edit', 0xea73),
@@ -1532,6 +1539,28 @@ const Codicon = {
     sparkle: register('sparkle', 0xec10),
     insert: register('insert', 0xec11),
     mic: register('mic', 0xec12),
+    thumbsDownFilled: register('thumbsdown-filled', 0xec13),
+    thumbsUpFilled: register('thumbsup-filled', 0xec14),
+    coffee: register('coffee', 0xec15),
+    snake: register('snake', 0xec16),
+    game: register('game', 0xec17),
+    vr: register('vr', 0xec18),
+    chip: register('chip', 0xec19),
+    piano: register('piano', 0xec1a),
+    music: register('music', 0xec1b),
+    micFilled: register('mic-filled', 0xec1c),
+    gitFetch: register('git-fetch', 0xec1d),
+    copilot: register('copilot', 0xec1e),
+    lightbulbSparkle: register('lightbulb-sparkle', 0xec1f),
+    lightbulbSparkleAutofix: register('lightbulb-sparkle-autofix', 0xec1f),
+    robot: register('robot', 0xec20),
+    sparkleFilled: register('sparkle-filled', 0xec21),
+    diffSingle: register('diff-single', 0xec22),
+    diffMultiple: register('diff-multiple', 0xec23),
+    surroundWith: register('surround-with', 0xec24),
+    gitStash: register('git-stash', 0xec26),
+    gitStashApply: register('git-stash-apply', 0xec27),
+    gitStashPop: register('git-stash-pop', 0xec28),
     // derived icons, that could become separate icons
     dialogError: register('dialog-error', 'error'),
     dialogWarning: register('dialog-warning', 'warning'),
@@ -3690,39 +3719,11 @@ var Event;
         return result.event;
     }
     Event.fromPromise = fromPromise;
-    /**
-     * Adds a listener to an event and calls the listener immediately with undefined as the event object.
-     *
-     * @example
-     * ```
-     * // Initialize the UI and update it when dataChangeEvent fires
-     * runAndSubscribe(dataChangeEvent, () => this._updateUI());
-     * ```
-     */
-    function runAndSubscribe(event, handler) {
-        handler(undefined);
+    function runAndSubscribe(event, handler, initial) {
+        handler(initial);
         return event(e => handler(e));
     }
     Event.runAndSubscribe = runAndSubscribe;
-    /**
-     * Adds a listener to an event and calls the listener immediately with undefined as the event object. A new
-     * {@link DisposableStore} is passed to the listener which is disposed when the returned disposable is disposed.
-     */
-    function runAndSubscribeWithStore(event, handler) {
-        let store = null;
-        function run(e) {
-            store === null || store === void 0 ? void 0 : store.dispose();
-            store = new _lifecycle_js__WEBPACK_IMPORTED_MODULE_2__.DisposableStore();
-            handler(e, store);
-        }
-        run(undefined);
-        const disposable = event(e => run(e));
-        return (0,_lifecycle_js__WEBPACK_IMPORTED_MODULE_2__.toDisposable)(() => {
-            disposable.dispose();
-            store === null || store === void 0 ? void 0 : store.dispose();
-        });
-    }
-    Event.runAndSubscribeWithStore = runAndSubscribeWithStore;
     class EmitterObserver {
         constructor(_observable, store) {
             this._observable = _observable;
@@ -3780,7 +3781,7 @@ var Event;
      * Each listener is attached to the observable directly.
      */
     function fromObservableLight(observable) {
-        return (listener) => {
+        return (listener, thisArgs, disposables) => {
             let count = 0;
             let didChange = false;
             const observer = {
@@ -3793,7 +3794,7 @@ var Event;
                         observable.reportChanges();
                         if (didChange) {
                             didChange = false;
-                            listener();
+                            listener.call(thisArgs);
                         }
                     }
                 },
@@ -3806,11 +3807,18 @@ var Event;
             };
             observable.addObserver(observer);
             observable.reportChanges();
-            return {
+            const disposable = {
                 dispose() {
                     observable.removeObserver(observer);
                 }
             };
+            if (disposables instanceof _lifecycle_js__WEBPACK_IMPORTED_MODULE_2__.DisposableStore) {
+                disposables.add(disposable);
+            }
+            else if (Array.isArray(disposables)) {
+                disposables.push(disposable);
+            }
+            return disposable;
         };
     }
     Event.fromObservableLight = fromObservableLight;
@@ -4406,7 +4414,7 @@ __webpack_require__.r(__webpack_exports__);
 /**
  * Given a function, returns a function that is only calling that function once.
  */
-function createSingleCallFunction(fn) {
+function createSingleCallFunction(fn, fnDidRunCallback) {
     const _this = this;
     let didCall = false;
     let result;
@@ -4415,7 +4423,17 @@ function createSingleCallFunction(fn) {
             return result;
         }
         didCall = true;
-        result = fn.apply(_this, arguments);
+        if (fnDidRunCallback) {
+            try {
+                result = fn.apply(_this, arguments);
+            }
+            finally {
+                fnDidRunCallback();
+            }
+        }
+        else {
+            result = fn.apply(_this, arguments);
+        }
         return result;
     };
 }
@@ -4792,9 +4810,7 @@ var Iterable;
     Iterable.map = map;
     function* concat(...iterables) {
         for (const iterable of iterables) {
-            for (const element of iterable) {
-                yield element;
-            }
+            yield* iterable;
         }
     }
     Iterable.concat = concat;
@@ -4844,6 +4860,14 @@ var Iterable;
         return [consumed, { [Symbol.iterator]() { return iterator; } }];
     }
     Iterable.consume = consume;
+    async function asyncToArray(iterable) {
+        const result = [];
+        for await (const item of iterable) {
+            result.push(item);
+        }
+        return Promise.resolve(result);
+    }
+    Iterable.asyncToArray = asyncToArray;
 })(Iterable || (Iterable = {}));
 
 
@@ -8004,7 +8028,6 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   LANGUAGE_DEFAULT: () => (/* binding */ LANGUAGE_DEFAULT),
 /* harmony export */   OS: () => (/* binding */ OS),
-/* harmony export */   globals: () => (/* binding */ globals),
 /* harmony export */   isAndroid: () => (/* binding */ isAndroid),
 /* harmony export */   isChrome: () => (/* binding */ isChrome),
 /* harmony export */   isEdge: () => (/* binding */ isEdge),
@@ -8022,7 +8045,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   language: () => (/* binding */ language),
 /* harmony export */   setTimeout0: () => (/* binding */ setTimeout0),
 /* harmony export */   setTimeout0IsFaster: () => (/* binding */ setTimeout0IsFaster),
-/* harmony export */   userAgent: () => (/* binding */ userAgent)
+/* harmony export */   userAgent: () => (/* binding */ userAgent),
+/* harmony export */   webWorkerOrigin: () => (/* binding */ webWorkerOrigin)
 /* harmony export */ });
 /* harmony import */ var _nls_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../nls.js */ "./node_modules/monaco-editor/esm/vs/nls.js");
 var _a;
@@ -8047,14 +8071,11 @@ let _language = LANGUAGE_DEFAULT;
 let _platformLocale = LANGUAGE_DEFAULT;
 let _translationsConfigFile = undefined;
 let _userAgent = undefined;
-/**
- * @deprecated use `globalThis` instead
- */
-const globals = (typeof self === 'object' ? self : typeof __webpack_require__.g === 'object' ? __webpack_require__.g : {});
+const $globalThis = globalThis;
 let nodeProcess = undefined;
-if (typeof globals.vscode !== 'undefined' && typeof globals.vscode.process !== 'undefined') {
+if (typeof $globalThis.vscode !== 'undefined' && typeof $globalThis.vscode.process !== 'undefined') {
     // Native environment (sandboxed)
-    nodeProcess = globals.vscode.process;
+    nodeProcess = $globalThis.vscode.process;
 }
 else if (typeof process !== 'undefined') {
     // Native environment (non-sandboxed)
@@ -8062,27 +8083,8 @@ else if (typeof process !== 'undefined') {
 }
 const isElectronProcess = typeof ((_a = nodeProcess === null || nodeProcess === void 0 ? void 0 : nodeProcess.versions) === null || _a === void 0 ? void 0 : _a.electron) === 'string';
 const isElectronRenderer = isElectronProcess && (nodeProcess === null || nodeProcess === void 0 ? void 0 : nodeProcess.type) === 'renderer';
-// Web environment
-if (typeof navigator === 'object' && !isElectronRenderer) {
-    _userAgent = navigator.userAgent;
-    _isWindows = _userAgent.indexOf('Windows') >= 0;
-    _isMacintosh = _userAgent.indexOf('Macintosh') >= 0;
-    _isIOS = (_userAgent.indexOf('Macintosh') >= 0 || _userAgent.indexOf('iPad') >= 0 || _userAgent.indexOf('iPhone') >= 0) && !!navigator.maxTouchPoints && navigator.maxTouchPoints > 0;
-    _isLinux = _userAgent.indexOf('Linux') >= 0;
-    _isMobile = (_userAgent === null || _userAgent === void 0 ? void 0 : _userAgent.indexOf('Mobi')) >= 0;
-    _isWeb = true;
-    const configuredLocale = _nls_js__WEBPACK_IMPORTED_MODULE_0__.getConfiguredDefaultLocale(
-    // This call _must_ be done in the file that calls `nls.getConfiguredDefaultLocale`
-    // to ensure that the NLS AMD Loader plugin has been loaded and configured.
-    // This is because the loader plugin decides what the default locale is based on
-    // how it's able to resolve the strings.
-    _nls_js__WEBPACK_IMPORTED_MODULE_0__.localize({ key: 'ensureLoaderPluginIsLoaded', comment: ['{Locked}'] }, '_'));
-    _locale = configuredLocale || LANGUAGE_DEFAULT;
-    _language = _locale;
-    _platformLocale = navigator.language;
-}
 // Native environment
-else if (typeof nodeProcess === 'object') {
+if (typeof nodeProcess === 'object') {
     _isWindows = (nodeProcess.platform === 'win32');
     _isMacintosh = (nodeProcess.platform === 'darwin');
     _isLinux = (nodeProcess.platform === 'linux');
@@ -8107,6 +8109,25 @@ else if (typeof nodeProcess === 'object') {
     }
     _isNative = true;
 }
+// Web environment
+else if (typeof navigator === 'object' && !isElectronRenderer) {
+    _userAgent = navigator.userAgent;
+    _isWindows = _userAgent.indexOf('Windows') >= 0;
+    _isMacintosh = _userAgent.indexOf('Macintosh') >= 0;
+    _isIOS = (_userAgent.indexOf('Macintosh') >= 0 || _userAgent.indexOf('iPad') >= 0 || _userAgent.indexOf('iPhone') >= 0) && !!navigator.maxTouchPoints && navigator.maxTouchPoints > 0;
+    _isLinux = _userAgent.indexOf('Linux') >= 0;
+    _isMobile = (_userAgent === null || _userAgent === void 0 ? void 0 : _userAgent.indexOf('Mobi')) >= 0;
+    _isWeb = true;
+    const configuredLocale = _nls_js__WEBPACK_IMPORTED_MODULE_0__.getConfiguredDefaultLocale(
+    // This call _must_ be done in the file that calls `nls.getConfiguredDefaultLocale`
+    // to ensure that the NLS AMD Loader plugin has been loaded and configured.
+    // This is because the loader plugin decides what the default locale is based on
+    // how it's able to resolve the strings.
+    _nls_js__WEBPACK_IMPORTED_MODULE_0__.localize({ key: 'ensureLoaderPluginIsLoaded', comment: ['{Locked}'] }, '_'));
+    _locale = configuredLocale || LANGUAGE_DEFAULT;
+    _language = _locale;
+    _platformLocale = navigator.language;
+}
 // Unknown environment
 else {
     console.error('Unable to resolve platform.');
@@ -8126,7 +8147,8 @@ const isMacintosh = _isMacintosh;
 const isLinux = _isLinux;
 const isNative = _isNative;
 const isWeb = _isWeb;
-const isWebWorker = (_isWeb && typeof globals.importScripts === 'function');
+const isWebWorker = (_isWeb && typeof $globalThis.importScripts === 'function');
+const webWorkerOrigin = isWebWorker ? $globalThis.origin : undefined;
 const isIOS = _isIOS;
 const isMobile = _isMobile;
 const userAgent = _userAgent;
@@ -8136,7 +8158,7 @@ const userAgent = _userAgent;
  * Chinese)
  */
 const language = _language;
-const setTimeout0IsFaster = (typeof globals.postMessage === 'function' && !globals.importScripts);
+const setTimeout0IsFaster = (typeof $globalThis.postMessage === 'function' && !$globalThis.importScripts);
 /**
  * See https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#:~:text=than%204%2C%20then-,set%20timeout%20to%204,-.
  *
@@ -8146,7 +8168,7 @@ const setTimeout0IsFaster = (typeof globals.postMessage === 'function' && !globa
 const setTimeout0 = (() => {
     if (setTimeout0IsFaster) {
         const pending = [];
-        globals.addEventListener('message', (e) => {
+        $globalThis.addEventListener('message', (e) => {
             if (e.data && e.data.vscodeScheduleAsyncWork) {
                 for (let i = 0, len = pending.length; i < len; i++) {
                     const candidate = pending[i];
@@ -8165,7 +8187,7 @@ const setTimeout0 = (() => {
                 id: myId,
                 callback: callback
             });
-            globals.postMessage({ vscodeScheduleAsyncWork: myId }, '*');
+            $globalThis.postMessage({ vscodeScheduleAsyncWork: myId }, '*');
         };
     }
     return (callback) => setTimeout(callback);
@@ -8213,8 +8235,9 @@ __webpack_require__.r(__webpack_exports__);
 
 let safeProcess;
 // Native sandbox environment
-if (typeof _platform_js__WEBPACK_IMPORTED_MODULE_0__.globals.vscode !== 'undefined' && typeof _platform_js__WEBPACK_IMPORTED_MODULE_0__.globals.vscode.process !== 'undefined') {
-    const sandboxProcess = _platform_js__WEBPACK_IMPORTED_MODULE_0__.globals.vscode.process;
+const vscodeGlobal = globalThis.vscode;
+if (typeof vscodeGlobal !== 'undefined' && typeof vscodeGlobal.process !== 'undefined') {
+    const sandboxProcess = vscodeGlobal.process;
     safeProcess = {
         get platform() { return sandboxProcess.platform; },
         get arch() { return sandboxProcess.arch; },
@@ -8340,6 +8363,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   getLeadingWhitespace: () => (/* binding */ getLeadingWhitespace),
 /* harmony export */   getLeftDeleteOffset: () => (/* binding */ getLeftDeleteOffset),
 /* harmony export */   getNextCodePoint: () => (/* binding */ getNextCodePoint),
+/* harmony export */   htmlAttributeEncodeValue: () => (/* binding */ htmlAttributeEncodeValue),
 /* harmony export */   isAsciiDigit: () => (/* binding */ isAsciiDigit),
 /* harmony export */   isBasicASCII: () => (/* binding */ isBasicASCII),
 /* harmony export */   isEmojiImprecise: () => (/* binding */ isEmojiImprecise),
@@ -8394,6 +8418,24 @@ function format(value, ...args) {
         return isNaN(idx) || idx < 0 || idx >= args.length ?
             match :
             args[idx];
+    });
+}
+/**
+ * Encodes the given value so that it can be used as literal value in html attributes.
+ *
+ * In other words, computes `$val`, such that `attr` in `<div attr="$val" />` has the runtime value `value`.
+ * This prevents XSS injection.
+ */
+function htmlAttributeEncodeValue(value) {
+    return value.replace(/[<>"'&]/g, ch => {
+        switch (ch) {
+            case '<': return '&lt;';
+            case '>': return '&gt;';
+            case '"': return '&quot;';
+            case '\'': return '&apos;';
+            case '&': return '&amp;';
+        }
+        return ch;
     });
 }
 /**
@@ -10414,7 +10456,7 @@ class SimpleWorkerServer {
                     delete loaderConfig.paths['vs'];
                 }
             }
-            if (typeof loaderConfig.trustedTypesPolicy !== undefined) {
+            if (typeof loaderConfig.trustedTypesPolicy !== 'undefined') {
                 // don't use, it has been destroyed during serialize
                 delete loaderConfig['trustedTypesPolicy'];
             }
@@ -10551,8 +10593,8 @@ __webpack_require__.r(__webpack_exports__);
  * A range of lines (1-based).
  */
 class LineRange {
-    static fromRange(range) {
-        return new LineRange(range.startLineNumber, range.endLineNumber);
+    static fromRangeInclusive(range) {
+        return new LineRange(range.startLineNumber, range.endLineNumber + 1);
     }
     /**
      * @param lineRanges An array of sorted line ranges.
@@ -10719,6 +10761,10 @@ class LineRangeSet {
         const rangeThatStartsBeforeEnd = (0,_base_common_arraysFind_js__WEBPACK_IMPORTED_MODULE_3__.findLastMonotonous)(this._normalizedRanges, r => r.startLineNumber <= lineNumber);
         return !!rangeThatStartsBeforeEnd && rangeThatStartsBeforeEnd.endLineNumberExclusive > lineNumber;
     }
+    intersects(range) {
+        const rangeThatStartsBeforeEnd = (0,_base_common_arraysFind_js__WEBPACK_IMPORTED_MODULE_3__.findLastMonotonous)(this._normalizedRanges, r => r.startLineNumber < range.endLineNumberExclusive);
+        return !!rangeThatStartsBeforeEnd && rangeThatStartsBeforeEnd.endLineNumberExclusive > range.startLineNumber;
+    }
     getUnion(other) {
         if (this._normalizedRanges.length === 0) {
             return other;
@@ -10867,14 +10913,11 @@ class OffsetRange {
             sortedRanges.splice(i, j - i, new OffsetRange(start, end));
         }
     }
-    static tryCreate(start, endExclusive) {
-        if (start > endExclusive) {
-            return undefined;
-        }
-        return new OffsetRange(start, endExclusive);
-    }
     static ofLength(length) {
         return new OffsetRange(0, length);
+    }
+    static ofStartAndLength(start, length) {
+        return new OffsetRange(start, start + length);
     }
     constructor(start, endExclusive) {
         this.start = start;
@@ -10901,12 +10944,6 @@ class OffsetRange {
     toString() {
         return `[${this.start}, ${this.endExclusive})`;
     }
-    equals(other) {
-        return this.start === other.start && this.endExclusive === other.endExclusive;
-    }
-    containsRange(other) {
-        return this.start <= other.start && other.endExclusive <= this.endExclusive;
-    }
     contains(offset) {
         return this.start <= offset && offset < this.endExclusive;
     }
@@ -10930,6 +10967,17 @@ class OffsetRange {
             return new OffsetRange(start, end);
         }
         return undefined;
+    }
+    intersects(other) {
+        const start = Math.max(this.start, other.start);
+        const end = Math.min(this.endExclusive, other.endExclusive);
+        return start < end;
+    }
+    isBefore(other) {
+        return this.endExclusive <= other.start;
+    }
+    isAfter(other) {
+        return this.start >= other.endExclusive;
     }
     slice(arr) {
         return arr.slice(this.start, this.endExclusive);
@@ -11168,6 +11216,12 @@ class Position {
         return (obj
             && (typeof obj.lineNumber === 'number')
             && (typeof obj.column === 'number'));
+    }
+    toJSON() {
+        return {
+            lineNumber: this.lineNumber,
+            column: this.column
+        };
     }
 }
 
@@ -11860,6 +11914,8 @@ _defaultConfig.unshift({
     timeBudget: 150
 });
 function getWordAtText(column, wordDefinition, text, textOffset, config) {
+    // Ensure the regex has the 'g' flag, otherwise this will loop forever
+    wordDefinition = ensureValidWordDefinition(wordDefinition);
     if (!config) {
         config = _base_common_iterator_js__WEBPACK_IMPORTED_MODULE_0__.Iterable.first(_defaultConfig);
     }
@@ -12034,6 +12090,15 @@ class OffsetPair {
     }
     toString() {
         return `${this.offset1} <-> ${this.offset2}`;
+    }
+    delta(offset) {
+        if (offset === 0) {
+            return this;
+        }
+        return new OffsetPair(this.offset1 + offset, this.offset2 + offset);
+    }
+    equals(other) {
+        return this.offset1 === other.offset1 && this.offset2 === other.offset2;
     }
 }
 OffsetPair.zero = new OffsetPair(0, 0);
@@ -12403,11 +12468,21 @@ function computeMovedLines(changes, originalLines, modifiedLines, hashedOriginal
     moves = joinCloseConsecutiveMoves(moves);
     // Ignore too short moves
     moves = moves.filter(current => {
-        const originalText = current.original.toOffsetRange().slice(originalLines).map(l => l.trim()).join('\n');
-        return originalText.length >= 10;
+        const lines = current.original.toOffsetRange().slice(originalLines).map(l => l.trim());
+        const originalText = lines.join('\n');
+        return originalText.length >= 15 && countWhere(lines, l => l.length >= 2) >= 2;
     });
     moves = removeMovesInSameDiff(changes, moves);
     return moves;
+}
+function countWhere(arr, predicate) {
+    let count = 0;
+    for (const t of arr) {
+        if (predicate(t)) {
+            count++;
+        }
+    }
+    return count;
 }
 function computeMovesFromSimpleDeletionsToSimpleInsertions(changes, originalLines, modifiedLines, timeout) {
     const moves = [];
@@ -12606,9 +12681,9 @@ function joinCloseConsecutiveMoves(moves) {
 function removeMovesInSameDiff(changes, moves) {
     const changesMonotonous = new _base_common_arraysFind_js__WEBPACK_IMPORTED_MODULE_3__.MonotonousArray(changes);
     moves = moves.filter(m => {
-        const diffBeforeEndOfMoveOriginal = changesMonotonous.findLastMonotonous(c => c.original.endLineNumberExclusive < m.original.endLineNumberExclusive)
+        const diffBeforeEndOfMoveOriginal = changesMonotonous.findLastMonotonous(c => c.original.startLineNumber < m.original.endLineNumberExclusive)
             || new _rangeMapping_js__WEBPACK_IMPORTED_MODULE_1__.LineRangeMapping(new _core_lineRange_js__WEBPACK_IMPORTED_MODULE_5__.LineRange(1, 1), new _core_lineRange_js__WEBPACK_IMPORTED_MODULE_5__.LineRange(1, 1));
-        const diffBeforeEndOfMoveModified = (0,_base_common_arraysFind_js__WEBPACK_IMPORTED_MODULE_3__.findLastMonotonous)(changes, c => c.modified.endLineNumberExclusive < m.modified.endLineNumberExclusive);
+        const diffBeforeEndOfMoveModified = (0,_base_common_arraysFind_js__WEBPACK_IMPORTED_MODULE_3__.findLastMonotonous)(changes, c => c.modified.startLineNumber < m.modified.endLineNumberExclusive);
         const differentDiffs = diffBeforeEndOfMoveOriginal !== diffBeforeEndOfMoveModified;
         return differentDiffs;
     });
@@ -12895,6 +12970,9 @@ __webpack_require__.r(__webpack_exports__);
 function optimizeSequenceDiffs(sequence1, sequence2, sequenceDiffs) {
     let result = sequenceDiffs;
     result = joinSequenceDiffsByShifting(sequence1, sequence2, result);
+    // Sometimes, calling this function twice improves the result.
+    // Uncomment the second invocation and run the tests to see the difference.
+    result = joinSequenceDiffsByShifting(sequence1, sequence2, result);
     result = shiftSequenceDiffs(sequence1, sequence2, result);
     return result;
 }
@@ -12990,8 +13068,8 @@ function shiftSequenceDiffs(sequence1, sequence2, sequenceDiffs) {
         const prevDiff = (i > 0 ? sequenceDiffs[i - 1] : undefined);
         const diff = sequenceDiffs[i];
         const nextDiff = (i + 1 < sequenceDiffs.length ? sequenceDiffs[i + 1] : undefined);
-        const seq1ValidRange = new _core_offsetRange_js__WEBPACK_IMPORTED_MODULE_1__.OffsetRange(prevDiff ? prevDiff.seq1Range.start + 1 : 0, nextDiff ? nextDiff.seq1Range.endExclusive - 1 : sequence1.length);
-        const seq2ValidRange = new _core_offsetRange_js__WEBPACK_IMPORTED_MODULE_1__.OffsetRange(prevDiff ? prevDiff.seq2Range.start + 1 : 0, nextDiff ? nextDiff.seq2Range.endExclusive - 1 : sequence2.length);
+        const seq1ValidRange = new _core_offsetRange_js__WEBPACK_IMPORTED_MODULE_1__.OffsetRange(prevDiff ? prevDiff.seq1Range.endExclusive + 1 : 0, nextDiff ? nextDiff.seq1Range.start - 1 : sequence1.length);
+        const seq2ValidRange = new _core_offsetRange_js__WEBPACK_IMPORTED_MODULE_1__.OffsetRange(prevDiff ? prevDiff.seq2Range.endExclusive + 1 : 0, nextDiff ? nextDiff.seq2Range.start - 1 : sequence2.length);
         if (diff.seq1Range.isEmpty) {
             sequenceDiffs[i] = shiftDiffToBetterPosition(diff, sequence1, sequence2, seq1ValidRange, seq2ValidRange);
         }
@@ -13055,62 +13133,60 @@ function removeShortMatches(sequence1, sequence2, sequenceDiffs) {
     return result;
 }
 function extendDiffsToEntireWordIfAppropriate(sequence1, sequence2, sequenceDiffs) {
+    const equalMappings = _algorithms_diffAlgorithm_js__WEBPACK_IMPORTED_MODULE_2__.SequenceDiff.invert(sequenceDiffs, sequence1.length);
     const additional = [];
-    let lastModifiedWord = undefined;
-    function maybePushWordToAdditional() {
-        if (!lastModifiedWord) {
+    let lastPoint = new _algorithms_diffAlgorithm_js__WEBPACK_IMPORTED_MODULE_2__.OffsetPair(0, 0);
+    function scanWord(pair, equalMapping) {
+        if (pair.offset1 < lastPoint.offset1 || pair.offset2 < lastPoint.offset2) {
             return;
         }
-        const originalLength1 = lastModifiedWord.s1Range.length - lastModifiedWord.deleted;
-        const originalLength2 = lastModifiedWord.s2Range.length - lastModifiedWord.added;
-        if (originalLength1 !== originalLength2) {
-            // TODO figure out why this happens
+        const w1 = sequence1.findWordContaining(pair.offset1);
+        const w2 = sequence2.findWordContaining(pair.offset2);
+        if (!w1 || !w2) {
+            return;
         }
-        if (Math.max(lastModifiedWord.deleted, lastModifiedWord.added) + (lastModifiedWord.count - 1) > originalLength1) {
-            additional.push(new _algorithms_diffAlgorithm_js__WEBPACK_IMPORTED_MODULE_2__.SequenceDiff(lastModifiedWord.s1Range, lastModifiedWord.s2Range));
+        let w = new _algorithms_diffAlgorithm_js__WEBPACK_IMPORTED_MODULE_2__.SequenceDiff(w1, w2);
+        const equalPart = w.intersect(equalMapping);
+        let equalChars1 = equalPart.seq1Range.length;
+        let equalChars2 = equalPart.seq2Range.length;
+        // The words do not touch previous equals mappings, as we would have processed them already.
+        // But they might touch the next ones.
+        while (equalMappings.length > 0) {
+            const next = equalMappings[0];
+            const intersects = next.seq1Range.intersects(w1) || next.seq2Range.intersects(w2);
+            if (!intersects) {
+                break;
+            }
+            const v1 = sequence1.findWordContaining(next.seq1Range.start);
+            const v2 = sequence2.findWordContaining(next.seq2Range.start);
+            // Because there is an intersection, we know that the words are not empty.
+            const v = new _algorithms_diffAlgorithm_js__WEBPACK_IMPORTED_MODULE_2__.SequenceDiff(v1, v2);
+            const equalPart = v.intersect(next);
+            equalChars1 += equalPart.seq1Range.length;
+            equalChars2 += equalPart.seq2Range.length;
+            w = w.join(v);
+            if (w.seq1Range.endExclusive >= next.seq1Range.endExclusive) {
+                // The word extends beyond the next equal mapping.
+                equalMappings.shift();
+            }
+            else {
+                break;
+            }
         }
-        lastModifiedWord = undefined;
+        if (equalChars1 + equalChars2 < (w.seq1Range.length + w.seq2Range.length) * 2 / 3) {
+            additional.push(w);
+        }
+        lastPoint = w.getEndExclusives();
     }
-    for (const s of sequenceDiffs) {
-        function processWord(s1Range, s2Range) {
-            var _a, _b, _c, _d;
-            if (!lastModifiedWord || !lastModifiedWord.s1Range.containsRange(s1Range) || !lastModifiedWord.s2Range.containsRange(s2Range)) {
-                if (lastModifiedWord && !(lastModifiedWord.s1Range.endExclusive < s1Range.start && lastModifiedWord.s2Range.endExclusive < s2Range.start)) {
-                    const s1Added = _core_offsetRange_js__WEBPACK_IMPORTED_MODULE_1__.OffsetRange.tryCreate(lastModifiedWord.s1Range.endExclusive, s1Range.start);
-                    const s2Added = _core_offsetRange_js__WEBPACK_IMPORTED_MODULE_1__.OffsetRange.tryCreate(lastModifiedWord.s2Range.endExclusive, s2Range.start);
-                    lastModifiedWord.deleted += (_a = s1Added === null || s1Added === void 0 ? void 0 : s1Added.length) !== null && _a !== void 0 ? _a : 0;
-                    lastModifiedWord.added += (_b = s2Added === null || s2Added === void 0 ? void 0 : s2Added.length) !== null && _b !== void 0 ? _b : 0;
-                    lastModifiedWord.s1Range = lastModifiedWord.s1Range.join(s1Range);
-                    lastModifiedWord.s2Range = lastModifiedWord.s2Range.join(s2Range);
-                }
-                else {
-                    maybePushWordToAdditional();
-                    lastModifiedWord = { added: 0, deleted: 0, count: 0, s1Range: s1Range, s2Range: s2Range };
-                }
-            }
-            const changedS1 = s1Range.intersect(s.seq1Range);
-            const changedS2 = s2Range.intersect(s.seq2Range);
-            lastModifiedWord.count++;
-            lastModifiedWord.deleted += (_c = changedS1 === null || changedS1 === void 0 ? void 0 : changedS1.length) !== null && _c !== void 0 ? _c : 0;
-            lastModifiedWord.added += (_d = changedS2 === null || changedS2 === void 0 ? void 0 : changedS2.length) !== null && _d !== void 0 ? _d : 0;
+    while (equalMappings.length > 0) {
+        const next = equalMappings.shift();
+        if (next.seq1Range.isEmpty) {
+            continue;
         }
-        const w1Before = sequence1.findWordContaining(s.seq1Range.start - 1);
-        const w2Before = sequence2.findWordContaining(s.seq2Range.start - 1);
-        const w1After = sequence1.findWordContaining(s.seq1Range.endExclusive);
-        const w2After = sequence2.findWordContaining(s.seq2Range.endExclusive);
-        if (w1Before && w1After && w2Before && w2After && w1Before.equals(w1After) && w2Before.equals(w2After)) {
-            processWord(w1Before, w2Before);
-        }
-        else {
-            if (w1Before && w2Before) {
-                processWord(w1Before, w2Before);
-            }
-            if (w1After && w2After) {
-                processWord(w1After, w2After);
-            }
-        }
+        scanWord(next.getStarts(), next);
+        // The equal parts are not empty, so -1 gives us a character that is equal in both parts.
+        scanWord(next.getEndExclusives().delta(-1), next);
     }
-    maybePushWordToAdditional();
     const merged = mergeSequenceDiffs(sequenceDiffs, additional);
     return merged;
 }
@@ -13212,7 +13288,7 @@ function removeVeryShortMatchingTextBetweenLongDiffs(sequence1, sequence2, seque
                     return Math.min(v, max);
                 }
                 if (Math.pow(Math.pow(cap(beforeLineCount1 * 40 + beforeSeq1Length), 1.5) + Math.pow(cap(beforeLineCount2 * 40 + beforeSeq2Length), 1.5), 1.5)
-                    + Math.pow(Math.pow(cap(afterLineCount1 * 40 + afterSeq1Length), 1.5) + Math.pow(cap(afterLineCount2 * 40 + afterSeq2Length), 1.5), 1.5) > (Math.pow((Math.pow(max, 1.5)), 1.5)) * 1.3) {
+                    + Math.pow(Math.pow(cap(afterLineCount1 * 40 + afterSeq1Length), 1.5) + Math.pow(cap(afterLineCount2 * 40 + afterSeq2Length), 1.5), 1.5) > ((max ** 1.5) ** 1.5) * 1.3) {
                     return true;
                 }
                 return false;
@@ -13246,7 +13322,12 @@ function removeVeryShortMatchingTextBetweenLongDiffs(sequence1, sequence2, seque
         }
         const availableSpace = _algorithms_diffAlgorithm_js__WEBPACK_IMPORTED_MODULE_2__.SequenceDiff.fromOffsetPairs(prev ? prev.getEndExclusives() : _algorithms_diffAlgorithm_js__WEBPACK_IMPORTED_MODULE_2__.OffsetPair.zero, next ? next.getStarts() : _algorithms_diffAlgorithm_js__WEBPACK_IMPORTED_MODULE_2__.OffsetPair.max);
         const result = newDiff.intersect(availableSpace);
-        newDiffs.push(result);
+        if (newDiffs.length > 0 && result.getStarts().equals(newDiffs[newDiffs.length - 1].getEndExclusives())) {
+            newDiffs[newDiffs.length - 1] = newDiffs[newDiffs.length - 1].join(result);
+        }
+        else {
+            newDiffs.push(result);
+        }
     });
     return newDiffs;
 }
@@ -13390,9 +13471,13 @@ class LinesSliceCharSequence {
         // 11  0   0   12  15  6   13  0   0   11
         const prevCategory = getCategory(length > 0 ? this.elements[length - 1] : -1);
         const nextCategory = getCategory(length < this.elements.length ? this.elements[length] : -1);
-        if (prevCategory === 6 /* CharBoundaryCategory.LineBreakCR */ && nextCategory === 7 /* CharBoundaryCategory.LineBreakLF */) {
+        if (prevCategory === 7 /* CharBoundaryCategory.LineBreakCR */ && nextCategory === 8 /* CharBoundaryCategory.LineBreakLF */) {
             // don't break between \r and \n
             return 0;
+        }
+        if (prevCategory === 8 /* CharBoundaryCategory.LineBreakLF */) {
+            // prefer the linebreak before the change
+            return 150;
         }
         let score = 0;
         if (prevCategory !== nextCategory) {
@@ -13462,22 +13547,23 @@ const score = {
     [2 /* CharBoundaryCategory.WordNumber */]: 0,
     [3 /* CharBoundaryCategory.End */]: 10,
     [4 /* CharBoundaryCategory.Other */]: 2,
-    [5 /* CharBoundaryCategory.Space */]: 3,
-    [6 /* CharBoundaryCategory.LineBreakCR */]: 10,
-    [7 /* CharBoundaryCategory.LineBreakLF */]: 10,
+    [5 /* CharBoundaryCategory.Separator */]: 30,
+    [6 /* CharBoundaryCategory.Space */]: 3,
+    [7 /* CharBoundaryCategory.LineBreakCR */]: 10,
+    [8 /* CharBoundaryCategory.LineBreakLF */]: 10,
 };
 function getCategoryBoundaryScore(category) {
     return score[category];
 }
 function getCategory(charCode) {
     if (charCode === 10 /* CharCode.LineFeed */) {
-        return 7 /* CharBoundaryCategory.LineBreakLF */;
+        return 8 /* CharBoundaryCategory.LineBreakLF */;
     }
     else if (charCode === 13 /* CharCode.CarriageReturn */) {
-        return 6 /* CharBoundaryCategory.LineBreakCR */;
+        return 7 /* CharBoundaryCategory.LineBreakCR */;
     }
     else if ((0,_utils_js__WEBPACK_IMPORTED_MODULE_4__.isSpace)(charCode)) {
-        return 5 /* CharBoundaryCategory.Space */;
+        return 6 /* CharBoundaryCategory.Space */;
     }
     else if (charCode >= 97 /* CharCode.a */ && charCode <= 122 /* CharCode.z */) {
         return 0 /* CharBoundaryCategory.WordLower */;
@@ -13490,6 +13576,9 @@ function getCategory(charCode) {
     }
     else if (charCode === -1) {
         return 3 /* CharBoundaryCategory.End */;
+    }
+    else if (charCode === 44 /* CharCode.Comma */ || charCode === 59 /* CharCode.Semicolon */) {
+        return 5 /* CharBoundaryCategory.Separator */;
     }
     else {
         return 4 /* CharBoundaryCategory.Other */;
@@ -14159,16 +14248,27 @@ class LineRangeMapping {
         let lastOriginalEndLineNumber = 1;
         let lastModifiedEndLineNumber = 1;
         for (const m of mapping) {
-            const r = new DetailedLineRangeMapping(new _core_lineRange_js__WEBPACK_IMPORTED_MODULE_0__.LineRange(lastOriginalEndLineNumber, m.original.startLineNumber), new _core_lineRange_js__WEBPACK_IMPORTED_MODULE_0__.LineRange(lastModifiedEndLineNumber, m.modified.startLineNumber), undefined);
+            const r = new LineRangeMapping(new _core_lineRange_js__WEBPACK_IMPORTED_MODULE_0__.LineRange(lastOriginalEndLineNumber, m.original.startLineNumber), new _core_lineRange_js__WEBPACK_IMPORTED_MODULE_0__.LineRange(lastModifiedEndLineNumber, m.modified.startLineNumber));
             if (!r.modified.isEmpty) {
                 result.push(r);
             }
             lastOriginalEndLineNumber = m.original.endLineNumberExclusive;
             lastModifiedEndLineNumber = m.modified.endLineNumberExclusive;
         }
-        const r = new DetailedLineRangeMapping(new _core_lineRange_js__WEBPACK_IMPORTED_MODULE_0__.LineRange(lastOriginalEndLineNumber, originalLineCount + 1), new _core_lineRange_js__WEBPACK_IMPORTED_MODULE_0__.LineRange(lastModifiedEndLineNumber, modifiedLineCount + 1), undefined);
+        const r = new LineRangeMapping(new _core_lineRange_js__WEBPACK_IMPORTED_MODULE_0__.LineRange(lastOriginalEndLineNumber, originalLineCount + 1), new _core_lineRange_js__WEBPACK_IMPORTED_MODULE_0__.LineRange(lastModifiedEndLineNumber, modifiedLineCount + 1));
         if (!r.modified.isEmpty) {
             result.push(r);
+        }
+        return result;
+    }
+    static clip(mapping, originalRange, modifiedRange) {
+        const result = [];
+        for (const m of mapping) {
+            const original = m.original.intersect(originalRange);
+            const modified = m.modified.intersect(modifiedRange);
+            if (original && !original.isEmpty && modified && !modified.isEmpty) {
+                result.push(new LineRangeMapping(original, modified));
+            }
         }
         return result;
     }
@@ -15200,7 +15300,8 @@ var OverviewRulerLane;
 var GlyphMarginLane;
 (function (GlyphMarginLane) {
     GlyphMarginLane[GlyphMarginLane["Left"] = 1] = "Left";
-    GlyphMarginLane[GlyphMarginLane["Right"] = 2] = "Right";
+    GlyphMarginLane[GlyphMarginLane["Center"] = 2] = "Center";
+    GlyphMarginLane[GlyphMarginLane["Right"] = 3] = "Right";
 })(GlyphMarginLane || (GlyphMarginLane = {}));
 /**
  * Position in the minimap to render the decoration.
@@ -16264,15 +16365,6 @@ __webpack_require__.r(__webpack_exports__);
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 
 
 
@@ -16508,25 +16600,22 @@ class EditorSimpleWorker {
         }
         delete this._models[strURL];
     }
-    computeUnicodeHighlights(url, options, range) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const model = this._getModel(url);
-            if (!model) {
-                return { ranges: [], hasMore: false, ambiguousCharacterCount: 0, invisibleCharacterCount: 0, nonBasicAsciiCharacterCount: 0 };
-            }
-            return _unicodeTextModelHighlighter_js__WEBPACK_IMPORTED_MODULE_10__.UnicodeTextModelHighlighter.computeUnicodeHighlights(model, options, range);
-        });
+    async computeUnicodeHighlights(url, options, range) {
+        const model = this._getModel(url);
+        if (!model) {
+            return { ranges: [], hasMore: false, ambiguousCharacterCount: 0, invisibleCharacterCount: 0, nonBasicAsciiCharacterCount: 0 };
+        }
+        return _unicodeTextModelHighlighter_js__WEBPACK_IMPORTED_MODULE_10__.UnicodeTextModelHighlighter.computeUnicodeHighlights(model, options, range);
     }
     // ---- BEGIN diff --------------------------------------------------------------------------
-    computeDiff(originalUrl, modifiedUrl, options, algorithm) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const original = this._getModel(originalUrl);
-            const modified = this._getModel(modifiedUrl);
-            if (!original || !modified) {
-                return null;
-            }
-            return EditorSimpleWorker.computeDiff(original, modified, options, algorithm);
-        });
+    async computeDiff(originalUrl, modifiedUrl, options, algorithm) {
+        const original = this._getModel(originalUrl);
+        const modified = this._getModel(modifiedUrl);
+        if (!original || !modified) {
+            return null;
+        }
+        const result = EditorSimpleWorker.computeDiff(original, modified, options, algorithm);
+        return result;
     }
     static computeDiff(originalTextModel, modifiedTextModel, options, algorithm) {
         const diffAlgorithm = algorithm === 'advanced' ? _diff_linesDiffComputers_js__WEBPACK_IMPORTED_MODULE_11__.linesDiffComputers.getDefault() : _diff_linesDiffComputers_js__WEBPACK_IMPORTED_MODULE_11__.linesDiffComputers.getLegacy();
@@ -16577,176 +16666,164 @@ class EditorSimpleWorker {
         }
         return true;
     }
-    computeMoreMinimalEdits(modelUrl, edits, pretty) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const model = this._getModel(modelUrl);
-            if (!model) {
-                return edits;
+    async computeMoreMinimalEdits(modelUrl, edits, pretty) {
+        const model = this._getModel(modelUrl);
+        if (!model) {
+            return edits;
+        }
+        const result = [];
+        let lastEol = undefined;
+        edits = edits.slice(0).sort((a, b) => {
+            if (a.range && b.range) {
+                return _core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.compareRangesUsingStarts(a.range, b.range);
             }
-            const result = [];
-            let lastEol = undefined;
-            edits = edits.slice(0).sort((a, b) => {
-                if (a.range && b.range) {
-                    return _core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.compareRangesUsingStarts(a.range, b.range);
-                }
-                // eol only changes should go to the end
-                const aRng = a.range ? 0 : 1;
-                const bRng = b.range ? 0 : 1;
-                return aRng - bRng;
-            });
-            // merge adjacent edits
-            let writeIndex = 0;
-            for (let readIndex = 1; readIndex < edits.length; readIndex++) {
-                if (_core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.getEndPosition(edits[writeIndex].range).equals(_core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.getStartPosition(edits[readIndex].range))) {
-                    edits[writeIndex].range = _core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.fromPositions(_core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.getStartPosition(edits[writeIndex].range), _core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.getEndPosition(edits[readIndex].range));
-                    edits[writeIndex].text += edits[readIndex].text;
-                }
-                else {
-                    writeIndex++;
-                    edits[writeIndex] = edits[readIndex];
-                }
-            }
-            edits.length = writeIndex + 1;
-            for (let { range, text, eol } of edits) {
-                if (typeof eol === 'number') {
-                    lastEol = eol;
-                }
-                if (_core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.isEmpty(range) && !text) {
-                    // empty change
-                    continue;
-                }
-                const original = model.getValueInRange(range);
-                text = text.replace(/\r\n|\n|\r/g, model.eol);
-                if (original === text) {
-                    // noop
-                    continue;
-                }
-                // make sure diff won't take too long
-                if (Math.max(text.length, original.length) > EditorSimpleWorker._diffLimit) {
-                    result.push({ range, text });
-                    continue;
-                }
-                // compute diff between original and edit.text
-                const changes = (0,_base_common_diff_diff_js__WEBPACK_IMPORTED_MODULE_0__.stringDiff)(original, text, pretty);
-                const editOffset = model.offsetAt(_core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.lift(range).getStartPosition());
-                for (const change of changes) {
-                    const start = model.positionAt(editOffset + change.originalStart);
-                    const end = model.positionAt(editOffset + change.originalStart + change.originalLength);
-                    const newEdit = {
-                        text: text.substr(change.modifiedStart, change.modifiedLength),
-                        range: { startLineNumber: start.lineNumber, startColumn: start.column, endLineNumber: end.lineNumber, endColumn: end.column }
-                    };
-                    if (model.getValueInRange(newEdit.range) !== newEdit.text) {
-                        result.push(newEdit);
-                    }
-                }
-            }
-            if (typeof lastEol === 'number') {
-                result.push({ eol: lastEol, text: '', range: { startLineNumber: 0, startColumn: 0, endLineNumber: 0, endColumn: 0 } });
-            }
-            return result;
+            // eol only changes should go to the end
+            const aRng = a.range ? 0 : 1;
+            const bRng = b.range ? 0 : 1;
+            return aRng - bRng;
         });
+        // merge adjacent edits
+        let writeIndex = 0;
+        for (let readIndex = 1; readIndex < edits.length; readIndex++) {
+            if (_core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.getEndPosition(edits[writeIndex].range).equals(_core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.getStartPosition(edits[readIndex].range))) {
+                edits[writeIndex].range = _core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.fromPositions(_core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.getStartPosition(edits[writeIndex].range), _core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.getEndPosition(edits[readIndex].range));
+                edits[writeIndex].text += edits[readIndex].text;
+            }
+            else {
+                writeIndex++;
+                edits[writeIndex] = edits[readIndex];
+            }
+        }
+        edits.length = writeIndex + 1;
+        for (let { range, text, eol } of edits) {
+            if (typeof eol === 'number') {
+                lastEol = eol;
+            }
+            if (_core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.isEmpty(range) && !text) {
+                // empty change
+                continue;
+            }
+            const original = model.getValueInRange(range);
+            text = text.replace(/\r\n|\n|\r/g, model.eol);
+            if (original === text) {
+                // noop
+                continue;
+            }
+            // make sure diff won't take too long
+            if (Math.max(text.length, original.length) > EditorSimpleWorker._diffLimit) {
+                result.push({ range, text });
+                continue;
+            }
+            // compute diff between original and edit.text
+            const changes = (0,_base_common_diff_diff_js__WEBPACK_IMPORTED_MODULE_0__.stringDiff)(original, text, pretty);
+            const editOffset = model.offsetAt(_core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.lift(range).getStartPosition());
+            for (const change of changes) {
+                const start = model.positionAt(editOffset + change.originalStart);
+                const end = model.positionAt(editOffset + change.originalStart + change.originalLength);
+                const newEdit = {
+                    text: text.substr(change.modifiedStart, change.modifiedLength),
+                    range: { startLineNumber: start.lineNumber, startColumn: start.column, endLineNumber: end.lineNumber, endColumn: end.column }
+                };
+                if (model.getValueInRange(newEdit.range) !== newEdit.text) {
+                    result.push(newEdit);
+                }
+            }
+        }
+        if (typeof lastEol === 'number') {
+            result.push({ eol: lastEol, text: '', range: { startLineNumber: 0, startColumn: 0, endLineNumber: 0, endColumn: 0 } });
+        }
+        return result;
     }
     // ---- END minimal edits ---------------------------------------------------------------
-    computeLinks(modelUrl) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const model = this._getModel(modelUrl);
-            if (!model) {
-                return null;
-            }
-            return (0,_languages_linkComputer_js__WEBPACK_IMPORTED_MODULE_6__.computeLinks)(model);
-        });
+    async computeLinks(modelUrl) {
+        const model = this._getModel(modelUrl);
+        if (!model) {
+            return null;
+        }
+        return (0,_languages_linkComputer_js__WEBPACK_IMPORTED_MODULE_6__.computeLinks)(model);
     }
     // --- BEGIN default document colors -----------------------------------------------------------
-    computeDefaultDocumentColors(modelUrl) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const model = this._getModel(modelUrl);
-            if (!model) {
-                return null;
-            }
-            return (0,_languages_defaultDocumentColorsComputer_js__WEBPACK_IMPORTED_MODULE_13__.computeDefaultDocumentColors)(model);
-        });
+    async computeDefaultDocumentColors(modelUrl) {
+        const model = this._getModel(modelUrl);
+        if (!model) {
+            return null;
+        }
+        return (0,_languages_defaultDocumentColorsComputer_js__WEBPACK_IMPORTED_MODULE_13__.computeDefaultDocumentColors)(model);
     }
-    textualSuggest(modelUrls, leadingWord, wordDef, wordDefFlags) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const sw = new _base_common_stopwatch_js__WEBPACK_IMPORTED_MODULE_9__.StopWatch();
-            const wordDefRegExp = new RegExp(wordDef, wordDefFlags);
-            const seen = new Set();
-            outer: for (const url of modelUrls) {
-                const model = this._getModel(url);
-                if (!model) {
+    async textualSuggest(modelUrls, leadingWord, wordDef, wordDefFlags) {
+        const sw = new _base_common_stopwatch_js__WEBPACK_IMPORTED_MODULE_9__.StopWatch();
+        const wordDefRegExp = new RegExp(wordDef, wordDefFlags);
+        const seen = new Set();
+        outer: for (const url of modelUrls) {
+            const model = this._getModel(url);
+            if (!model) {
+                continue;
+            }
+            for (const word of model.words(wordDefRegExp)) {
+                if (word === leadingWord || !isNaN(Number(word))) {
                     continue;
                 }
-                for (const word of model.words(wordDefRegExp)) {
-                    if (word === leadingWord || !isNaN(Number(word))) {
-                        continue;
-                    }
-                    seen.add(word);
-                    if (seen.size > EditorSimpleWorker._suggestionsLimit) {
-                        break outer;
-                    }
+                seen.add(word);
+                if (seen.size > EditorSimpleWorker._suggestionsLimit) {
+                    break outer;
                 }
             }
-            return { words: Array.from(seen), duration: sw.elapsed() };
-        });
+        }
+        return { words: Array.from(seen), duration: sw.elapsed() };
     }
     // ---- END suggest --------------------------------------------------------------------------
     //#region -- word ranges --
-    computeWordRanges(modelUrl, range, wordDef, wordDefFlags) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const model = this._getModel(modelUrl);
-            if (!model) {
-                return Object.create(null);
-            }
-            const wordDefRegExp = new RegExp(wordDef, wordDefFlags);
-            const result = Object.create(null);
-            for (let line = range.startLineNumber; line < range.endLineNumber; line++) {
-                const words = model.getLineWords(line, wordDefRegExp);
-                for (const word of words) {
-                    if (!isNaN(Number(word.word))) {
-                        continue;
-                    }
-                    let array = result[word.word];
-                    if (!array) {
-                        array = [];
-                        result[word.word] = array;
-                    }
-                    array.push({
-                        startLineNumber: line,
-                        startColumn: word.startColumn,
-                        endLineNumber: line,
-                        endColumn: word.endColumn
-                    });
+    async computeWordRanges(modelUrl, range, wordDef, wordDefFlags) {
+        const model = this._getModel(modelUrl);
+        if (!model) {
+            return Object.create(null);
+        }
+        const wordDefRegExp = new RegExp(wordDef, wordDefFlags);
+        const result = Object.create(null);
+        for (let line = range.startLineNumber; line < range.endLineNumber; line++) {
+            const words = model.getLineWords(line, wordDefRegExp);
+            for (const word of words) {
+                if (!isNaN(Number(word.word))) {
+                    continue;
                 }
+                let array = result[word.word];
+                if (!array) {
+                    array = [];
+                    result[word.word] = array;
+                }
+                array.push({
+                    startLineNumber: line,
+                    startColumn: word.startColumn,
+                    endLineNumber: line,
+                    endColumn: word.endColumn
+                });
             }
-            return result;
-        });
+        }
+        return result;
     }
     //#endregion
-    navigateValueSet(modelUrl, range, up, wordDef, wordDefFlags) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const model = this._getModel(modelUrl);
-            if (!model) {
-                return null;
-            }
-            const wordDefRegExp = new RegExp(wordDef, wordDefFlags);
-            if (range.startColumn === range.endColumn) {
-                range = {
-                    startLineNumber: range.startLineNumber,
-                    startColumn: range.startColumn,
-                    endLineNumber: range.endLineNumber,
-                    endColumn: range.endColumn + 1
-                };
-            }
-            const selectionText = model.getValueInRange(range);
-            const wordRange = model.getWordAtPosition({ lineNumber: range.startLineNumber, column: range.startColumn }, wordDefRegExp);
-            if (!wordRange) {
-                return null;
-            }
-            const word = model.getValueInRange(wordRange);
-            const result = _languages_supports_inplaceReplaceSupport_js__WEBPACK_IMPORTED_MODULE_7__.BasicInplaceReplace.INSTANCE.navigateValueSet(range, selectionText, wordRange, word, up);
-            return result;
-        });
+    async navigateValueSet(modelUrl, range, up, wordDef, wordDefFlags) {
+        const model = this._getModel(modelUrl);
+        if (!model) {
+            return null;
+        }
+        const wordDefRegExp = new RegExp(wordDef, wordDefFlags);
+        if (range.startColumn === range.endColumn) {
+            range = {
+                startLineNumber: range.startLineNumber,
+                startColumn: range.startColumn,
+                endLineNumber: range.endLineNumber,
+                endColumn: range.endColumn + 1
+            };
+        }
+        const selectionText = model.getValueInRange(range);
+        const wordRange = model.getWordAtPosition({ lineNumber: range.startLineNumber, column: range.startColumn }, wordDefRegExp);
+        if (!wordRange) {
+            return null;
+        }
+        const word = model.getValueInRange(wordRange);
+        const result = _languages_supports_inplaceReplaceSupport_js__WEBPACK_IMPORTED_MODULE_7__.BasicInplaceReplace.INSTANCE.navigateValueSet(range, selectionText, wordRange, word, up);
+        return result;
     }
     // ---- BEGIN foreign module support --------------------------------------------------------------------------
     loadForeignModule(moduleId, createData, foreignHostMethods) {
@@ -17056,6 +17133,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   ScrollType: () => (/* binding */ ScrollType),
 /* harmony export */   ScrollbarVisibility: () => (/* binding */ ScrollbarVisibility),
 /* harmony export */   SelectionDirection: () => (/* binding */ SelectionDirection),
+/* harmony export */   ShowLightbulbIconMode: () => (/* binding */ ShowLightbulbIconMode),
 /* harmony export */   SignatureHelpTriggerKind: () => (/* binding */ SignatureHelpTriggerKind),
 /* harmony export */   SymbolKind: () => (/* binding */ SymbolKind),
 /* harmony export */   SymbolTag: () => (/* binding */ SymbolTag),
@@ -17424,7 +17502,8 @@ var EndOfLineSequence;
 var GlyphMarginLane;
 (function (GlyphMarginLane) {
     GlyphMarginLane[GlyphMarginLane["Left"] = 1] = "Left";
-    GlyphMarginLane[GlyphMarginLane["Right"] = 2] = "Right";
+    GlyphMarginLane[GlyphMarginLane["Center"] = 2] = "Center";
+    GlyphMarginLane[GlyphMarginLane["Right"] = 3] = "Right";
 })(GlyphMarginLane || (GlyphMarginLane = {}));
 /**
  * Describes what to do with the indentation when pressing Enter.
@@ -17855,6 +17934,12 @@ var SelectionDirection;
      */
     SelectionDirection[SelectionDirection["RTL"] = 1] = "RTL";
 })(SelectionDirection || (SelectionDirection = {}));
+var ShowLightbulbIconMode;
+(function (ShowLightbulbIconMode) {
+    ShowLightbulbIconMode["Off"] = "off";
+    ShowLightbulbIconMode["OnCode"] = "onCode";
+    ShowLightbulbIconMode["On"] = "on";
+})(ShowLightbulbIconMode || (ShowLightbulbIconMode = {}));
 var SignatureHelpTriggerKind;
 (function (SignatureHelpTriggerKind) {
     SignatureHelpTriggerKind[SignatureHelpTriggerKind["Invoke"] = 1] = "Invoke";
@@ -18010,15 +18095,6 @@ __webpack_require__.r(__webpack_exports__);
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 
 
 class TokenizationRegistry {
@@ -18063,21 +18139,19 @@ class TokenizationRegistry {
             v.dispose();
         });
     }
-    getOrCreate(languageId) {
-        return __awaiter(this, void 0, void 0, function* () {
-            // check first if the support is already set
-            const tokenizationSupport = this.get(languageId);
-            if (tokenizationSupport) {
-                return tokenizationSupport;
-            }
-            const factory = this._factories.get(languageId);
-            if (!factory || factory.isResolved) {
-                // no factory or factory.resolve already finished
-                return null;
-            }
-            yield factory.resolve();
-            return this.get(languageId);
-        });
+    async getOrCreate(languageId) {
+        // check first if the support is already set
+        const tokenizationSupport = this.get(languageId);
+        if (tokenizationSupport) {
+            return tokenizationSupport;
+        }
+        const factory = this._factories.get(languageId);
+        if (!factory || factory.isResolved) {
+            // no factory or factory.resolve already finished
+            return null;
+        }
+        await factory.resolve();
+        return this.get(languageId);
     }
     isResolved(languageId) {
         const tokenizationSupport = this.get(languageId);
@@ -18124,22 +18198,18 @@ class TokenizationSupportFactoryData extends _base_common_lifecycle_js__WEBPACK_
         this._isDisposed = true;
         super.dispose();
     }
-    resolve() {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (!this._resolvePromise) {
-                this._resolvePromise = this._create();
-            }
-            return this._resolvePromise;
-        });
+    async resolve() {
+        if (!this._resolvePromise) {
+            this._resolvePromise = this._create();
+        }
+        return this._resolvePromise;
     }
-    _create() {
-        return __awaiter(this, void 0, void 0, function* () {
-            const value = yield this._factory.tokenizationSupport;
-            this._isResolved = true;
-            if (value && !this._isDisposed) {
-                this._register(this._registry.register(this._languageId, value));
-            }
-        });
+    async _create() {
+        const value = await this._factory.tokenizationSupport;
+        this._isResolved = true;
+        if (value && !this._isDisposed) {
+            this._register(this._registry.register(this._languageId, value));
+        }
     }
 }
 
@@ -18158,21 +18228,13 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   getConfiguredDefaultLocale: () => (/* binding */ getConfiguredDefaultLocale),
 /* harmony export */   load: () => (/* binding */ load),
 /* harmony export */   localize: () => (/* binding */ localize),
+/* harmony export */   localize2: () => (/* binding */ localize2),
 /* harmony export */   setPseudoTranslation: () => (/* binding */ setPseudoTranslation)
 /* harmony export */ });
 /*---------------------------------------------------------------------------------------------
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 let isPseudo = (typeof document !== 'undefined' && document.location && document.location.hash.indexOf('pseudo=true') >= 0);
 const DEFAULT_TAG = 'i-default';
 function _format(message, args) {
@@ -18217,16 +18279,14 @@ function endWithSlash(path) {
     }
     return path + '/';
 }
-function getMessagesFromTranslationsService(translationServiceUrl, language, name) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const url = endWithSlash(translationServiceUrl) + endWithSlash(language) + 'vscode/' + endWithSlash(name);
-        const res = yield fetch(url);
-        if (res.ok) {
-            const messages = yield res.json();
-            return messages;
-        }
-        throw new Error(`${res.status} - ${res.statusText}`);
-    });
+async function getMessagesFromTranslationsService(translationServiceUrl, language, name) {
+    const url = endWithSlash(translationServiceUrl) + endWithSlash(language) + 'vscode/' + endWithSlash(name);
+    const res = await fetch(url);
+    if (res.ok) {
+        const messages = await res.json();
+        return messages;
+    }
+    throw new Error(`${res.status} - ${res.statusText}`);
 }
 function createScopedLocalize(scope) {
     return function (idx, defaultValue) {
@@ -18234,11 +18294,27 @@ function createScopedLocalize(scope) {
         return _format(scope[idx], restArgs);
     };
 }
+function createScopedLocalize2(scope) {
+    return (idx, defaultValue, ...args) => ({
+        value: _format(scope[idx], args),
+        original: _format(defaultValue, args)
+    });
+}
 /**
  * @skipMangle
  */
 function localize(data, message, ...args) {
     return _format(message, args);
+}
+/**
+ * @skipMangle
+ */
+function localize2(data, message, ...args) {
+    const original = _format(message, args);
+    return {
+        value: original,
+        original
+    };
 }
 /**
  * @skipMangle
@@ -18262,6 +18338,7 @@ function create(key, data) {
     var _a;
     return {
         localize: createScopedLocalize(data[key]),
+        localize2: createScopedLocalize2(data[key]),
         getConfiguredDefaultLocale: (_a = data.getConfiguredDefaultLocale) !== null && _a !== void 0 ? _a : ((_) => undefined)
     };
 }
@@ -18276,6 +18353,7 @@ function load(name, req, load, config) {
         // TODO: We need to give back the mangled names here
         return load({
             localize: localize,
+            localize2: localize2,
             getConfiguredDefaultLocale: () => { var _a; return (_a = pluginConfig.availableLanguages) === null || _a === void 0 ? void 0 : _a['*']; }
         });
     }
@@ -18288,9 +18366,11 @@ function load(name, req, load, config) {
     const messagesLoaded = (messages) => {
         if (Array.isArray(messages)) {
             messages.localize = createScopedLocalize(messages);
+            messages.localize2 = createScopedLocalize2(messages);
         }
         else {
             messages.localize = createScopedLocalize(messages[name]);
+            messages.localize2 = createScopedLocalize2(messages[name]);
         }
         messages.getConfiguredDefaultLocale = () => { var _a; return (_a = pluginConfig.availableLanguages) === null || _a === void 0 ? void 0 : _a['*']; };
         load(messages);
@@ -18307,10 +18387,10 @@ function load(name, req, load, config) {
         });
     }
     else if (pluginConfig.translationServiceUrl && !useDefaultLanguage) {
-        (() => __awaiter(this, void 0, void 0, function* () {
-            var _b;
+        (async () => {
+            var _a;
             try {
-                const messages = yield getMessagesFromTranslationsService(pluginConfig.translationServiceUrl, language, name);
+                const messages = await getMessagesFromTranslationsService(pluginConfig.translationServiceUrl, language, name);
                 return messagesLoaded(messages);
             }
             catch (err) {
@@ -18324,9 +18404,9 @@ function load(name, req, load, config) {
                     // Since we were unable to load the specific language, try to load the generic language. Ex. we failed to find a
                     // Swiss German (de-CH), so try to load the generic German (de) messages instead.
                     const genericLanguage = language.split('-')[0];
-                    const messages = yield getMessagesFromTranslationsService(pluginConfig.translationServiceUrl, genericLanguage, name);
+                    const messages = await getMessagesFromTranslationsService(pluginConfig.translationServiceUrl, genericLanguage, name);
                     // We got some messages, so we configure the configuration to use the generic language for this session.
-                    (_b = pluginConfig.availableLanguages) !== null && _b !== void 0 ? _b : (pluginConfig.availableLanguages = {});
+                    (_a = pluginConfig.availableLanguages) !== null && _a !== void 0 ? _a : (pluginConfig.availableLanguages = {});
                     pluginConfig.availableLanguages['*'] = genericLanguage;
                     return messagesLoaded(messages);
                 }
@@ -18335,7 +18415,7 @@ function load(name, req, load, config) {
                     return req([name + '.nls'], messagesLoaded);
                 }
             }
-        }))();
+        })();
     }
     else {
         req([name + suffix], messagesLoaded, (err) => {
@@ -18389,18 +18469,6 @@ function load(name, req, load, config) {
 /******/ 				}
 /******/ 			}
 /******/ 		};
-/******/ 	})();
-/******/ 	
-/******/ 	/* webpack/runtime/global */
-/******/ 	(() => {
-/******/ 		__webpack_require__.g = (function() {
-/******/ 			if (typeof globalThis === 'object') return globalThis;
-/******/ 			try {
-/******/ 				return this || new Function('return this')();
-/******/ 			} catch (e) {
-/******/ 				if (typeof window === 'object') return window;
-/******/ 			}
-/******/ 		})();
 /******/ 	})();
 /******/ 	
 /******/ 	/* webpack/runtime/hasOwnProperty shorthand */
