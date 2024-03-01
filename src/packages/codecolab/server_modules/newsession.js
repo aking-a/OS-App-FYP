@@ -5,7 +5,7 @@ class CreateNewSession {
         this.language = null
     }
     createSession(ws) {
-        this.instance = { clients: [], sessionIden: this.data }
+        this.instance = { clients: [], sessionFile: this.data }
         this.instance.clients.push(ws)
 
     }
@@ -20,7 +20,7 @@ class CreateNewSession {
         return encodedURL;
     }
     getLanguage() {
-        const f_name = this.instance.sessionIden.file.file.filename
+        const f_name = this.instance.sessionFile.file.filename
         const extension = f_name.split('.').pop();
         switch (extension) {
             case 'py': this.language = 'python'; return 'python'; break;

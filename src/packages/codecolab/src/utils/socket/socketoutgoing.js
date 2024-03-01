@@ -1,7 +1,6 @@
-function StartFileShare(incoming, username) {
-    const socket = incoming.socket
+function StartFileShare(socket,newfile, username) {
     if (socket.connected) {
-        socket.send(JSON.stringify({ type: 'startsession', sessionIden: incoming, username: username }));
+        socket.send(JSON.stringify({ type: 'startsession', file: newfile, username: username }));
     }
 }
 function CodeChange(code, socket, sessionID) {

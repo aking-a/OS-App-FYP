@@ -1,0 +1,22 @@
+/* Windowlist.module.css */
+.container {
+    display: flex;
+    flex-direction: column;
+    background-color: #1E1E1E; 
+    border-radius: 5px;
+    padding: 10px;
+}
+
+.username_item {
+    border: 1px solid #D4D4D4; 
+    border-radius: 5px;
+    padding: 10px;
+    margin-bottom: 10px;
+    font-size: 16px;
+    color: #00fd1e; 
+}
+
+.empty_message {
+    font-size: 16px;
+    color: #FFFFFF; 
+}

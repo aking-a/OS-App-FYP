@@ -10,7 +10,6 @@ import { Joinlanding } from './pages/joinlanding.js';
 function App() {
     const navigate = useNavigate()
     const [socket, setSocket] = useState(null); // State to hold the socket instance
-    const [code, setCode] = useState('');
 
     useEffect(() => {
         setSocket(getApp().socket);
