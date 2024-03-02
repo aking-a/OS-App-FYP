@@ -1,5 +1,5 @@
 import { userSaveFile } from '../utils/savefile.js';
-import re_render from './events/renderlist.js';
+import {render} from './events/renderlist.js';
 import { getApp } from '../hooks/useSetApp.js';
 
 export default function handleSelect(option){
@@ -13,6 +13,6 @@ export default function handleSelect(option){
             dimension: { width: 400, height: 'auto' },
             position: { left: 200, top: 400 }
           })
-        re_render(win)
+        render(win)
     }
 };

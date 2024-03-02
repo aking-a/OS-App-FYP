@@ -48,6 +48,7 @@
     "@osjs/settings-application": "^1.1.8",
     "@osjs/standard-theme": "^4.0.9",
     "@osjs/textpad-application": "^1.2.7",
+    "dotenv": "^16.4.5",
     "hyperapp": "^1.2.10",
     "nodemon": "^3.0.1",
     "typeface-roboto": "0.0.75"

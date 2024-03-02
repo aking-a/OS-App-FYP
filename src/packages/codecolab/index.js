@@ -13,7 +13,6 @@ import { useSetApp } from './src/hooks/useSetApp.js';
 const register = (core, args, options, metadata) => {
   // Create a new Application instance
   const proc = core.make('osjs/application', { args, options, metadata });
-  let socket = proc.socket('/socket')
 
   // Create  a new Window instance
   var win = proc.createWindow({
@@ -24,7 +23,7 @@ const register = (core, args, options, metadata) => {
     position: { left: 700, top: 200 }
   }).on('destroy', () => proc.destroy())
 
-
+  const socket = proc.socket('/socket')
   const app_data = new AppData(win, args, options, proc, osjs, socket, core)
   useSetApp(app_data)
 

@@ -3,6 +3,7 @@ import { getSession, Terminate } from '../utils/getsession.js'
 import { incomingChange } from '../utils/monaco/handleChanges.js';
 import { getApp } from './useSetApp.js';
 import { addUsername, removeUsername } from '../utils/username/updatelist.js'
+import {terminatewindow} from '../utils/events/renderlist.js'
 
 const useSocketListener = (socket, navigate) => {
     useEffect(() => {
@@ -35,13 +36,22 @@ const useSocketListener = (socket, navigate) => {
 
                     if (data.status == 'true') {
 
+                        try {
+                            terminatewindow()
+                        } catch (e) {
+                            console.log('DisconnectEvent: Closing any open windows')
+                        }
                         Terminate()
                         getApp().options = {}
                         getApp().args = null
                         navigate('/')
                     }
                     else if (data.status == 'false') {
-
+                        try {
+                            terminatewindow()
+                        } catch (e) {
+                            console.log('DisconnectEvent: Closing any open windows')
+                        }
                         Terminate()
                         getApp().options = {}
                         getApp().args = null
@@ -56,7 +66,7 @@ const useSocketListener = (socket, navigate) => {
                     }
                 }
                 if (data.type === 'joined') {
-                    
+
                     const session = getSession()
                     session.popupMessage(data.username + " has joined the session")
                     session.showPopup(true)
