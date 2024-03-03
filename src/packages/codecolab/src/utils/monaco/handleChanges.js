@@ -1,14 +1,14 @@
-import { getSession,setSession } from "../getsession"
+import { getSession } from "../getsession"
 import { CodeChange } from '../socket/socketoutgoing.js'
 
-function clientChange(){
+function clientChange() {
     const session = getSession()
     const editor = session.editorRef
     CodeChange(editor.getValue(), session.socket, session.sessionID)
 }
-function incomingChange(code){
+function incomingChange(code) {
     const session = getSession()
-    const ref = session.state
-    ref(code)
+    const setCode = session.code
+    setCode(code)
 }
-export {clientChange,incomingChange}
+export { clientChange, incomingChange }

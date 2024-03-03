@@ -90,6 +90,28 @@
 .ek0929FMF5w07QWKuZ8c:hover {
   background-color: #f6f6f6; /* light grey */
 }
+/* Windowlist.module.css */
+.qxej1Bn2GpfaN9Ut7SQb {
+  display: flex;
+  flex-direction: column;
+  background-color: #1E1E1E;
+  border-radius: 5px;
+  padding: 10px;
+}
+
+.fkic3fFZTmHATY67ZEqZ {
+  border: 1px solid #D4D4D4;
+  border-radius: 5px;
+  padding: 10px;
+  margin-bottom: 10px;
+  font-size: 16px;
+  color: #00fd1e;
+}
+
+.ymLpveQBOIJ8rWTqzYnB {
+  font-size: 16px;
+  color: #FFFFFF;
+}
 .omnpaUYbt7wGW3ymjYAW {
   position: fixed;
   width: 150px; /* Even smaller width */

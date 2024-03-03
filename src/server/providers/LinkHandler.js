@@ -5,7 +5,6 @@ For more information about service providers, visit:
 - https://manual.os-js.org/development/
 */
 class LinkHandlerServiceProvider {
-
   /**
    * Constructor
    * @param {Core} core Core reference
@@ -39,6 +38,7 @@ class LinkHandlerServiceProvider {
     app.route('get', '/open', (req, res) => {
       let data = req.query.data;
       let ans = decodeURIComponent(data);
+      let domain = 'http://'+req.get('host');
       let page = `<!DOCTYPE html>
             <html lang="en">
             <head>
@@ -49,7 +49,7 @@ class LinkHandlerServiceProvider {
             <body>
                 <script>
                     function loadPage(ans) {
-                        history.pushState(null, null, 'http://localhost:8000');
+                        history.pushState(null, null, '${domain}');
                         fetch('/index.html')
                             .then(resp => resp.text())
                             .then(hdoc => {

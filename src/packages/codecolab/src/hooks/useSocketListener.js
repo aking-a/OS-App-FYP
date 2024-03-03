@@ -3,6 +3,7 @@ import { getSession, Terminate } from '../utils/getsession.js'
 import { incomingChange } from '../utils/monaco/handleChanges.js';
 import { getApp } from './useSetApp.js';
 import { addUsername, removeUsername } from '../utils/username/updatelist.js'
+import {terminatewindow} from '../utils/events/renderlist.js'
 
 const useSocketListener = (socket, navigate) => {
     useEffect(() => {
@@ -12,11 +13,10 @@ const useSocketListener = (socket, navigate) => {
                 if (data.type === 'sessioncreated') {
                     const session = getSession()
 
-                    session.setLanguage(data.language)
-                    session.setLink(data.sharelink)
-                    session.setIsVisible(true)
-                    session.setSessionID(data.sessionID)
-
+                    session.language = data.language
+                    session.sharelink = data.sharelink
+                    session.isVisible = true
+                    session.sessionID = data.sessionID
                     navigate('/Session')
 
                 }
@@ -27,44 +27,50 @@ const useSocketListener = (socket, navigate) => {
                 }
                 if (data.type === 'joinedsession') {
                     const session = getSession()
-                    session.setLanguage(data.language)
-                    session.setCode(data.code)
-                    session.setIsVisible(false)
+                    session.language = data.language
+                    session.code = data.code
+                    session.isVisible = false
                     navigate('/Session')
                 }
                 if (data.type === 'disconnected') {
 
                     if (data.status == 'true') {
 
+                        try {
+                            terminatewindow()
+                        } catch (e) {
+                            console.log('DisconnectEvent: Closing any open windows')
+                        }
                         Terminate()
                         getApp().options = {}
                         getApp().args = null
                         navigate('/')
                     }
                     else if (data.status == 'false') {
-
+                        try {
+                            terminatewindow()
+                        } catch (e) {
+                            console.log('DisconnectEvent: Closing any open windows')
+                        }
                         Terminate()
                         getApp().options = {}
                         getApp().args = null
                         navigate('/')
                     }
                     else if (data.status == 'alert') {
-                        const set1 = getSession().popupMessage
-                        const set2 = getSession().showPopup
+                        const session = getSession()
+                        session.popupMessage(data.username + " has left the session")
+                        session.showPopup(true)
                         removeUsername(data.username)
-
-                        set1(data.username + " has left the session")
-                        set2(true)
 
                     }
                 }
                 if (data.type === 'joined') {
-                    const set1 = getSession().popupMessage
-                    const set2 = getSession().showPopup
-                    addUsername(data.username)
 
-                    set1(data.username + " has joined the session")
-                    set2(true)
+                    const session = getSession()
+                    session.popupMessage(data.username + " has joined the session")
+                    session.showPopup(true)
+                    addUsername(data.username)
 
                 }
 

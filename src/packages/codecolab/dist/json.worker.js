@@ -729,8 +729,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   assertFn: () => (/* binding */ assertFn),
 /* harmony export */   assertNever: () => (/* binding */ assertNever),
 /* harmony export */   checkAdjacentItems: () => (/* binding */ checkAdjacentItems),
-/* harmony export */   ok: () => (/* binding */ ok),
-/* harmony export */   softAssert: () => (/* binding */ softAssert)
+/* harmony export */   ok: () => (/* binding */ ok)
 /* harmony export */ });
 /* harmony import */ var _errors_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./errors.js */ "./node_modules/monaco-editor/esm/vs/base/common/errors.js");
 /*---------------------------------------------------------------------------------------------
@@ -759,11 +758,6 @@ function ok(value, message) {
 }
 function assertNever(value, message = 'Unreachable') {
     throw new Error(message);
-}
-function softAssert(condition) {
-    if (!condition) {
-        (0,_errors_js__WEBPACK_IMPORTED_MODULE_0__.onUnexpectedError)(new _errors_js__WEBPACK_IMPORTED_MODULE_0__.BugIndicatingError('Assertion Failed'));
-    }
 }
 /**
  * condition must be side-effect free!
@@ -1063,7 +1057,6 @@ const Codicon = {
     closeDirty: register('close-dirty', 0xea71),
     debugBreakpoint: register('debug-breakpoint', 0xea71),
     debugBreakpointDisabled: register('debug-breakpoint-disabled', 0xea71),
-    debugBreakpointPending: register('debug-breakpoint-pending', 0xebd9),
     debugHint: register('debug-hint', 0xea71),
     primitiveSquare: register('primitive-square', 0xea72),
     edit: register('edit', 0xea73),
@@ -1539,28 +1532,6 @@ const Codicon = {
     sparkle: register('sparkle', 0xec10),
     insert: register('insert', 0xec11),
     mic: register('mic', 0xec12),
-    thumbsDownFilled: register('thumbsdown-filled', 0xec13),
-    thumbsUpFilled: register('thumbsup-filled', 0xec14),
-    coffee: register('coffee', 0xec15),
-    snake: register('snake', 0xec16),
-    game: register('game', 0xec17),
-    vr: register('vr', 0xec18),
-    chip: register('chip', 0xec19),
-    piano: register('piano', 0xec1a),
-    music: register('music', 0xec1b),
-    micFilled: register('mic-filled', 0xec1c),
-    gitFetch: register('git-fetch', 0xec1d),
-    copilot: register('copilot', 0xec1e),
-    lightbulbSparkle: register('lightbulb-sparkle', 0xec1f),
-    lightbulbSparkleAutofix: register('lightbulb-sparkle-autofix', 0xec1f),
-    robot: register('robot', 0xec20),
-    sparkleFilled: register('sparkle-filled', 0xec21),
-    diffSingle: register('diff-single', 0xec22),
-    diffMultiple: register('diff-multiple', 0xec23),
-    surroundWith: register('surround-with', 0xec24),
-    gitStash: register('git-stash', 0xec26),
-    gitStashApply: register('git-stash-apply', 0xec27),
-    gitStashPop: register('git-stash-pop', 0xec28),
     // derived icons, that could become separate icons
     dialogError: register('dialog-error', 'error'),
     dialogWarning: register('dialog-warning', 'warning'),
@@ -3719,11 +3690,39 @@ var Event;
         return result.event;
     }
     Event.fromPromise = fromPromise;
-    function runAndSubscribe(event, handler, initial) {
-        handler(initial);
+    /**
+     * Adds a listener to an event and calls the listener immediately with undefined as the event object.
+     *
+     * @example
+     * ```
+     * // Initialize the UI and update it when dataChangeEvent fires
+     * runAndSubscribe(dataChangeEvent, () => this._updateUI());
+     * ```
+     */
+    function runAndSubscribe(event, handler) {
+        handler(undefined);
         return event(e => handler(e));
     }
     Event.runAndSubscribe = runAndSubscribe;
+    /**
+     * Adds a listener to an event and calls the listener immediately with undefined as the event object. A new
+     * {@link DisposableStore} is passed to the listener which is disposed when the returned disposable is disposed.
+     */
+    function runAndSubscribeWithStore(event, handler) {
+        let store = null;
+        function run(e) {
+            store === null || store === void 0 ? void 0 : store.dispose();
+            store = new _lifecycle_js__WEBPACK_IMPORTED_MODULE_2__.DisposableStore();
+            handler(e, store);
+        }
+        run(undefined);
+        const disposable = event(e => run(e));
+        return (0,_lifecycle_js__WEBPACK_IMPORTED_MODULE_2__.toDisposable)(() => {
+            disposable.dispose();
+            store === null || store === void 0 ? void 0 : store.dispose();
+        });
+    }
+    Event.runAndSubscribeWithStore = runAndSubscribeWithStore;
     class EmitterObserver {
         constructor(_observable, store) {
             this._observable = _observable;
@@ -3781,7 +3780,7 @@ var Event;
      * Each listener is attached to the observable directly.
      */
     function fromObservableLight(observable) {
-        return (listener, thisArgs, disposables) => {
+        return (listener) => {
             let count = 0;
             let didChange = false;
             const observer = {
@@ -3794,7 +3793,7 @@ var Event;
                         observable.reportChanges();
                         if (didChange) {
                             didChange = false;
-                            listener.call(thisArgs);
+                            listener();
                         }
                     }
                 },
@@ -3807,18 +3806,11 @@ var Event;
             };
             observable.addObserver(observer);
             observable.reportChanges();
-            const disposable = {
+            return {
                 dispose() {
                     observable.removeObserver(observer);
                 }
             };
-            if (disposables instanceof _lifecycle_js__WEBPACK_IMPORTED_MODULE_2__.DisposableStore) {
-                disposables.add(disposable);
-            }
-            else if (Array.isArray(disposables)) {
-                disposables.push(disposable);
-            }
-            return disposable;
         };
     }
     Event.fromObservableLight = fromObservableLight;
@@ -4414,7 +4406,7 @@ __webpack_require__.r(__webpack_exports__);
 /**
  * Given a function, returns a function that is only calling that function once.
  */
-function createSingleCallFunction(fn, fnDidRunCallback) {
+function createSingleCallFunction(fn) {
     const _this = this;
     let didCall = false;
     let result;
@@ -4423,17 +4415,7 @@ function createSingleCallFunction(fn, fnDidRunCallback) {
             return result;
         }
         didCall = true;
-        if (fnDidRunCallback) {
-            try {
-                result = fn.apply(_this, arguments);
-            }
-            finally {
-                fnDidRunCallback();
-            }
-        }
-        else {
-            result = fn.apply(_this, arguments);
-        }
+        result = fn.apply(_this, arguments);
         return result;
     };
 }
@@ -4810,7 +4792,9 @@ var Iterable;
     Iterable.map = map;
     function* concat(...iterables) {
         for (const iterable of iterables) {
-            yield* iterable;
+            for (const element of iterable) {
+                yield element;
+            }
         }
     }
     Iterable.concat = concat;
@@ -4860,14 +4844,6 @@ var Iterable;
         return [consumed, { [Symbol.iterator]() { return iterator; } }];
     }
     Iterable.consume = consume;
-    async function asyncToArray(iterable) {
-        const result = [];
-        for await (const item of iterable) {
-            result.push(item);
-        }
-        return Promise.resolve(result);
-    }
-    Iterable.asyncToArray = asyncToArray;
 })(Iterable || (Iterable = {}));
 
 
@@ -8028,6 +8004,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   LANGUAGE_DEFAULT: () => (/* binding */ LANGUAGE_DEFAULT),
 /* harmony export */   OS: () => (/* binding */ OS),
+/* harmony export */   globals: () => (/* binding */ globals),
 /* harmony export */   isAndroid: () => (/* binding */ isAndroid),
 /* harmony export */   isChrome: () => (/* binding */ isChrome),
 /* harmony export */   isEdge: () => (/* binding */ isEdge),
@@ -8045,8 +8022,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   language: () => (/* binding */ language),
 /* harmony export */   setTimeout0: () => (/* binding */ setTimeout0),
 /* harmony export */   setTimeout0IsFaster: () => (/* binding */ setTimeout0IsFaster),
-/* harmony export */   userAgent: () => (/* binding */ userAgent),
-/* harmony export */   webWorkerOrigin: () => (/* binding */ webWorkerOrigin)
+/* harmony export */   userAgent: () => (/* binding */ userAgent)
 /* harmony export */ });
 /* harmony import */ var _nls_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../nls.js */ "./node_modules/monaco-editor/esm/vs/nls.js");
 var _a;
@@ -8071,11 +8047,14 @@ let _language = LANGUAGE_DEFAULT;
 let _platformLocale = LANGUAGE_DEFAULT;
 let _translationsConfigFile = undefined;
 let _userAgent = undefined;
-const $globalThis = globalThis;
+/**
+ * @deprecated use `globalThis` instead
+ */
+const globals = (typeof self === 'object' ? self : typeof __webpack_require__.g === 'object' ? __webpack_require__.g : {});
 let nodeProcess = undefined;
-if (typeof $globalThis.vscode !== 'undefined' && typeof $globalThis.vscode.process !== 'undefined') {
+if (typeof globals.vscode !== 'undefined' && typeof globals.vscode.process !== 'undefined') {
     // Native environment (sandboxed)
-    nodeProcess = $globalThis.vscode.process;
+    nodeProcess = globals.vscode.process;
 }
 else if (typeof process !== 'undefined') {
     // Native environment (non-sandboxed)
@@ -8083,8 +8062,27 @@ else if (typeof process !== 'undefined') {
 }
 const isElectronProcess = typeof ((_a = nodeProcess === null || nodeProcess === void 0 ? void 0 : nodeProcess.versions) === null || _a === void 0 ? void 0 : _a.electron) === 'string';
 const isElectronRenderer = isElectronProcess && (nodeProcess === null || nodeProcess === void 0 ? void 0 : nodeProcess.type) === 'renderer';
+// Web environment
+if (typeof navigator === 'object' && !isElectronRenderer) {
+    _userAgent = navigator.userAgent;
+    _isWindows = _userAgent.indexOf('Windows') >= 0;
+    _isMacintosh = _userAgent.indexOf('Macintosh') >= 0;
+    _isIOS = (_userAgent.indexOf('Macintosh') >= 0 || _userAgent.indexOf('iPad') >= 0 || _userAgent.indexOf('iPhone') >= 0) && !!navigator.maxTouchPoints && navigator.maxTouchPoints > 0;
+    _isLinux = _userAgent.indexOf('Linux') >= 0;
+    _isMobile = (_userAgent === null || _userAgent === void 0 ? void 0 : _userAgent.indexOf('Mobi')) >= 0;
+    _isWeb = true;
+    const configuredLocale = _nls_js__WEBPACK_IMPORTED_MODULE_0__.getConfiguredDefaultLocale(
+    // This call _must_ be done in the file that calls `nls.getConfiguredDefaultLocale`
+    // to ensure that the NLS AMD Loader plugin has been loaded and configured.
+    // This is because the loader plugin decides what the default locale is based on
+    // how it's able to resolve the strings.
+    _nls_js__WEBPACK_IMPORTED_MODULE_0__.localize({ key: 'ensureLoaderPluginIsLoaded', comment: ['{Locked}'] }, '_'));
+    _locale = configuredLocale || LANGUAGE_DEFAULT;
+    _language = _locale;
+    _platformLocale = navigator.language;
+}
 // Native environment
-if (typeof nodeProcess === 'object') {
+else if (typeof nodeProcess === 'object') {
     _isWindows = (nodeProcess.platform === 'win32');
     _isMacintosh = (nodeProcess.platform === 'darwin');
     _isLinux = (nodeProcess.platform === 'linux');
@@ -8109,25 +8107,6 @@ if (typeof nodeProcess === 'object') {
     }
     _isNative = true;
 }
-// Web environment
-else if (typeof navigator === 'object' && !isElectronRenderer) {
-    _userAgent = navigator.userAgent;
-    _isWindows = _userAgent.indexOf('Windows') >= 0;
-    _isMacintosh = _userAgent.indexOf('Macintosh') >= 0;
-    _isIOS = (_userAgent.indexOf('Macintosh') >= 0 || _userAgent.indexOf('iPad') >= 0 || _userAgent.indexOf('iPhone') >= 0) && !!navigator.maxTouchPoints && navigator.maxTouchPoints > 0;
-    _isLinux = _userAgent.indexOf('Linux') >= 0;
-    _isMobile = (_userAgent === null || _userAgent === void 0 ? void 0 : _userAgent.indexOf('Mobi')) >= 0;
-    _isWeb = true;
-    const configuredLocale = _nls_js__WEBPACK_IMPORTED_MODULE_0__.getConfiguredDefaultLocale(
-    // This call _must_ be done in the file that calls `nls.getConfiguredDefaultLocale`
-    // to ensure that the NLS AMD Loader plugin has been loaded and configured.
-    // This is because the loader plugin decides what the default locale is based on
-    // how it's able to resolve the strings.
-    _nls_js__WEBPACK_IMPORTED_MODULE_0__.localize({ key: 'ensureLoaderPluginIsLoaded', comment: ['{Locked}'] }, '_'));
-    _locale = configuredLocale || LANGUAGE_DEFAULT;
-    _language = _locale;
-    _platformLocale = navigator.language;
-}
 // Unknown environment
 else {
     console.error('Unable to resolve platform.');
@@ -8147,8 +8126,7 @@ const isMacintosh = _isMacintosh;
 const isLinux = _isLinux;
 const isNative = _isNative;
 const isWeb = _isWeb;
-const isWebWorker = (_isWeb && typeof $globalThis.importScripts === 'function');
-const webWorkerOrigin = isWebWorker ? $globalThis.origin : undefined;
+const isWebWorker = (_isWeb && typeof globals.importScripts === 'function');
 const isIOS = _isIOS;
 const isMobile = _isMobile;
 const userAgent = _userAgent;
@@ -8158,7 +8136,7 @@ const userAgent = _userAgent;
  * Chinese)
  */
 const language = _language;
-const setTimeout0IsFaster = (typeof $globalThis.postMessage === 'function' && !$globalThis.importScripts);
+const setTimeout0IsFaster = (typeof globals.postMessage === 'function' && !globals.importScripts);
 /**
  * See https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#:~:text=than%204%2C%20then-,set%20timeout%20to%204,-.
  *
@@ -8168,7 +8146,7 @@ const setTimeout0IsFaster = (typeof $globalThis.postMessage === 'function' && !$
 const setTimeout0 = (() => {
     if (setTimeout0IsFaster) {
         const pending = [];
-        $globalThis.addEventListener('message', (e) => {
+        globals.addEventListener('message', (e) => {
             if (e.data && e.data.vscodeScheduleAsyncWork) {
                 for (let i = 0, len = pending.length; i < len; i++) {
                     const candidate = pending[i];
@@ -8187,7 +8165,7 @@ const setTimeout0 = (() => {
                 id: myId,
                 callback: callback
             });
-            $globalThis.postMessage({ vscodeScheduleAsyncWork: myId }, '*');
+            globals.postMessage({ vscodeScheduleAsyncWork: myId }, '*');
         };
     }
     return (callback) => setTimeout(callback);
@@ -8235,9 +8213,8 @@ __webpack_require__.r(__webpack_exports__);
 
 let safeProcess;
 // Native sandbox environment
-const vscodeGlobal = globalThis.vscode;
-if (typeof vscodeGlobal !== 'undefined' && typeof vscodeGlobal.process !== 'undefined') {
-    const sandboxProcess = vscodeGlobal.process;
+if (typeof _platform_js__WEBPACK_IMPORTED_MODULE_0__.globals.vscode !== 'undefined' && typeof _platform_js__WEBPACK_IMPORTED_MODULE_0__.globals.vscode.process !== 'undefined') {
+    const sandboxProcess = _platform_js__WEBPACK_IMPORTED_MODULE_0__.globals.vscode.process;
     safeProcess = {
         get platform() { return sandboxProcess.platform; },
         get arch() { return sandboxProcess.arch; },
@@ -8363,7 +8340,6 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   getLeadingWhitespace: () => (/* binding */ getLeadingWhitespace),
 /* harmony export */   getLeftDeleteOffset: () => (/* binding */ getLeftDeleteOffset),
 /* harmony export */   getNextCodePoint: () => (/* binding */ getNextCodePoint),
-/* harmony export */   htmlAttributeEncodeValue: () => (/* binding */ htmlAttributeEncodeValue),
 /* harmony export */   isAsciiDigit: () => (/* binding */ isAsciiDigit),
 /* harmony export */   isBasicASCII: () => (/* binding */ isBasicASCII),
 /* harmony export */   isEmojiImprecise: () => (/* binding */ isEmojiImprecise),
@@ -8418,24 +8394,6 @@ function format(value, ...args) {
         return isNaN(idx) || idx < 0 || idx >= args.length ?
             match :
             args[idx];
-    });
-}
-/**
- * Encodes the given value so that it can be used as literal value in html attributes.
- *
- * In other words, computes `$val`, such that `attr` in `<div attr="$val" />` has the runtime value `value`.
- * This prevents XSS injection.
- */
-function htmlAttributeEncodeValue(value) {
-    return value.replace(/[<>"'&]/g, ch => {
-        switch (ch) {
-            case '<': return '&lt;';
-            case '>': return '&gt;';
-            case '"': return '&quot;';
-            case '\'': return '&apos;';
-            case '&': return '&amp;';
-        }
-        return ch;
     });
 }
 /**
@@ -10456,7 +10414,7 @@ class SimpleWorkerServer {
                     delete loaderConfig.paths['vs'];
                 }
             }
-            if (typeof loaderConfig.trustedTypesPolicy !== 'undefined') {
+            if (typeof loaderConfig.trustedTypesPolicy !== undefined) {
                 // don't use, it has been destroyed during serialize
                 delete loaderConfig['trustedTypesPolicy'];
             }
@@ -10593,8 +10551,8 @@ __webpack_require__.r(__webpack_exports__);
  * A range of lines (1-based).
  */
 class LineRange {
-    static fromRangeInclusive(range) {
-        return new LineRange(range.startLineNumber, range.endLineNumber + 1);
+    static fromRange(range) {
+        return new LineRange(range.startLineNumber, range.endLineNumber);
     }
     /**
      * @param lineRanges An array of sorted line ranges.
@@ -10761,10 +10719,6 @@ class LineRangeSet {
         const rangeThatStartsBeforeEnd = (0,_base_common_arraysFind_js__WEBPACK_IMPORTED_MODULE_3__.findLastMonotonous)(this._normalizedRanges, r => r.startLineNumber <= lineNumber);
         return !!rangeThatStartsBeforeEnd && rangeThatStartsBeforeEnd.endLineNumberExclusive > lineNumber;
     }
-    intersects(range) {
-        const rangeThatStartsBeforeEnd = (0,_base_common_arraysFind_js__WEBPACK_IMPORTED_MODULE_3__.findLastMonotonous)(this._normalizedRanges, r => r.startLineNumber < range.endLineNumberExclusive);
-        return !!rangeThatStartsBeforeEnd && rangeThatStartsBeforeEnd.endLineNumberExclusive > range.startLineNumber;
-    }
     getUnion(other) {
         if (this._normalizedRanges.length === 0) {
             return other;
@@ -10913,11 +10867,14 @@ class OffsetRange {
             sortedRanges.splice(i, j - i, new OffsetRange(start, end));
         }
     }
+    static tryCreate(start, endExclusive) {
+        if (start > endExclusive) {
+            return undefined;
+        }
+        return new OffsetRange(start, endExclusive);
+    }
     static ofLength(length) {
         return new OffsetRange(0, length);
-    }
-    static ofStartAndLength(start, length) {
-        return new OffsetRange(start, start + length);
     }
     constructor(start, endExclusive) {
         this.start = start;
@@ -10944,6 +10901,12 @@ class OffsetRange {
     toString() {
         return `[${this.start}, ${this.endExclusive})`;
     }
+    equals(other) {
+        return this.start === other.start && this.endExclusive === other.endExclusive;
+    }
+    containsRange(other) {
+        return this.start <= other.start && other.endExclusive <= this.endExclusive;
+    }
     contains(offset) {
         return this.start <= offset && offset < this.endExclusive;
     }
@@ -10967,17 +10930,6 @@ class OffsetRange {
             return new OffsetRange(start, end);
         }
         return undefined;
-    }
-    intersects(other) {
-        const start = Math.max(this.start, other.start);
-        const end = Math.min(this.endExclusive, other.endExclusive);
-        return start < end;
-    }
-    isBefore(other) {
-        return this.endExclusive <= other.start;
-    }
-    isAfter(other) {
-        return this.start >= other.endExclusive;
     }
     slice(arr) {
         return arr.slice(this.start, this.endExclusive);
@@ -11216,12 +11168,6 @@ class Position {
         return (obj
             && (typeof obj.lineNumber === 'number')
             && (typeof obj.column === 'number'));
-    }
-    toJSON() {
-        return {
-            lineNumber: this.lineNumber,
-            column: this.column
-        };
     }
 }
 
@@ -11914,8 +11860,6 @@ _defaultConfig.unshift({
     timeBudget: 150
 });
 function getWordAtText(column, wordDefinition, text, textOffset, config) {
-    // Ensure the regex has the 'g' flag, otherwise this will loop forever
-    wordDefinition = ensureValidWordDefinition(wordDefinition);
     if (!config) {
         config = _base_common_iterator_js__WEBPACK_IMPORTED_MODULE_0__.Iterable.first(_defaultConfig);
     }
@@ -12090,15 +12034,6 @@ class OffsetPair {
     }
     toString() {
         return `${this.offset1} <-> ${this.offset2}`;
-    }
-    delta(offset) {
-        if (offset === 0) {
-            return this;
-        }
-        return new OffsetPair(this.offset1 + offset, this.offset2 + offset);
-    }
-    equals(other) {
-        return this.offset1 === other.offset1 && this.offset2 === other.offset2;
     }
 }
 OffsetPair.zero = new OffsetPair(0, 0);
@@ -12468,21 +12403,11 @@ function computeMovedLines(changes, originalLines, modifiedLines, hashedOriginal
     moves = joinCloseConsecutiveMoves(moves);
     // Ignore too short moves
     moves = moves.filter(current => {
-        const lines = current.original.toOffsetRange().slice(originalLines).map(l => l.trim());
-        const originalText = lines.join('\n');
-        return originalText.length >= 15 && countWhere(lines, l => l.length >= 2) >= 2;
+        const originalText = current.original.toOffsetRange().slice(originalLines).map(l => l.trim()).join('\n');
+        return originalText.length >= 10;
     });
     moves = removeMovesInSameDiff(changes, moves);
     return moves;
-}
-function countWhere(arr, predicate) {
-    let count = 0;
-    for (const t of arr) {
-        if (predicate(t)) {
-            count++;
-        }
-    }
-    return count;
 }
 function computeMovesFromSimpleDeletionsToSimpleInsertions(changes, originalLines, modifiedLines, timeout) {
     const moves = [];
@@ -12681,9 +12606,9 @@ function joinCloseConsecutiveMoves(moves) {
 function removeMovesInSameDiff(changes, moves) {
     const changesMonotonous = new _base_common_arraysFind_js__WEBPACK_IMPORTED_MODULE_3__.MonotonousArray(changes);
     moves = moves.filter(m => {
-        const diffBeforeEndOfMoveOriginal = changesMonotonous.findLastMonotonous(c => c.original.startLineNumber < m.original.endLineNumberExclusive)
+        const diffBeforeEndOfMoveOriginal = changesMonotonous.findLastMonotonous(c => c.original.endLineNumberExclusive < m.original.endLineNumberExclusive)
             || new _rangeMapping_js__WEBPACK_IMPORTED_MODULE_1__.LineRangeMapping(new _core_lineRange_js__WEBPACK_IMPORTED_MODULE_5__.LineRange(1, 1), new _core_lineRange_js__WEBPACK_IMPORTED_MODULE_5__.LineRange(1, 1));
-        const diffBeforeEndOfMoveModified = (0,_base_common_arraysFind_js__WEBPACK_IMPORTED_MODULE_3__.findLastMonotonous)(changes, c => c.modified.startLineNumber < m.modified.endLineNumberExclusive);
+        const diffBeforeEndOfMoveModified = (0,_base_common_arraysFind_js__WEBPACK_IMPORTED_MODULE_3__.findLastMonotonous)(changes, c => c.modified.endLineNumberExclusive < m.modified.endLineNumberExclusive);
         const differentDiffs = diffBeforeEndOfMoveOriginal !== diffBeforeEndOfMoveModified;
         return differentDiffs;
     });
@@ -12970,9 +12895,6 @@ __webpack_require__.r(__webpack_exports__);
 function optimizeSequenceDiffs(sequence1, sequence2, sequenceDiffs) {
     let result = sequenceDiffs;
     result = joinSequenceDiffsByShifting(sequence1, sequence2, result);
-    // Sometimes, calling this function twice improves the result.
-    // Uncomment the second invocation and run the tests to see the difference.
-    result = joinSequenceDiffsByShifting(sequence1, sequence2, result);
     result = shiftSequenceDiffs(sequence1, sequence2, result);
     return result;
 }
@@ -13068,8 +12990,8 @@ function shiftSequenceDiffs(sequence1, sequence2, sequenceDiffs) {
         const prevDiff = (i > 0 ? sequenceDiffs[i - 1] : undefined);
         const diff = sequenceDiffs[i];
         const nextDiff = (i + 1 < sequenceDiffs.length ? sequenceDiffs[i + 1] : undefined);
-        const seq1ValidRange = new _core_offsetRange_js__WEBPACK_IMPORTED_MODULE_1__.OffsetRange(prevDiff ? prevDiff.seq1Range.endExclusive + 1 : 0, nextDiff ? nextDiff.seq1Range.start - 1 : sequence1.length);
-        const seq2ValidRange = new _core_offsetRange_js__WEBPACK_IMPORTED_MODULE_1__.OffsetRange(prevDiff ? prevDiff.seq2Range.endExclusive + 1 : 0, nextDiff ? nextDiff.seq2Range.start - 1 : sequence2.length);
+        const seq1ValidRange = new _core_offsetRange_js__WEBPACK_IMPORTED_MODULE_1__.OffsetRange(prevDiff ? prevDiff.seq1Range.start + 1 : 0, nextDiff ? nextDiff.seq1Range.endExclusive - 1 : sequence1.length);
+        const seq2ValidRange = new _core_offsetRange_js__WEBPACK_IMPORTED_MODULE_1__.OffsetRange(prevDiff ? prevDiff.seq2Range.start + 1 : 0, nextDiff ? nextDiff.seq2Range.endExclusive - 1 : sequence2.length);
         if (diff.seq1Range.isEmpty) {
             sequenceDiffs[i] = shiftDiffToBetterPosition(diff, sequence1, sequence2, seq1ValidRange, seq2ValidRange);
         }
@@ -13133,60 +13055,62 @@ function removeShortMatches(sequence1, sequence2, sequenceDiffs) {
     return result;
 }
 function extendDiffsToEntireWordIfAppropriate(sequence1, sequence2, sequenceDiffs) {
-    const equalMappings = _algorithms_diffAlgorithm_js__WEBPACK_IMPORTED_MODULE_2__.SequenceDiff.invert(sequenceDiffs, sequence1.length);
     const additional = [];
-    let lastPoint = new _algorithms_diffAlgorithm_js__WEBPACK_IMPORTED_MODULE_2__.OffsetPair(0, 0);
-    function scanWord(pair, equalMapping) {
-        if (pair.offset1 < lastPoint.offset1 || pair.offset2 < lastPoint.offset2) {
+    let lastModifiedWord = undefined;
+    function maybePushWordToAdditional() {
+        if (!lastModifiedWord) {
             return;
         }
-        const w1 = sequence1.findWordContaining(pair.offset1);
-        const w2 = sequence2.findWordContaining(pair.offset2);
-        if (!w1 || !w2) {
-            return;
+        const originalLength1 = lastModifiedWord.s1Range.length - lastModifiedWord.deleted;
+        const originalLength2 = lastModifiedWord.s2Range.length - lastModifiedWord.added;
+        if (originalLength1 !== originalLength2) {
+            // TODO figure out why this happens
         }
-        let w = new _algorithms_diffAlgorithm_js__WEBPACK_IMPORTED_MODULE_2__.SequenceDiff(w1, w2);
-        const equalPart = w.intersect(equalMapping);
-        let equalChars1 = equalPart.seq1Range.length;
-        let equalChars2 = equalPart.seq2Range.length;
-        // The words do not touch previous equals mappings, as we would have processed them already.
-        // But they might touch the next ones.
-        while (equalMappings.length > 0) {
-            const next = equalMappings[0];
-            const intersects = next.seq1Range.intersects(w1) || next.seq2Range.intersects(w2);
-            if (!intersects) {
-                break;
-            }
-            const v1 = sequence1.findWordContaining(next.seq1Range.start);
-            const v2 = sequence2.findWordContaining(next.seq2Range.start);
-            // Because there is an intersection, we know that the words are not empty.
-            const v = new _algorithms_diffAlgorithm_js__WEBPACK_IMPORTED_MODULE_2__.SequenceDiff(v1, v2);
-            const equalPart = v.intersect(next);
-            equalChars1 += equalPart.seq1Range.length;
-            equalChars2 += equalPart.seq2Range.length;
-            w = w.join(v);
-            if (w.seq1Range.endExclusive >= next.seq1Range.endExclusive) {
-                // The word extends beyond the next equal mapping.
-                equalMappings.shift();
-            }
-            else {
-                break;
-            }
+        if (Math.max(lastModifiedWord.deleted, lastModifiedWord.added) + (lastModifiedWord.count - 1) > originalLength1) {
+            additional.push(new _algorithms_diffAlgorithm_js__WEBPACK_IMPORTED_MODULE_2__.SequenceDiff(lastModifiedWord.s1Range, lastModifiedWord.s2Range));
         }
-        if (equalChars1 + equalChars2 < (w.seq1Range.length + w.seq2Range.length) * 2 / 3) {
-            additional.push(w);
-        }
-        lastPoint = w.getEndExclusives();
+        lastModifiedWord = undefined;
     }
-    while (equalMappings.length > 0) {
-        const next = equalMappings.shift();
-        if (next.seq1Range.isEmpty) {
-            continue;
+    for (const s of sequenceDiffs) {
+        function processWord(s1Range, s2Range) {
+            var _a, _b, _c, _d;
+            if (!lastModifiedWord || !lastModifiedWord.s1Range.containsRange(s1Range) || !lastModifiedWord.s2Range.containsRange(s2Range)) {
+                if (lastModifiedWord && !(lastModifiedWord.s1Range.endExclusive < s1Range.start && lastModifiedWord.s2Range.endExclusive < s2Range.start)) {
+                    const s1Added = _core_offsetRange_js__WEBPACK_IMPORTED_MODULE_1__.OffsetRange.tryCreate(lastModifiedWord.s1Range.endExclusive, s1Range.start);
+                    const s2Added = _core_offsetRange_js__WEBPACK_IMPORTED_MODULE_1__.OffsetRange.tryCreate(lastModifiedWord.s2Range.endExclusive, s2Range.start);
+                    lastModifiedWord.deleted += (_a = s1Added === null || s1Added === void 0 ? void 0 : s1Added.length) !== null && _a !== void 0 ? _a : 0;
+                    lastModifiedWord.added += (_b = s2Added === null || s2Added === void 0 ? void 0 : s2Added.length) !== null && _b !== void 0 ? _b : 0;
+                    lastModifiedWord.s1Range = lastModifiedWord.s1Range.join(s1Range);
+                    lastModifiedWord.s2Range = lastModifiedWord.s2Range.join(s2Range);
+                }
+                else {
+                    maybePushWordToAdditional();
+                    lastModifiedWord = { added: 0, deleted: 0, count: 0, s1Range: s1Range, s2Range: s2Range };
+                }
+            }
+            const changedS1 = s1Range.intersect(s.seq1Range);
+            const changedS2 = s2Range.intersect(s.seq2Range);
+            lastModifiedWord.count++;
+            lastModifiedWord.deleted += (_c = changedS1 === null || changedS1 === void 0 ? void 0 : changedS1.length) !== null && _c !== void 0 ? _c : 0;
+            lastModifiedWord.added += (_d = changedS2 === null || changedS2 === void 0 ? void 0 : changedS2.length) !== null && _d !== void 0 ? _d : 0;
         }
-        scanWord(next.getStarts(), next);
-        // The equal parts are not empty, so -1 gives us a character that is equal in both parts.
-        scanWord(next.getEndExclusives().delta(-1), next);
+        const w1Before = sequence1.findWordContaining(s.seq1Range.start - 1);
+        const w2Before = sequence2.findWordContaining(s.seq2Range.start - 1);
+        const w1After = sequence1.findWordContaining(s.seq1Range.endExclusive);
+        const w2After = sequence2.findWordContaining(s.seq2Range.endExclusive);
+        if (w1Before && w1After && w2Before && w2After && w1Before.equals(w1After) && w2Before.equals(w2After)) {
+            processWord(w1Before, w2Before);
+        }
+        else {
+            if (w1Before && w2Before) {
+                processWord(w1Before, w2Before);
+            }
+            if (w1After && w2After) {
+                processWord(w1After, w2After);
+            }
+        }
     }
+    maybePushWordToAdditional();
     const merged = mergeSequenceDiffs(sequenceDiffs, additional);
     return merged;
 }
@@ -13288,7 +13212,7 @@ function removeVeryShortMatchingTextBetweenLongDiffs(sequence1, sequence2, seque
                     return Math.min(v, max);
                 }
                 if (Math.pow(Math.pow(cap(beforeLineCount1 * 40 + beforeSeq1Length), 1.5) + Math.pow(cap(beforeLineCount2 * 40 + beforeSeq2Length), 1.5), 1.5)
-                    + Math.pow(Math.pow(cap(afterLineCount1 * 40 + afterSeq1Length), 1.5) + Math.pow(cap(afterLineCount2 * 40 + afterSeq2Length), 1.5), 1.5) > ((max ** 1.5) ** 1.5) * 1.3) {
+                    + Math.pow(Math.pow(cap(afterLineCount1 * 40 + afterSeq1Length), 1.5) + Math.pow(cap(afterLineCount2 * 40 + afterSeq2Length), 1.5), 1.5) > (Math.pow((Math.pow(max, 1.5)), 1.5)) * 1.3) {
                     return true;
                 }
                 return false;
@@ -13322,12 +13246,7 @@ function removeVeryShortMatchingTextBetweenLongDiffs(sequence1, sequence2, seque
         }
         const availableSpace = _algorithms_diffAlgorithm_js__WEBPACK_IMPORTED_MODULE_2__.SequenceDiff.fromOffsetPairs(prev ? prev.getEndExclusives() : _algorithms_diffAlgorithm_js__WEBPACK_IMPORTED_MODULE_2__.OffsetPair.zero, next ? next.getStarts() : _algorithms_diffAlgorithm_js__WEBPACK_IMPORTED_MODULE_2__.OffsetPair.max);
         const result = newDiff.intersect(availableSpace);
-        if (newDiffs.length > 0 && result.getStarts().equals(newDiffs[newDiffs.length - 1].getEndExclusives())) {
-            newDiffs[newDiffs.length - 1] = newDiffs[newDiffs.length - 1].join(result);
-        }
-        else {
-            newDiffs.push(result);
-        }
+        newDiffs.push(result);
     });
     return newDiffs;
 }
@@ -13471,13 +13390,9 @@ class LinesSliceCharSequence {
         // 11  0   0   12  15  6   13  0   0   11
         const prevCategory = getCategory(length > 0 ? this.elements[length - 1] : -1);
         const nextCategory = getCategory(length < this.elements.length ? this.elements[length] : -1);
-        if (prevCategory === 7 /* CharBoundaryCategory.LineBreakCR */ && nextCategory === 8 /* CharBoundaryCategory.LineBreakLF */) {
+        if (prevCategory === 6 /* CharBoundaryCategory.LineBreakCR */ && nextCategory === 7 /* CharBoundaryCategory.LineBreakLF */) {
             // don't break between \r and \n
             return 0;
-        }
-        if (prevCategory === 8 /* CharBoundaryCategory.LineBreakLF */) {
-            // prefer the linebreak before the change
-            return 150;
         }
         let score = 0;
         if (prevCategory !== nextCategory) {
@@ -13547,23 +13462,22 @@ const score = {
     [2 /* CharBoundaryCategory.WordNumber */]: 0,
     [3 /* CharBoundaryCategory.End */]: 10,
     [4 /* CharBoundaryCategory.Other */]: 2,
-    [5 /* CharBoundaryCategory.Separator */]: 30,
-    [6 /* CharBoundaryCategory.Space */]: 3,
-    [7 /* CharBoundaryCategory.LineBreakCR */]: 10,
-    [8 /* CharBoundaryCategory.LineBreakLF */]: 10,
+    [5 /* CharBoundaryCategory.Space */]: 3,
+    [6 /* CharBoundaryCategory.LineBreakCR */]: 10,
+    [7 /* CharBoundaryCategory.LineBreakLF */]: 10,
 };
 function getCategoryBoundaryScore(category) {
     return score[category];
 }
 function getCategory(charCode) {
     if (charCode === 10 /* CharCode.LineFeed */) {
-        return 8 /* CharBoundaryCategory.LineBreakLF */;
+        return 7 /* CharBoundaryCategory.LineBreakLF */;
     }
     else if (charCode === 13 /* CharCode.CarriageReturn */) {
-        return 7 /* CharBoundaryCategory.LineBreakCR */;
+        return 6 /* CharBoundaryCategory.LineBreakCR */;
     }
     else if ((0,_utils_js__WEBPACK_IMPORTED_MODULE_4__.isSpace)(charCode)) {
-        return 6 /* CharBoundaryCategory.Space */;
+        return 5 /* CharBoundaryCategory.Space */;
     }
     else if (charCode >= 97 /* CharCode.a */ && charCode <= 122 /* CharCode.z */) {
         return 0 /* CharBoundaryCategory.WordLower */;
@@ -13576,9 +13490,6 @@ function getCategory(charCode) {
     }
     else if (charCode === -1) {
         return 3 /* CharBoundaryCategory.End */;
-    }
-    else if (charCode === 44 /* CharCode.Comma */ || charCode === 59 /* CharCode.Semicolon */) {
-        return 5 /* CharBoundaryCategory.Separator */;
     }
     else {
         return 4 /* CharBoundaryCategory.Other */;
@@ -14248,27 +14159,16 @@ class LineRangeMapping {
         let lastOriginalEndLineNumber = 1;
         let lastModifiedEndLineNumber = 1;
         for (const m of mapping) {
-            const r = new LineRangeMapping(new _core_lineRange_js__WEBPACK_IMPORTED_MODULE_0__.LineRange(lastOriginalEndLineNumber, m.original.startLineNumber), new _core_lineRange_js__WEBPACK_IMPORTED_MODULE_0__.LineRange(lastModifiedEndLineNumber, m.modified.startLineNumber));
+            const r = new DetailedLineRangeMapping(new _core_lineRange_js__WEBPACK_IMPORTED_MODULE_0__.LineRange(lastOriginalEndLineNumber, m.original.startLineNumber), new _core_lineRange_js__WEBPACK_IMPORTED_MODULE_0__.LineRange(lastModifiedEndLineNumber, m.modified.startLineNumber), undefined);
             if (!r.modified.isEmpty) {
                 result.push(r);
             }
             lastOriginalEndLineNumber = m.original.endLineNumberExclusive;
             lastModifiedEndLineNumber = m.modified.endLineNumberExclusive;
         }
-        const r = new LineRangeMapping(new _core_lineRange_js__WEBPACK_IMPORTED_MODULE_0__.LineRange(lastOriginalEndLineNumber, originalLineCount + 1), new _core_lineRange_js__WEBPACK_IMPORTED_MODULE_0__.LineRange(lastModifiedEndLineNumber, modifiedLineCount + 1));
+        const r = new DetailedLineRangeMapping(new _core_lineRange_js__WEBPACK_IMPORTED_MODULE_0__.LineRange(lastOriginalEndLineNumber, originalLineCount + 1), new _core_lineRange_js__WEBPACK_IMPORTED_MODULE_0__.LineRange(lastModifiedEndLineNumber, modifiedLineCount + 1), undefined);
         if (!r.modified.isEmpty) {
             result.push(r);
-        }
-        return result;
-    }
-    static clip(mapping, originalRange, modifiedRange) {
-        const result = [];
-        for (const m of mapping) {
-            const original = m.original.intersect(originalRange);
-            const modified = m.modified.intersect(modifiedRange);
-            if (original && !original.isEmpty && modified && !modified.isEmpty) {
-                result.push(new LineRangeMapping(original, modified));
-            }
         }
         return result;
     }
@@ -15300,8 +15200,7 @@ var OverviewRulerLane;
 var GlyphMarginLane;
 (function (GlyphMarginLane) {
     GlyphMarginLane[GlyphMarginLane["Left"] = 1] = "Left";
-    GlyphMarginLane[GlyphMarginLane["Center"] = 2] = "Center";
-    GlyphMarginLane[GlyphMarginLane["Right"] = 3] = "Right";
+    GlyphMarginLane[GlyphMarginLane["Right"] = 2] = "Right";
 })(GlyphMarginLane || (GlyphMarginLane = {}));
 /**
  * Position in the minimap to render the decoration.
@@ -16365,6 +16264,15 @@ __webpack_require__.r(__webpack_exports__);
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
+var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 
 
 
@@ -16600,22 +16508,25 @@ class EditorSimpleWorker {
         }
         delete this._models[strURL];
     }
-    async computeUnicodeHighlights(url, options, range) {
-        const model = this._getModel(url);
-        if (!model) {
-            return { ranges: [], hasMore: false, ambiguousCharacterCount: 0, invisibleCharacterCount: 0, nonBasicAsciiCharacterCount: 0 };
-        }
-        return _unicodeTextModelHighlighter_js__WEBPACK_IMPORTED_MODULE_10__.UnicodeTextModelHighlighter.computeUnicodeHighlights(model, options, range);
+    computeUnicodeHighlights(url, options, range) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const model = this._getModel(url);
+            if (!model) {
+                return { ranges: [], hasMore: false, ambiguousCharacterCount: 0, invisibleCharacterCount: 0, nonBasicAsciiCharacterCount: 0 };
+            }
+            return _unicodeTextModelHighlighter_js__WEBPACK_IMPORTED_MODULE_10__.UnicodeTextModelHighlighter.computeUnicodeHighlights(model, options, range);
+        });
     }
     // ---- BEGIN diff --------------------------------------------------------------------------
-    async computeDiff(originalUrl, modifiedUrl, options, algorithm) {
-        const original = this._getModel(originalUrl);
-        const modified = this._getModel(modifiedUrl);
-        if (!original || !modified) {
-            return null;
-        }
-        const result = EditorSimpleWorker.computeDiff(original, modified, options, algorithm);
-        return result;
+    computeDiff(originalUrl, modifiedUrl, options, algorithm) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const original = this._getModel(originalUrl);
+            const modified = this._getModel(modifiedUrl);
+            if (!original || !modified) {
+                return null;
+            }
+            return EditorSimpleWorker.computeDiff(original, modified, options, algorithm);
+        });
     }
     static computeDiff(originalTextModel, modifiedTextModel, options, algorithm) {
         const diffAlgorithm = algorithm === 'advanced' ? _diff_linesDiffComputers_js__WEBPACK_IMPORTED_MODULE_11__.linesDiffComputers.getDefault() : _diff_linesDiffComputers_js__WEBPACK_IMPORTED_MODULE_11__.linesDiffComputers.getLegacy();
@@ -16666,164 +16577,176 @@ class EditorSimpleWorker {
         }
         return true;
     }
-    async computeMoreMinimalEdits(modelUrl, edits, pretty) {
-        const model = this._getModel(modelUrl);
-        if (!model) {
-            return edits;
-        }
-        const result = [];
-        let lastEol = undefined;
-        edits = edits.slice(0).sort((a, b) => {
-            if (a.range && b.range) {
-                return _core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.compareRangesUsingStarts(a.range, b.range);
+    computeMoreMinimalEdits(modelUrl, edits, pretty) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const model = this._getModel(modelUrl);
+            if (!model) {
+                return edits;
             }
-            // eol only changes should go to the end
-            const aRng = a.range ? 0 : 1;
-            const bRng = b.range ? 0 : 1;
-            return aRng - bRng;
-        });
-        // merge adjacent edits
-        let writeIndex = 0;
-        for (let readIndex = 1; readIndex < edits.length; readIndex++) {
-            if (_core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.getEndPosition(edits[writeIndex].range).equals(_core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.getStartPosition(edits[readIndex].range))) {
-                edits[writeIndex].range = _core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.fromPositions(_core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.getStartPosition(edits[writeIndex].range), _core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.getEndPosition(edits[readIndex].range));
-                edits[writeIndex].text += edits[readIndex].text;
-            }
-            else {
-                writeIndex++;
-                edits[writeIndex] = edits[readIndex];
-            }
-        }
-        edits.length = writeIndex + 1;
-        for (let { range, text, eol } of edits) {
-            if (typeof eol === 'number') {
-                lastEol = eol;
-            }
-            if (_core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.isEmpty(range) && !text) {
-                // empty change
-                continue;
-            }
-            const original = model.getValueInRange(range);
-            text = text.replace(/\r\n|\n|\r/g, model.eol);
-            if (original === text) {
-                // noop
-                continue;
-            }
-            // make sure diff won't take too long
-            if (Math.max(text.length, original.length) > EditorSimpleWorker._diffLimit) {
-                result.push({ range, text });
-                continue;
-            }
-            // compute diff between original and edit.text
-            const changes = (0,_base_common_diff_diff_js__WEBPACK_IMPORTED_MODULE_0__.stringDiff)(original, text, pretty);
-            const editOffset = model.offsetAt(_core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.lift(range).getStartPosition());
-            for (const change of changes) {
-                const start = model.positionAt(editOffset + change.originalStart);
-                const end = model.positionAt(editOffset + change.originalStart + change.originalLength);
-                const newEdit = {
-                    text: text.substr(change.modifiedStart, change.modifiedLength),
-                    range: { startLineNumber: start.lineNumber, startColumn: start.column, endLineNumber: end.lineNumber, endColumn: end.column }
-                };
-                if (model.getValueInRange(newEdit.range) !== newEdit.text) {
-                    result.push(newEdit);
+            const result = [];
+            let lastEol = undefined;
+            edits = edits.slice(0).sort((a, b) => {
+                if (a.range && b.range) {
+                    return _core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.compareRangesUsingStarts(a.range, b.range);
+                }
+                // eol only changes should go to the end
+                const aRng = a.range ? 0 : 1;
+                const bRng = b.range ? 0 : 1;
+                return aRng - bRng;
+            });
+            // merge adjacent edits
+            let writeIndex = 0;
+            for (let readIndex = 1; readIndex < edits.length; readIndex++) {
+                if (_core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.getEndPosition(edits[writeIndex].range).equals(_core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.getStartPosition(edits[readIndex].range))) {
+                    edits[writeIndex].range = _core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.fromPositions(_core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.getStartPosition(edits[writeIndex].range), _core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.getEndPosition(edits[readIndex].range));
+                    edits[writeIndex].text += edits[readIndex].text;
+                }
+                else {
+                    writeIndex++;
+                    edits[writeIndex] = edits[readIndex];
                 }
             }
-        }
-        if (typeof lastEol === 'number') {
-            result.push({ eol: lastEol, text: '', range: { startLineNumber: 0, startColumn: 0, endLineNumber: 0, endColumn: 0 } });
-        }
-        return result;
-    }
-    // ---- END minimal edits ---------------------------------------------------------------
-    async computeLinks(modelUrl) {
-        const model = this._getModel(modelUrl);
-        if (!model) {
-            return null;
-        }
-        return (0,_languages_linkComputer_js__WEBPACK_IMPORTED_MODULE_6__.computeLinks)(model);
-    }
-    // --- BEGIN default document colors -----------------------------------------------------------
-    async computeDefaultDocumentColors(modelUrl) {
-        const model = this._getModel(modelUrl);
-        if (!model) {
-            return null;
-        }
-        return (0,_languages_defaultDocumentColorsComputer_js__WEBPACK_IMPORTED_MODULE_13__.computeDefaultDocumentColors)(model);
-    }
-    async textualSuggest(modelUrls, leadingWord, wordDef, wordDefFlags) {
-        const sw = new _base_common_stopwatch_js__WEBPACK_IMPORTED_MODULE_9__.StopWatch();
-        const wordDefRegExp = new RegExp(wordDef, wordDefFlags);
-        const seen = new Set();
-        outer: for (const url of modelUrls) {
-            const model = this._getModel(url);
-            if (!model) {
-                continue;
-            }
-            for (const word of model.words(wordDefRegExp)) {
-                if (word === leadingWord || !isNaN(Number(word))) {
+            edits.length = writeIndex + 1;
+            for (let { range, text, eol } of edits) {
+                if (typeof eol === 'number') {
+                    lastEol = eol;
+                }
+                if (_core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.isEmpty(range) && !text) {
+                    // empty change
                     continue;
                 }
-                seen.add(word);
-                if (seen.size > EditorSimpleWorker._suggestionsLimit) {
-                    break outer;
+                const original = model.getValueInRange(range);
+                text = text.replace(/\r\n|\n|\r/g, model.eol);
+                if (original === text) {
+                    // noop
+                    continue;
+                }
+                // make sure diff won't take too long
+                if (Math.max(text.length, original.length) > EditorSimpleWorker._diffLimit) {
+                    result.push({ range, text });
+                    continue;
+                }
+                // compute diff between original and edit.text
+                const changes = (0,_base_common_diff_diff_js__WEBPACK_IMPORTED_MODULE_0__.stringDiff)(original, text, pretty);
+                const editOffset = model.offsetAt(_core_range_js__WEBPACK_IMPORTED_MODULE_3__.Range.lift(range).getStartPosition());
+                for (const change of changes) {
+                    const start = model.positionAt(editOffset + change.originalStart);
+                    const end = model.positionAt(editOffset + change.originalStart + change.originalLength);
+                    const newEdit = {
+                        text: text.substr(change.modifiedStart, change.modifiedLength),
+                        range: { startLineNumber: start.lineNumber, startColumn: start.column, endLineNumber: end.lineNumber, endColumn: end.column }
+                    };
+                    if (model.getValueInRange(newEdit.range) !== newEdit.text) {
+                        result.push(newEdit);
+                    }
                 }
             }
-        }
-        return { words: Array.from(seen), duration: sw.elapsed() };
+            if (typeof lastEol === 'number') {
+                result.push({ eol: lastEol, text: '', range: { startLineNumber: 0, startColumn: 0, endLineNumber: 0, endColumn: 0 } });
+            }
+            return result;
+        });
+    }
+    // ---- END minimal edits ---------------------------------------------------------------
+    computeLinks(modelUrl) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const model = this._getModel(modelUrl);
+            if (!model) {
+                return null;
+            }
+            return (0,_languages_linkComputer_js__WEBPACK_IMPORTED_MODULE_6__.computeLinks)(model);
+        });
+    }
+    // --- BEGIN default document colors -----------------------------------------------------------
+    computeDefaultDocumentColors(modelUrl) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const model = this._getModel(modelUrl);
+            if (!model) {
+                return null;
+            }
+            return (0,_languages_defaultDocumentColorsComputer_js__WEBPACK_IMPORTED_MODULE_13__.computeDefaultDocumentColors)(model);
+        });
+    }
+    textualSuggest(modelUrls, leadingWord, wordDef, wordDefFlags) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const sw = new _base_common_stopwatch_js__WEBPACK_IMPORTED_MODULE_9__.StopWatch();
+            const wordDefRegExp = new RegExp(wordDef, wordDefFlags);
+            const seen = new Set();
+            outer: for (const url of modelUrls) {
+                const model = this._getModel(url);
+                if (!model) {
+                    continue;
+                }
+                for (const word of model.words(wordDefRegExp)) {
+                    if (word === leadingWord || !isNaN(Number(word))) {
+                        continue;
+                    }
+                    seen.add(word);
+                    if (seen.size > EditorSimpleWorker._suggestionsLimit) {
+                        break outer;
+                    }
+                }
+            }
+            return { words: Array.from(seen), duration: sw.elapsed() };
+        });
     }
     // ---- END suggest --------------------------------------------------------------------------
     //#region -- word ranges --
-    async computeWordRanges(modelUrl, range, wordDef, wordDefFlags) {
-        const model = this._getModel(modelUrl);
-        if (!model) {
-            return Object.create(null);
-        }
-        const wordDefRegExp = new RegExp(wordDef, wordDefFlags);
-        const result = Object.create(null);
-        for (let line = range.startLineNumber; line < range.endLineNumber; line++) {
-            const words = model.getLineWords(line, wordDefRegExp);
-            for (const word of words) {
-                if (!isNaN(Number(word.word))) {
-                    continue;
-                }
-                let array = result[word.word];
-                if (!array) {
-                    array = [];
-                    result[word.word] = array;
-                }
-                array.push({
-                    startLineNumber: line,
-                    startColumn: word.startColumn,
-                    endLineNumber: line,
-                    endColumn: word.endColumn
-                });
+    computeWordRanges(modelUrl, range, wordDef, wordDefFlags) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const model = this._getModel(modelUrl);
+            if (!model) {
+                return Object.create(null);
             }
-        }
-        return result;
+            const wordDefRegExp = new RegExp(wordDef, wordDefFlags);
+            const result = Object.create(null);
+            for (let line = range.startLineNumber; line < range.endLineNumber; line++) {
+                const words = model.getLineWords(line, wordDefRegExp);
+                for (const word of words) {
+                    if (!isNaN(Number(word.word))) {
+                        continue;
+                    }
+                    let array = result[word.word];
+                    if (!array) {
+                        array = [];
+                        result[word.word] = array;
+                    }
+                    array.push({
+                        startLineNumber: line,
+                        startColumn: word.startColumn,
+                        endLineNumber: line,
+                        endColumn: word.endColumn
+                    });
+                }
+            }
+            return result;
+        });
     }
     //#endregion
-    async navigateValueSet(modelUrl, range, up, wordDef, wordDefFlags) {
-        const model = this._getModel(modelUrl);
-        if (!model) {
-            return null;
-        }
-        const wordDefRegExp = new RegExp(wordDef, wordDefFlags);
-        if (range.startColumn === range.endColumn) {
-            range = {
-                startLineNumber: range.startLineNumber,
-                startColumn: range.startColumn,
-                endLineNumber: range.endLineNumber,
-                endColumn: range.endColumn + 1
-            };
-        }
-        const selectionText = model.getValueInRange(range);
-        const wordRange = model.getWordAtPosition({ lineNumber: range.startLineNumber, column: range.startColumn }, wordDefRegExp);
-        if (!wordRange) {
-            return null;
-        }
-        const word = model.getValueInRange(wordRange);
-        const result = _languages_supports_inplaceReplaceSupport_js__WEBPACK_IMPORTED_MODULE_7__.BasicInplaceReplace.INSTANCE.navigateValueSet(range, selectionText, wordRange, word, up);
-        return result;
+    navigateValueSet(modelUrl, range, up, wordDef, wordDefFlags) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const model = this._getModel(modelUrl);
+            if (!model) {
+                return null;
+            }
+            const wordDefRegExp = new RegExp(wordDef, wordDefFlags);
+            if (range.startColumn === range.endColumn) {
+                range = {
+                    startLineNumber: range.startLineNumber,
+                    startColumn: range.startColumn,
+                    endLineNumber: range.endLineNumber,
+                    endColumn: range.endColumn + 1
+                };
+            }
+            const selectionText = model.getValueInRange(range);
+            const wordRange = model.getWordAtPosition({ lineNumber: range.startLineNumber, column: range.startColumn }, wordDefRegExp);
+            if (!wordRange) {
+                return null;
+            }
+            const word = model.getValueInRange(wordRange);
+            const result = _languages_supports_inplaceReplaceSupport_js__WEBPACK_IMPORTED_MODULE_7__.BasicInplaceReplace.INSTANCE.navigateValueSet(range, selectionText, wordRange, word, up);
+            return result;
+        });
     }
     // ---- BEGIN foreign module support --------------------------------------------------------------------------
     loadForeignModule(moduleId, createData, foreignHostMethods) {
@@ -17133,7 +17056,6 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   ScrollType: () => (/* binding */ ScrollType),
 /* harmony export */   ScrollbarVisibility: () => (/* binding */ ScrollbarVisibility),
 /* harmony export */   SelectionDirection: () => (/* binding */ SelectionDirection),
-/* harmony export */   ShowLightbulbIconMode: () => (/* binding */ ShowLightbulbIconMode),
 /* harmony export */   SignatureHelpTriggerKind: () => (/* binding */ SignatureHelpTriggerKind),
 /* harmony export */   SymbolKind: () => (/* binding */ SymbolKind),
 /* harmony export */   SymbolTag: () => (/* binding */ SymbolTag),
@@ -17502,8 +17424,7 @@ var EndOfLineSequence;
 var GlyphMarginLane;
 (function (GlyphMarginLane) {
     GlyphMarginLane[GlyphMarginLane["Left"] = 1] = "Left";
-    GlyphMarginLane[GlyphMarginLane["Center"] = 2] = "Center";
-    GlyphMarginLane[GlyphMarginLane["Right"] = 3] = "Right";
+    GlyphMarginLane[GlyphMarginLane["Right"] = 2] = "Right";
 })(GlyphMarginLane || (GlyphMarginLane = {}));
 /**
  * Describes what to do with the indentation when pressing Enter.
@@ -17934,12 +17855,6 @@ var SelectionDirection;
      */
     SelectionDirection[SelectionDirection["RTL"] = 1] = "RTL";
 })(SelectionDirection || (SelectionDirection = {}));
-var ShowLightbulbIconMode;
-(function (ShowLightbulbIconMode) {
-    ShowLightbulbIconMode["Off"] = "off";
-    ShowLightbulbIconMode["OnCode"] = "onCode";
-    ShowLightbulbIconMode["On"] = "on";
-})(ShowLightbulbIconMode || (ShowLightbulbIconMode = {}));
 var SignatureHelpTriggerKind;
 (function (SignatureHelpTriggerKind) {
     SignatureHelpTriggerKind[SignatureHelpTriggerKind["Invoke"] = 1] = "Invoke";
@@ -18095,6 +18010,15 @@ __webpack_require__.r(__webpack_exports__);
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
+var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 
 
 class TokenizationRegistry {
@@ -18139,19 +18063,21 @@ class TokenizationRegistry {
             v.dispose();
         });
     }
-    async getOrCreate(languageId) {
-        // check first if the support is already set
-        const tokenizationSupport = this.get(languageId);
-        if (tokenizationSupport) {
-            return tokenizationSupport;
-        }
-        const factory = this._factories.get(languageId);
-        if (!factory || factory.isResolved) {
-            // no factory or factory.resolve already finished
-            return null;
-        }
-        await factory.resolve();
-        return this.get(languageId);
+    getOrCreate(languageId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            // check first if the support is already set
+            const tokenizationSupport = this.get(languageId);
+            if (tokenizationSupport) {
+                return tokenizationSupport;
+            }
+            const factory = this._factories.get(languageId);
+            if (!factory || factory.isResolved) {
+                // no factory or factory.resolve already finished
+                return null;
+            }
+            yield factory.resolve();
+            return this.get(languageId);
+        });
     }
     isResolved(languageId) {
         const tokenizationSupport = this.get(languageId);
@@ -18198,18 +18124,22 @@ class TokenizationSupportFactoryData extends _base_common_lifecycle_js__WEBPACK_
         this._isDisposed = true;
         super.dispose();
     }
-    async resolve() {
-        if (!this._resolvePromise) {
-            this._resolvePromise = this._create();
-        }
-        return this._resolvePromise;
+    resolve() {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!this._resolvePromise) {
+                this._resolvePromise = this._create();
+            }
+            return this._resolvePromise;
+        });
     }
-    async _create() {
-        const value = await this._factory.tokenizationSupport;
-        this._isResolved = true;
-        if (value && !this._isDisposed) {
-            this._register(this._registry.register(this._languageId, value));
-        }
+    _create() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const value = yield this._factory.tokenizationSupport;
+            this._isResolved = true;
+            if (value && !this._isDisposed) {
+                this._register(this._registry.register(this._languageId, value));
+            }
+        });
     }
 }
 
@@ -18269,13 +18199,21 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   getConfiguredDefaultLocale: () => (/* binding */ getConfiguredDefaultLocale),
 /* harmony export */   load: () => (/* binding */ load),
 /* harmony export */   localize: () => (/* binding */ localize),
-/* harmony export */   localize2: () => (/* binding */ localize2),
 /* harmony export */   setPseudoTranslation: () => (/* binding */ setPseudoTranslation)
 /* harmony export */ });
 /*---------------------------------------------------------------------------------------------
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
+var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 let isPseudo = (typeof document !== 'undefined' && document.location && document.location.hash.indexOf('pseudo=true') >= 0);
 const DEFAULT_TAG = 'i-default';
 function _format(message, args) {
@@ -18320,14 +18258,16 @@ function endWithSlash(path) {
     }
     return path + '/';
 }
-async function getMessagesFromTranslationsService(translationServiceUrl, language, name) {
-    const url = endWithSlash(translationServiceUrl) + endWithSlash(language) + 'vscode/' + endWithSlash(name);
-    const res = await fetch(url);
-    if (res.ok) {
-        const messages = await res.json();
-        return messages;
-    }
-    throw new Error(`${res.status} - ${res.statusText}`);
+function getMessagesFromTranslationsService(translationServiceUrl, language, name) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const url = endWithSlash(translationServiceUrl) + endWithSlash(language) + 'vscode/' + endWithSlash(name);
+        const res = yield fetch(url);
+        if (res.ok) {
+            const messages = yield res.json();
+            return messages;
+        }
+        throw new Error(`${res.status} - ${res.statusText}`);
+    });
 }
 function createScopedLocalize(scope) {
     return function (idx, defaultValue) {
@@ -18335,27 +18275,11 @@ function createScopedLocalize(scope) {
         return _format(scope[idx], restArgs);
     };
 }
-function createScopedLocalize2(scope) {
-    return (idx, defaultValue, ...args) => ({
-        value: _format(scope[idx], args),
-        original: _format(defaultValue, args)
-    });
-}
 /**
  * @skipMangle
  */
 function localize(data, message, ...args) {
     return _format(message, args);
-}
-/**
- * @skipMangle
- */
-function localize2(data, message, ...args) {
-    const original = _format(message, args);
-    return {
-        value: original,
-        original
-    };
 }
 /**
  * @skipMangle
@@ -18379,7 +18303,6 @@ function create(key, data) {
     var _a;
     return {
         localize: createScopedLocalize(data[key]),
-        localize2: createScopedLocalize2(data[key]),
         getConfiguredDefaultLocale: (_a = data.getConfiguredDefaultLocale) !== null && _a !== void 0 ? _a : ((_) => undefined)
     };
 }
@@ -18394,7 +18317,6 @@ function load(name, req, load, config) {
         // TODO: We need to give back the mangled names here
         return load({
             localize: localize,
-            localize2: localize2,
             getConfiguredDefaultLocale: () => { var _a; return (_a = pluginConfig.availableLanguages) === null || _a === void 0 ? void 0 : _a['*']; }
         });
     }
@@ -18407,11 +18329,9 @@ function load(name, req, load, config) {
     const messagesLoaded = (messages) => {
         if (Array.isArray(messages)) {
             messages.localize = createScopedLocalize(messages);
-            messages.localize2 = createScopedLocalize2(messages);
         }
         else {
             messages.localize = createScopedLocalize(messages[name]);
-            messages.localize2 = createScopedLocalize2(messages[name]);
         }
         messages.getConfiguredDefaultLocale = () => { var _a; return (_a = pluginConfig.availableLanguages) === null || _a === void 0 ? void 0 : _a['*']; };
         load(messages);
@@ -18428,10 +18348,10 @@ function load(name, req, load, config) {
         });
     }
     else if (pluginConfig.translationServiceUrl && !useDefaultLanguage) {
-        (async () => {
-            var _a;
+        (() => __awaiter(this, void 0, void 0, function* () {
+            var _b;
             try {
-                const messages = await getMessagesFromTranslationsService(pluginConfig.translationServiceUrl, language, name);
+                const messages = yield getMessagesFromTranslationsService(pluginConfig.translationServiceUrl, language, name);
                 return messagesLoaded(messages);
             }
             catch (err) {
@@ -18445,9 +18365,9 @@ function load(name, req, load, config) {
                     // Since we were unable to load the specific language, try to load the generic language. Ex. we failed to find a
                     // Swiss German (de-CH), so try to load the generic German (de) messages instead.
                     const genericLanguage = language.split('-')[0];
-                    const messages = await getMessagesFromTranslationsService(pluginConfig.translationServiceUrl, genericLanguage, name);
+                    const messages = yield getMessagesFromTranslationsService(pluginConfig.translationServiceUrl, genericLanguage, name);
                     // We got some messages, so we configure the configuration to use the generic language for this session.
-                    (_a = pluginConfig.availableLanguages) !== null && _a !== void 0 ? _a : (pluginConfig.availableLanguages = {});
+                    (_b = pluginConfig.availableLanguages) !== null && _b !== void 0 ? _b : (pluginConfig.availableLanguages = {});
                     pluginConfig.availableLanguages['*'] = genericLanguage;
                     return messagesLoaded(messages);
                 }
@@ -18456,7 +18376,7 @@ function load(name, req, load, config) {
                     return req([name + '.nls'], messagesLoaded);
                 }
             }
-        })();
+        }))();
     }
     else {
         req([name + suffix], messagesLoaded, (err) => {
@@ -18512,6 +18432,18 @@ function load(name, req, load, config) {
 /******/ 		};
 /******/ 	})();
 /******/ 	
+/******/ 	/* webpack/runtime/global */
+/******/ 	(() => {
+/******/ 		__webpack_require__.g = (function() {
+/******/ 			if (typeof globalThis === 'object') return globalThis;
+/******/ 			try {
+/******/ 				return this || new Function('return this')();
+/******/ 			} catch (e) {
+/******/ 				if (typeof window === 'object') return window;
+/******/ 			}
+/******/ 		})();
+/******/ 	})();
+/******/ 	
 /******/ 	/* webpack/runtime/hasOwnProperty shorthand */
 /******/ 	(() => {
 /******/ 		__webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
@@ -18539,11 +18471,10 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _editor_editor_worker_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../editor/editor.worker.js */ "./node_modules/monaco-editor/esm/vs/editor/editor.worker.js");
 /*!-----------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation. All rights reserved.
- * Version: 0.46.0(21007360cad28648bdf46282a2592cb47c3a7a6f)
+ * Version: 0.44.0(3e047efd345ff102c8c61b5398fb30845aaac166)
  * Released under the MIT license
  * https://github.com/microsoft/monaco-editor/blob/main/LICENSE.txt
  *-----------------------------------------------------------------------------*/
-
 
 // src/language/json/json.worker.ts
 
@@ -19232,61 +19163,37 @@ function visit(text, visitor, options) {
       var token = _scanner.scan();
       switch (_scanner.getTokenError()) {
         case 4:
-          handleError(
-            14
-            /* InvalidUnicode */
-          );
+          handleError(14);
           break;
         case 5:
-          handleError(
-            15
-            /* InvalidEscapeCharacter */
-          );
+          handleError(15);
           break;
         case 3:
-          handleError(
-            13
-            /* UnexpectedEndOfNumber */
-          );
+          handleError(13);
           break;
         case 1:
           if (!disallowComments) {
-            handleError(
-              11
-              /* UnexpectedEndOfComment */
-            );
+            handleError(11);
           }
           break;
         case 2:
-          handleError(
-            12
-            /* UnexpectedEndOfString */
-          );
+          handleError(12);
           break;
         case 6:
-          handleError(
-            16
-            /* InvalidCharacter */
-          );
+          handleError(16);
           break;
       }
       switch (token) {
         case 12:
         case 13:
           if (disallowComments) {
-            handleError(
-              10
-              /* InvalidCommentToken */
-            );
+            handleError(10);
           } else {
             onComment();
           }
           break;
         case 16:
-          handleError(
-            1
-            /* InvalidSymbol */
-          );
+          handleError(1);
           break;
         case 15:
         case 14:
@@ -19333,10 +19240,7 @@ function visit(text, visitor, options) {
         var tokenValue = _scanner.getTokenValue();
         var value = Number(tokenValue);
         if (isNaN(value)) {
-          handleError(
-            2
-            /* InvalidNumberFormat */
-          );
+          handleError(2);
           value = 0;
         }
         onLiteralValue(value);
@@ -19358,11 +19262,7 @@ function visit(text, visitor, options) {
   }
   function parseProperty() {
     if (_scanner.getToken() !== 10) {
-      handleError(3, [], [
-        2,
-        5
-        /* CommaToken */
-      ]);
+      handleError(3, [], [2, 5]);
       return false;
     }
     parseString(false);
@@ -19370,18 +19270,10 @@ function visit(text, visitor, options) {
       onSeparator(":");
       scanNext();
       if (!parseValue()) {
-        handleError(4, [], [
-          2,
-          5
-          /* CommaToken */
-        ]);
+        handleError(4, [], [2, 5]);
       }
     } else {
-      handleError(5, [], [
-        2,
-        5
-        /* CommaToken */
-      ]);
+      handleError(5, [], [2, 5]);
     }
     return true;
   }
@@ -19403,20 +19295,13 @@ function visit(text, visitor, options) {
         handleError(6, [], []);
       }
       if (!parseProperty()) {
-        handleError(4, [], [
-          2,
-          5
-          /* CommaToken */
-        ]);
+        handleError(4, [], [2, 5]);
       }
       needsComma = true;
     }
     onObjectEnd();
     if (_scanner.getToken() !== 2) {
-      handleError(7, [
-        2
-        /* CloseBraceToken */
-      ], []);
+      handleError(7, [2], []);
     } else {
       scanNext();
     }
@@ -19440,20 +19325,13 @@ function visit(text, visitor, options) {
         handleError(6, [], []);
       }
       if (!parseValue()) {
-        handleError(4, [], [
-          4,
-          5
-          /* CommaToken */
-        ]);
+        handleError(4, [], [4, 5]);
       }
       needsComma = true;
     }
     onArrayEnd();
     if (_scanner.getToken() !== 4) {
-      handleError(8, [
-        4
-        /* CloseBracketToken */
-      ], []);
+      handleError(8, [4], []);
     } else {
       scanNext();
     }
@@ -19991,294 +19869,281 @@ var WorkspaceEdit;
   }
   WorkspaceEdit2.is = is;
 })(WorkspaceEdit || (WorkspaceEdit = {}));
-var TextEditChangeImpl = (
-  /** @class */
-  function() {
-    function TextEditChangeImpl2(edits, changeAnnotations) {
-      this.edits = edits;
-      this.changeAnnotations = changeAnnotations;
+var TextEditChangeImpl = function() {
+  function TextEditChangeImpl2(edits, changeAnnotations) {
+    this.edits = edits;
+    this.changeAnnotations = changeAnnotations;
+  }
+  TextEditChangeImpl2.prototype.insert = function(position, newText, annotation) {
+    var edit;
+    var id;
+    if (annotation === void 0) {
+      edit = TextEdit.insert(position, newText);
+    } else if (ChangeAnnotationIdentifier.is(annotation)) {
+      id = annotation;
+      edit = AnnotatedTextEdit.insert(position, newText, annotation);
+    } else {
+      this.assertChangeAnnotations(this.changeAnnotations);
+      id = this.changeAnnotations.manage(annotation);
+      edit = AnnotatedTextEdit.insert(position, newText, id);
     }
-    TextEditChangeImpl2.prototype.insert = function(position, newText, annotation) {
-      var edit;
-      var id;
-      if (annotation === void 0) {
-        edit = TextEdit.insert(position, newText);
-      } else if (ChangeAnnotationIdentifier.is(annotation)) {
-        id = annotation;
-        edit = AnnotatedTextEdit.insert(position, newText, annotation);
-      } else {
-        this.assertChangeAnnotations(this.changeAnnotations);
-        id = this.changeAnnotations.manage(annotation);
-        edit = AnnotatedTextEdit.insert(position, newText, id);
-      }
-      this.edits.push(edit);
-      if (id !== void 0) {
-        return id;
-      }
-    };
-    TextEditChangeImpl2.prototype.replace = function(range, newText, annotation) {
-      var edit;
-      var id;
-      if (annotation === void 0) {
-        edit = TextEdit.replace(range, newText);
-      } else if (ChangeAnnotationIdentifier.is(annotation)) {
-        id = annotation;
-        edit = AnnotatedTextEdit.replace(range, newText, annotation);
-      } else {
-        this.assertChangeAnnotations(this.changeAnnotations);
-        id = this.changeAnnotations.manage(annotation);
-        edit = AnnotatedTextEdit.replace(range, newText, id);
-      }
-      this.edits.push(edit);
-      if (id !== void 0) {
-        return id;
-      }
-    };
-    TextEditChangeImpl2.prototype.delete = function(range, annotation) {
-      var edit;
-      var id;
-      if (annotation === void 0) {
-        edit = TextEdit.del(range);
-      } else if (ChangeAnnotationIdentifier.is(annotation)) {
-        id = annotation;
-        edit = AnnotatedTextEdit.del(range, annotation);
-      } else {
-        this.assertChangeAnnotations(this.changeAnnotations);
-        id = this.changeAnnotations.manage(annotation);
-        edit = AnnotatedTextEdit.del(range, id);
-      }
-      this.edits.push(edit);
-      if (id !== void 0) {
-        return id;
-      }
-    };
-    TextEditChangeImpl2.prototype.add = function(edit) {
-      this.edits.push(edit);
-    };
-    TextEditChangeImpl2.prototype.all = function() {
-      return this.edits;
-    };
-    TextEditChangeImpl2.prototype.clear = function() {
-      this.edits.splice(0, this.edits.length);
-    };
-    TextEditChangeImpl2.prototype.assertChangeAnnotations = function(value) {
-      if (value === void 0) {
-        throw new Error("Text edit change is not configured to manage change annotations.");
-      }
-    };
-    return TextEditChangeImpl2;
-  }()
-);
-var ChangeAnnotations = (
-  /** @class */
-  function() {
-    function ChangeAnnotations2(annotations) {
-      this._annotations = annotations === void 0 ? /* @__PURE__ */ Object.create(null) : annotations;
-      this._counter = 0;
-      this._size = 0;
-    }
-    ChangeAnnotations2.prototype.all = function() {
-      return this._annotations;
-    };
-    Object.defineProperty(ChangeAnnotations2.prototype, "size", {
-      get: function() {
-        return this._size;
-      },
-      enumerable: false,
-      configurable: true
-    });
-    ChangeAnnotations2.prototype.manage = function(idOrAnnotation, annotation) {
-      var id;
-      if (ChangeAnnotationIdentifier.is(idOrAnnotation)) {
-        id = idOrAnnotation;
-      } else {
-        id = this.nextId();
-        annotation = idOrAnnotation;
-      }
-      if (this._annotations[id] !== void 0) {
-        throw new Error("Id " + id + " is already in use.");
-      }
-      if (annotation === void 0) {
-        throw new Error("No annotation provided for id " + id);
-      }
-      this._annotations[id] = annotation;
-      this._size++;
+    this.edits.push(edit);
+    if (id !== void 0) {
       return id;
-    };
-    ChangeAnnotations2.prototype.nextId = function() {
-      this._counter++;
-      return this._counter.toString();
-    };
-    return ChangeAnnotations2;
-  }()
-);
-var WorkspaceChange = (
-  /** @class */
-  function() {
-    function WorkspaceChange2(workspaceEdit) {
-      var _this = this;
-      this._textEditChanges = /* @__PURE__ */ Object.create(null);
-      if (workspaceEdit !== void 0) {
-        this._workspaceEdit = workspaceEdit;
-        if (workspaceEdit.documentChanges) {
-          this._changeAnnotations = new ChangeAnnotations(workspaceEdit.changeAnnotations);
-          workspaceEdit.changeAnnotations = this._changeAnnotations.all();
-          workspaceEdit.documentChanges.forEach(function(change) {
-            if (TextDocumentEdit.is(change)) {
-              var textEditChange = new TextEditChangeImpl(change.edits, _this._changeAnnotations);
-              _this._textEditChanges[change.textDocument.uri] = textEditChange;
-            }
-          });
-        } else if (workspaceEdit.changes) {
-          Object.keys(workspaceEdit.changes).forEach(function(key) {
-            var textEditChange = new TextEditChangeImpl(workspaceEdit.changes[key]);
-            _this._textEditChanges[key] = textEditChange;
-          });
-        }
-      } else {
-        this._workspaceEdit = {};
-      }
     }
-    Object.defineProperty(WorkspaceChange2.prototype, "edit", {
-      /**
-       * Returns the underlying [WorkspaceEdit](#WorkspaceEdit) literal
-       * use to be returned from a workspace edit operation like rename.
-       */
-      get: function() {
-        this.initDocumentChanges();
-        if (this._changeAnnotations !== void 0) {
-          if (this._changeAnnotations.size === 0) {
-            this._workspaceEdit.changeAnnotations = void 0;
-          } else {
-            this._workspaceEdit.changeAnnotations = this._changeAnnotations.all();
+  };
+  TextEditChangeImpl2.prototype.replace = function(range, newText, annotation) {
+    var edit;
+    var id;
+    if (annotation === void 0) {
+      edit = TextEdit.replace(range, newText);
+    } else if (ChangeAnnotationIdentifier.is(annotation)) {
+      id = annotation;
+      edit = AnnotatedTextEdit.replace(range, newText, annotation);
+    } else {
+      this.assertChangeAnnotations(this.changeAnnotations);
+      id = this.changeAnnotations.manage(annotation);
+      edit = AnnotatedTextEdit.replace(range, newText, id);
+    }
+    this.edits.push(edit);
+    if (id !== void 0) {
+      return id;
+    }
+  };
+  TextEditChangeImpl2.prototype.delete = function(range, annotation) {
+    var edit;
+    var id;
+    if (annotation === void 0) {
+      edit = TextEdit.del(range);
+    } else if (ChangeAnnotationIdentifier.is(annotation)) {
+      id = annotation;
+      edit = AnnotatedTextEdit.del(range, annotation);
+    } else {
+      this.assertChangeAnnotations(this.changeAnnotations);
+      id = this.changeAnnotations.manage(annotation);
+      edit = AnnotatedTextEdit.del(range, id);
+    }
+    this.edits.push(edit);
+    if (id !== void 0) {
+      return id;
+    }
+  };
+  TextEditChangeImpl2.prototype.add = function(edit) {
+    this.edits.push(edit);
+  };
+  TextEditChangeImpl2.prototype.all = function() {
+    return this.edits;
+  };
+  TextEditChangeImpl2.prototype.clear = function() {
+    this.edits.splice(0, this.edits.length);
+  };
+  TextEditChangeImpl2.prototype.assertChangeAnnotations = function(value) {
+    if (value === void 0) {
+      throw new Error("Text edit change is not configured to manage change annotations.");
+    }
+  };
+  return TextEditChangeImpl2;
+}();
+var ChangeAnnotations = function() {
+  function ChangeAnnotations2(annotations) {
+    this._annotations = annotations === void 0 ? /* @__PURE__ */ Object.create(null) : annotations;
+    this._counter = 0;
+    this._size = 0;
+  }
+  ChangeAnnotations2.prototype.all = function() {
+    return this._annotations;
+  };
+  Object.defineProperty(ChangeAnnotations2.prototype, "size", {
+    get: function() {
+      return this._size;
+    },
+    enumerable: false,
+    configurable: true
+  });
+  ChangeAnnotations2.prototype.manage = function(idOrAnnotation, annotation) {
+    var id;
+    if (ChangeAnnotationIdentifier.is(idOrAnnotation)) {
+      id = idOrAnnotation;
+    } else {
+      id = this.nextId();
+      annotation = idOrAnnotation;
+    }
+    if (this._annotations[id] !== void 0) {
+      throw new Error("Id " + id + " is already in use.");
+    }
+    if (annotation === void 0) {
+      throw new Error("No annotation provided for id " + id);
+    }
+    this._annotations[id] = annotation;
+    this._size++;
+    return id;
+  };
+  ChangeAnnotations2.prototype.nextId = function() {
+    this._counter++;
+    return this._counter.toString();
+  };
+  return ChangeAnnotations2;
+}();
+var WorkspaceChange = function() {
+  function WorkspaceChange2(workspaceEdit) {
+    var _this = this;
+    this._textEditChanges = /* @__PURE__ */ Object.create(null);
+    if (workspaceEdit !== void 0) {
+      this._workspaceEdit = workspaceEdit;
+      if (workspaceEdit.documentChanges) {
+        this._changeAnnotations = new ChangeAnnotations(workspaceEdit.changeAnnotations);
+        workspaceEdit.changeAnnotations = this._changeAnnotations.all();
+        workspaceEdit.documentChanges.forEach(function(change) {
+          if (TextDocumentEdit.is(change)) {
+            var textEditChange = new TextEditChangeImpl(change.edits, _this._changeAnnotations);
+            _this._textEditChanges[change.textDocument.uri] = textEditChange;
           }
-        }
-        return this._workspaceEdit;
-      },
-      enumerable: false,
-      configurable: true
-    });
-    WorkspaceChange2.prototype.getTextEditChange = function(key) {
-      if (OptionalVersionedTextDocumentIdentifier.is(key)) {
-        this.initDocumentChanges();
-        if (this._workspaceEdit.documentChanges === void 0) {
-          throw new Error("Workspace edit is not configured for document changes.");
-        }
-        var textDocument = { uri: key.uri, version: key.version };
-        var result = this._textEditChanges[textDocument.uri];
-        if (!result) {
-          var edits = [];
-          var textDocumentEdit = {
-            textDocument,
-            edits
-          };
-          this._workspaceEdit.documentChanges.push(textDocumentEdit);
-          result = new TextEditChangeImpl(edits, this._changeAnnotations);
-          this._textEditChanges[textDocument.uri] = result;
-        }
-        return result;
-      } else {
-        this.initChanges();
-        if (this._workspaceEdit.changes === void 0) {
-          throw new Error("Workspace edit is not configured for normal text edit changes.");
-        }
-        var result = this._textEditChanges[key];
-        if (!result) {
-          var edits = [];
-          this._workspaceEdit.changes[key] = edits;
-          result = new TextEditChangeImpl(edits);
-          this._textEditChanges[key] = result;
-        }
-        return result;
+        });
+      } else if (workspaceEdit.changes) {
+        Object.keys(workspaceEdit.changes).forEach(function(key) {
+          var textEditChange = new TextEditChangeImpl(workspaceEdit.changes[key]);
+          _this._textEditChanges[key] = textEditChange;
+        });
       }
-    };
-    WorkspaceChange2.prototype.initDocumentChanges = function() {
-      if (this._workspaceEdit.documentChanges === void 0 && this._workspaceEdit.changes === void 0) {
-        this._changeAnnotations = new ChangeAnnotations();
-        this._workspaceEdit.documentChanges = [];
-        this._workspaceEdit.changeAnnotations = this._changeAnnotations.all();
+    } else {
+      this._workspaceEdit = {};
+    }
+  }
+  Object.defineProperty(WorkspaceChange2.prototype, "edit", {
+    get: function() {
+      this.initDocumentChanges();
+      if (this._changeAnnotations !== void 0) {
+        if (this._changeAnnotations.size === 0) {
+          this._workspaceEdit.changeAnnotations = void 0;
+        } else {
+          this._workspaceEdit.changeAnnotations = this._changeAnnotations.all();
+        }
       }
-    };
-    WorkspaceChange2.prototype.initChanges = function() {
-      if (this._workspaceEdit.documentChanges === void 0 && this._workspaceEdit.changes === void 0) {
-        this._workspaceEdit.changes = /* @__PURE__ */ Object.create(null);
-      }
-    };
-    WorkspaceChange2.prototype.createFile = function(uri, optionsOrAnnotation, options) {
+      return this._workspaceEdit;
+    },
+    enumerable: false,
+    configurable: true
+  });
+  WorkspaceChange2.prototype.getTextEditChange = function(key) {
+    if (OptionalVersionedTextDocumentIdentifier.is(key)) {
       this.initDocumentChanges();
       if (this._workspaceEdit.documentChanges === void 0) {
         throw new Error("Workspace edit is not configured for document changes.");
       }
-      var annotation;
-      if (ChangeAnnotation.is(optionsOrAnnotation) || ChangeAnnotationIdentifier.is(optionsOrAnnotation)) {
-        annotation = optionsOrAnnotation;
-      } else {
-        options = optionsOrAnnotation;
+      var textDocument = { uri: key.uri, version: key.version };
+      var result = this._textEditChanges[textDocument.uri];
+      if (!result) {
+        var edits = [];
+        var textDocumentEdit = {
+          textDocument,
+          edits
+        };
+        this._workspaceEdit.documentChanges.push(textDocumentEdit);
+        result = new TextEditChangeImpl(edits, this._changeAnnotations);
+        this._textEditChanges[textDocument.uri] = result;
       }
-      var operation;
-      var id;
-      if (annotation === void 0) {
-        operation = CreateFile.create(uri, options);
-      } else {
-        id = ChangeAnnotationIdentifier.is(annotation) ? annotation : this._changeAnnotations.manage(annotation);
-        operation = CreateFile.create(uri, options, id);
+      return result;
+    } else {
+      this.initChanges();
+      if (this._workspaceEdit.changes === void 0) {
+        throw new Error("Workspace edit is not configured for normal text edit changes.");
       }
-      this._workspaceEdit.documentChanges.push(operation);
-      if (id !== void 0) {
-        return id;
+      var result = this._textEditChanges[key];
+      if (!result) {
+        var edits = [];
+        this._workspaceEdit.changes[key] = edits;
+        result = new TextEditChangeImpl(edits);
+        this._textEditChanges[key] = result;
       }
-    };
-    WorkspaceChange2.prototype.renameFile = function(oldUri, newUri, optionsOrAnnotation, options) {
-      this.initDocumentChanges();
-      if (this._workspaceEdit.documentChanges === void 0) {
-        throw new Error("Workspace edit is not configured for document changes.");
-      }
-      var annotation;
-      if (ChangeAnnotation.is(optionsOrAnnotation) || ChangeAnnotationIdentifier.is(optionsOrAnnotation)) {
-        annotation = optionsOrAnnotation;
-      } else {
-        options = optionsOrAnnotation;
-      }
-      var operation;
-      var id;
-      if (annotation === void 0) {
-        operation = RenameFile.create(oldUri, newUri, options);
-      } else {
-        id = ChangeAnnotationIdentifier.is(annotation) ? annotation : this._changeAnnotations.manage(annotation);
-        operation = RenameFile.create(oldUri, newUri, options, id);
-      }
-      this._workspaceEdit.documentChanges.push(operation);
-      if (id !== void 0) {
-        return id;
-      }
-    };
-    WorkspaceChange2.prototype.deleteFile = function(uri, optionsOrAnnotation, options) {
-      this.initDocumentChanges();
-      if (this._workspaceEdit.documentChanges === void 0) {
-        throw new Error("Workspace edit is not configured for document changes.");
-      }
-      var annotation;
-      if (ChangeAnnotation.is(optionsOrAnnotation) || ChangeAnnotationIdentifier.is(optionsOrAnnotation)) {
-        annotation = optionsOrAnnotation;
-      } else {
-        options = optionsOrAnnotation;
-      }
-      var operation;
-      var id;
-      if (annotation === void 0) {
-        operation = DeleteFile.create(uri, options);
-      } else {
-        id = ChangeAnnotationIdentifier.is(annotation) ? annotation : this._changeAnnotations.manage(annotation);
-        operation = DeleteFile.create(uri, options, id);
-      }
-      this._workspaceEdit.documentChanges.push(operation);
-      if (id !== void 0) {
-        return id;
-      }
-    };
-    return WorkspaceChange2;
-  }()
-);
+      return result;
+    }
+  };
+  WorkspaceChange2.prototype.initDocumentChanges = function() {
+    if (this._workspaceEdit.documentChanges === void 0 && this._workspaceEdit.changes === void 0) {
+      this._changeAnnotations = new ChangeAnnotations();
+      this._workspaceEdit.documentChanges = [];
+      this._workspaceEdit.changeAnnotations = this._changeAnnotations.all();
+    }
+  };
+  WorkspaceChange2.prototype.initChanges = function() {
+    if (this._workspaceEdit.documentChanges === void 0 && this._workspaceEdit.changes === void 0) {
+      this._workspaceEdit.changes = /* @__PURE__ */ Object.create(null);
+    }
+  };
+  WorkspaceChange2.prototype.createFile = function(uri, optionsOrAnnotation, options) {
+    this.initDocumentChanges();
+    if (this._workspaceEdit.documentChanges === void 0) {
+      throw new Error("Workspace edit is not configured for document changes.");
+    }
+    var annotation;
+    if (ChangeAnnotation.is(optionsOrAnnotation) || ChangeAnnotationIdentifier.is(optionsOrAnnotation)) {
+      annotation = optionsOrAnnotation;
+    } else {
+      options = optionsOrAnnotation;
+    }
+    var operation;
+    var id;
+    if (annotation === void 0) {
+      operation = CreateFile.create(uri, options);
+    } else {
+      id = ChangeAnnotationIdentifier.is(annotation) ? annotation : this._changeAnnotations.manage(annotation);
+      operation = CreateFile.create(uri, options, id);
+    }
+    this._workspaceEdit.documentChanges.push(operation);
+    if (id !== void 0) {
+      return id;
+    }
+  };
+  WorkspaceChange2.prototype.renameFile = function(oldUri, newUri, optionsOrAnnotation, options) {
+    this.initDocumentChanges();
+    if (this._workspaceEdit.documentChanges === void 0) {
+      throw new Error("Workspace edit is not configured for document changes.");
+    }
+    var annotation;
+    if (ChangeAnnotation.is(optionsOrAnnotation) || ChangeAnnotationIdentifier.is(optionsOrAnnotation)) {
+      annotation = optionsOrAnnotation;
+    } else {
+      options = optionsOrAnnotation;
+    }
+    var operation;
+    var id;
+    if (annotation === void 0) {
+      operation = RenameFile.create(oldUri, newUri, options);
+    } else {
+      id = ChangeAnnotationIdentifier.is(annotation) ? annotation : this._changeAnnotations.manage(annotation);
+      operation = RenameFile.create(oldUri, newUri, options, id);
+    }
+    this._workspaceEdit.documentChanges.push(operation);
+    if (id !== void 0) {
+      return id;
+    }
+  };
+  WorkspaceChange2.prototype.deleteFile = function(uri, optionsOrAnnotation, options) {
+    this.initDocumentChanges();
+    if (this._workspaceEdit.documentChanges === void 0) {
+      throw new Error("Workspace edit is not configured for document changes.");
+    }
+    var annotation;
+    if (ChangeAnnotation.is(optionsOrAnnotation) || ChangeAnnotationIdentifier.is(optionsOrAnnotation)) {
+      annotation = optionsOrAnnotation;
+    } else {
+      options = optionsOrAnnotation;
+    }
+    var operation;
+    var id;
+    if (annotation === void 0) {
+      operation = DeleteFile.create(uri, options);
+    } else {
+      id = ChangeAnnotationIdentifier.is(annotation) ? annotation : this._changeAnnotations.manage(annotation);
+      operation = DeleteFile.create(uri, options, id);
+    }
+    this._workspaceEdit.documentChanges.push(operation);
+    if (id !== void 0) {
+      return id;
+    }
+  };
+  return WorkspaceChange2;
+}();
 var TextDocumentIdentifier;
 (function(TextDocumentIdentifier2) {
   function create(uri) {
@@ -20718,112 +20583,109 @@ var TextDocument;
     return data;
   }
 })(TextDocument || (TextDocument = {}));
-var FullTextDocument = (
-  /** @class */
-  function() {
-    function FullTextDocument3(uri, languageId, version, content) {
-      this._uri = uri;
-      this._languageId = languageId;
-      this._version = version;
-      this._content = content;
-      this._lineOffsets = void 0;
+var FullTextDocument = function() {
+  function FullTextDocument3(uri, languageId, version, content) {
+    this._uri = uri;
+    this._languageId = languageId;
+    this._version = version;
+    this._content = content;
+    this._lineOffsets = void 0;
+  }
+  Object.defineProperty(FullTextDocument3.prototype, "uri", {
+    get: function() {
+      return this._uri;
+    },
+    enumerable: false,
+    configurable: true
+  });
+  Object.defineProperty(FullTextDocument3.prototype, "languageId", {
+    get: function() {
+      return this._languageId;
+    },
+    enumerable: false,
+    configurable: true
+  });
+  Object.defineProperty(FullTextDocument3.prototype, "version", {
+    get: function() {
+      return this._version;
+    },
+    enumerable: false,
+    configurable: true
+  });
+  FullTextDocument3.prototype.getText = function(range) {
+    if (range) {
+      var start = this.offsetAt(range.start);
+      var end = this.offsetAt(range.end);
+      return this._content.substring(start, end);
     }
-    Object.defineProperty(FullTextDocument3.prototype, "uri", {
-      get: function() {
-        return this._uri;
-      },
-      enumerable: false,
-      configurable: true
-    });
-    Object.defineProperty(FullTextDocument3.prototype, "languageId", {
-      get: function() {
-        return this._languageId;
-      },
-      enumerable: false,
-      configurable: true
-    });
-    Object.defineProperty(FullTextDocument3.prototype, "version", {
-      get: function() {
-        return this._version;
-      },
-      enumerable: false,
-      configurable: true
-    });
-    FullTextDocument3.prototype.getText = function(range) {
-      if (range) {
-        var start = this.offsetAt(range.start);
-        var end = this.offsetAt(range.end);
-        return this._content.substring(start, end);
-      }
-      return this._content;
-    };
-    FullTextDocument3.prototype.update = function(event, version) {
-      this._content = event.text;
-      this._version = version;
-      this._lineOffsets = void 0;
-    };
-    FullTextDocument3.prototype.getLineOffsets = function() {
-      if (this._lineOffsets === void 0) {
-        var lineOffsets = [];
-        var text = this._content;
-        var isLineStart = true;
-        for (var i = 0; i < text.length; i++) {
-          if (isLineStart) {
-            lineOffsets.push(i);
-            isLineStart = false;
-          }
-          var ch = text.charAt(i);
-          isLineStart = ch === "\r" || ch === "\n";
-          if (ch === "\r" && i + 1 < text.length && text.charAt(i + 1) === "\n") {
-            i++;
-          }
+    return this._content;
+  };
+  FullTextDocument3.prototype.update = function(event, version) {
+    this._content = event.text;
+    this._version = version;
+    this._lineOffsets = void 0;
+  };
+  FullTextDocument3.prototype.getLineOffsets = function() {
+    if (this._lineOffsets === void 0) {
+      var lineOffsets = [];
+      var text = this._content;
+      var isLineStart = true;
+      for (var i = 0; i < text.length; i++) {
+        if (isLineStart) {
+          lineOffsets.push(i);
+          isLineStart = false;
         }
-        if (isLineStart && text.length > 0) {
-          lineOffsets.push(text.length);
-        }
-        this._lineOffsets = lineOffsets;
-      }
-      return this._lineOffsets;
-    };
-    FullTextDocument3.prototype.positionAt = function(offset) {
-      offset = Math.max(Math.min(offset, this._content.length), 0);
-      var lineOffsets = this.getLineOffsets();
-      var low = 0, high = lineOffsets.length;
-      if (high === 0) {
-        return Position.create(0, offset);
-      }
-      while (low < high) {
-        var mid = Math.floor((low + high) / 2);
-        if (lineOffsets[mid] > offset) {
-          high = mid;
-        } else {
-          low = mid + 1;
+        var ch = text.charAt(i);
+        isLineStart = ch === "\r" || ch === "\n";
+        if (ch === "\r" && i + 1 < text.length && text.charAt(i + 1) === "\n") {
+          i++;
         }
       }
-      var line = low - 1;
-      return Position.create(line, offset - lineOffsets[line]);
-    };
-    FullTextDocument3.prototype.offsetAt = function(position) {
-      var lineOffsets = this.getLineOffsets();
-      if (position.line >= lineOffsets.length) {
-        return this._content.length;
-      } else if (position.line < 0) {
-        return 0;
+      if (isLineStart && text.length > 0) {
+        lineOffsets.push(text.length);
       }
-      var lineOffset = lineOffsets[position.line];
-      var nextLineOffset = position.line + 1 < lineOffsets.length ? lineOffsets[position.line + 1] : this._content.length;
-      return Math.max(Math.min(lineOffset + position.character, nextLineOffset), lineOffset);
-    };
-    Object.defineProperty(FullTextDocument3.prototype, "lineCount", {
-      get: function() {
-        return this.getLineOffsets().length;
-      },
-      enumerable: false,
-      configurable: true
-    });
-    return FullTextDocument3;
-  }()
-);
+      this._lineOffsets = lineOffsets;
+    }
+    return this._lineOffsets;
+  };
+  FullTextDocument3.prototype.positionAt = function(offset) {
+    offset = Math.max(Math.min(offset, this._content.length), 0);
+    var lineOffsets = this.getLineOffsets();
+    var low = 0, high = lineOffsets.length;
+    if (high === 0) {
+      return Position.create(0, offset);
+    }
+    while (low < high) {
+      var mid = Math.floor((low + high) / 2);
+      if (lineOffsets[mid] > offset) {
+        high = mid;
+      } else {
+        low = mid + 1;
+      }
+    }
+    var line = low - 1;
+    return Position.create(line, offset - lineOffsets[line]);
+  };
+  FullTextDocument3.prototype.offsetAt = function(position) {
+    var lineOffsets = this.getLineOffsets();
+    if (position.line >= lineOffsets.length) {
+      return this._content.length;
+    } else if (position.line < 0) {
+      return 0;
+    }
+    var lineOffset = lineOffsets[position.line];
+    var nextLineOffset = position.line + 1 < lineOffsets.length ? lineOffsets[position.line + 1] : this._content.length;
+    return Math.max(Math.min(lineOffset + position.character, nextLineOffset), lineOffset);
+  };
+  Object.defineProperty(FullTextDocument3.prototype, "lineCount", {
+    get: function() {
+      return this.getLineOffsets().length;
+    },
+    enumerable: false,
+    configurable: true
+  });
+  return FullTextDocument3;
+}();
 var Is;
 (function(Is2) {
   var toString = Object.prototype.toString;
@@ -20874,7 +20736,7 @@ var Is;
 })(Is || (Is = {}));
 
 // node_modules/vscode-languageserver-textdocument/lib/esm/main.js
-var FullTextDocument2 = class _FullTextDocument {
+var FullTextDocument2 = class {
   constructor(uri, languageId, version, content) {
     this._uri = uri;
     this._languageId = languageId;
@@ -20901,7 +20763,7 @@ var FullTextDocument2 = class _FullTextDocument {
   }
   update(changes, version) {
     for (let change of changes) {
-      if (_FullTextDocument.isIncremental(change)) {
+      if (FullTextDocument2.isIncremental(change)) {
         const range = getWellformedRange(change.range);
         const startOffset = this.offsetAt(range.start);
         const endOffset = this.offsetAt(range.end);
@@ -20927,7 +20789,7 @@ var FullTextDocument2 = class _FullTextDocument {
             lineOffsets[i] = lineOffsets[i] + diff;
           }
         }
-      } else if (_FullTextDocument.isFull(change)) {
+      } else if (FullTextDocument2.isFull(change)) {
         this._content = change.text;
         this._lineOffsets = void 0;
       } else {
@@ -21141,7 +21003,7 @@ function loadMessageBundle(file) {
 }
 
 // node_modules/vscode-json-languageservice/lib/esm/parser/jsonParser.js
-var __extends = /* @__PURE__ */ function() {
+var __extends = function() {
   var extendStatics = function(d, b) {
     extendStatics = Object.setPrototypeOf || { __proto__: [] } instanceof Array && function(d2, b2) {
       d2.__proto__ = b2;
@@ -21173,144 +21035,120 @@ var formats = {
   "ipv4": { errorMessage: localize2("ipv4FormatWarning", "String is not an IPv4 address."), pattern: /^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/ },
   "ipv6": { errorMessage: localize2("ipv6FormatWarning", "String is not an IPv6 address."), pattern: /^((([0-9a-f]{1,4}:){7}([0-9a-f]{1,4}|:))|(([0-9a-f]{1,4}:){6}(:[0-9a-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9a-f]{1,4}:){5}(((:[0-9a-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9a-f]{1,4}:){4}(((:[0-9a-f]{1,4}){1,3})|((:[0-9a-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9a-f]{1,4}:){3}(((:[0-9a-f]{1,4}){1,4})|((:[0-9a-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9a-f]{1,4}:){2}(((:[0-9a-f]{1,4}){1,5})|((:[0-9a-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9a-f]{1,4}:){1}(((:[0-9a-f]{1,4}){1,6})|((:[0-9a-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9a-f]{1,4}){1,7})|((:[0-9a-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))$/i }
 };
-var ASTNodeImpl = (
-  /** @class */
-  function() {
-    function ASTNodeImpl2(parent, offset, length) {
-      if (length === void 0) {
-        length = 0;
-      }
-      this.offset = offset;
-      this.length = length;
-      this.parent = parent;
+var ASTNodeImpl = function() {
+  function ASTNodeImpl2(parent, offset, length) {
+    if (length === void 0) {
+      length = 0;
     }
-    Object.defineProperty(ASTNodeImpl2.prototype, "children", {
-      get: function() {
-        return [];
-      },
-      enumerable: false,
-      configurable: true
-    });
-    ASTNodeImpl2.prototype.toString = function() {
-      return "type: " + this.type + " (" + this.offset + "/" + this.length + ")" + (this.parent ? " parent: {" + this.parent.toString() + "}" : "");
-    };
-    return ASTNodeImpl2;
-  }()
-);
-var NullASTNodeImpl = (
-  /** @class */
-  function(_super) {
-    __extends(NullASTNodeImpl2, _super);
-    function NullASTNodeImpl2(parent, offset) {
-      var _this = _super.call(this, parent, offset) || this;
-      _this.type = "null";
-      _this.value = null;
-      return _this;
-    }
-    return NullASTNodeImpl2;
-  }(ASTNodeImpl)
-);
-var BooleanASTNodeImpl = (
-  /** @class */
-  function(_super) {
-    __extends(BooleanASTNodeImpl2, _super);
-    function BooleanASTNodeImpl2(parent, boolValue, offset) {
-      var _this = _super.call(this, parent, offset) || this;
-      _this.type = "boolean";
-      _this.value = boolValue;
-      return _this;
-    }
-    return BooleanASTNodeImpl2;
-  }(ASTNodeImpl)
-);
-var ArrayASTNodeImpl = (
-  /** @class */
-  function(_super) {
-    __extends(ArrayASTNodeImpl2, _super);
-    function ArrayASTNodeImpl2(parent, offset) {
-      var _this = _super.call(this, parent, offset) || this;
-      _this.type = "array";
-      _this.items = [];
-      return _this;
-    }
-    Object.defineProperty(ArrayASTNodeImpl2.prototype, "children", {
-      get: function() {
-        return this.items;
-      },
-      enumerable: false,
-      configurable: true
-    });
-    return ArrayASTNodeImpl2;
-  }(ASTNodeImpl)
-);
-var NumberASTNodeImpl = (
-  /** @class */
-  function(_super) {
-    __extends(NumberASTNodeImpl2, _super);
-    function NumberASTNodeImpl2(parent, offset) {
-      var _this = _super.call(this, parent, offset) || this;
-      _this.type = "number";
-      _this.isInteger = true;
-      _this.value = Number.NaN;
-      return _this;
-    }
-    return NumberASTNodeImpl2;
-  }(ASTNodeImpl)
-);
-var StringASTNodeImpl = (
-  /** @class */
-  function(_super) {
-    __extends(StringASTNodeImpl2, _super);
-    function StringASTNodeImpl2(parent, offset, length) {
-      var _this = _super.call(this, parent, offset, length) || this;
-      _this.type = "string";
-      _this.value = "";
-      return _this;
-    }
-    return StringASTNodeImpl2;
-  }(ASTNodeImpl)
-);
-var PropertyASTNodeImpl = (
-  /** @class */
-  function(_super) {
-    __extends(PropertyASTNodeImpl2, _super);
-    function PropertyASTNodeImpl2(parent, offset, keyNode) {
-      var _this = _super.call(this, parent, offset) || this;
-      _this.type = "property";
-      _this.colonOffset = -1;
-      _this.keyNode = keyNode;
-      return _this;
-    }
-    Object.defineProperty(PropertyASTNodeImpl2.prototype, "children", {
-      get: function() {
-        return this.valueNode ? [this.keyNode, this.valueNode] : [this.keyNode];
-      },
-      enumerable: false,
-      configurable: true
-    });
-    return PropertyASTNodeImpl2;
-  }(ASTNodeImpl)
-);
-var ObjectASTNodeImpl = (
-  /** @class */
-  function(_super) {
-    __extends(ObjectASTNodeImpl2, _super);
-    function ObjectASTNodeImpl2(parent, offset) {
-      var _this = _super.call(this, parent, offset) || this;
-      _this.type = "object";
-      _this.properties = [];
-      return _this;
-    }
-    Object.defineProperty(ObjectASTNodeImpl2.prototype, "children", {
-      get: function() {
-        return this.properties;
-      },
-      enumerable: false,
-      configurable: true
-    });
-    return ObjectASTNodeImpl2;
-  }(ASTNodeImpl)
-);
+    this.offset = offset;
+    this.length = length;
+    this.parent = parent;
+  }
+  Object.defineProperty(ASTNodeImpl2.prototype, "children", {
+    get: function() {
+      return [];
+    },
+    enumerable: false,
+    configurable: true
+  });
+  ASTNodeImpl2.prototype.toString = function() {
+    return "type: " + this.type + " (" + this.offset + "/" + this.length + ")" + (this.parent ? " parent: {" + this.parent.toString() + "}" : "");
+  };
+  return ASTNodeImpl2;
+}();
+var NullASTNodeImpl = function(_super) {
+  __extends(NullASTNodeImpl2, _super);
+  function NullASTNodeImpl2(parent, offset) {
+    var _this = _super.call(this, parent, offset) || this;
+    _this.type = "null";
+    _this.value = null;
+    return _this;
+  }
+  return NullASTNodeImpl2;
+}(ASTNodeImpl);
+var BooleanASTNodeImpl = function(_super) {
+  __extends(BooleanASTNodeImpl2, _super);
+  function BooleanASTNodeImpl2(parent, boolValue, offset) {
+    var _this = _super.call(this, parent, offset) || this;
+    _this.type = "boolean";
+    _this.value = boolValue;
+    return _this;
+  }
+  return BooleanASTNodeImpl2;
+}(ASTNodeImpl);
+var ArrayASTNodeImpl = function(_super) {
+  __extends(ArrayASTNodeImpl2, _super);
+  function ArrayASTNodeImpl2(parent, offset) {
+    var _this = _super.call(this, parent, offset) || this;
+    _this.type = "array";
+    _this.items = [];
+    return _this;
+  }
+  Object.defineProperty(ArrayASTNodeImpl2.prototype, "children", {
+    get: function() {
+      return this.items;
+    },
+    enumerable: false,
+    configurable: true
+  });
+  return ArrayASTNodeImpl2;
+}(ASTNodeImpl);
+var NumberASTNodeImpl = function(_super) {
+  __extends(NumberASTNodeImpl2, _super);
+  function NumberASTNodeImpl2(parent, offset) {
+    var _this = _super.call(this, parent, offset) || this;
+    _this.type = "number";
+    _this.isInteger = true;
+    _this.value = Number.NaN;
+    return _this;
+  }
+  return NumberASTNodeImpl2;
+}(ASTNodeImpl);
+var StringASTNodeImpl = function(_super) {
+  __extends(StringASTNodeImpl2, _super);
+  function StringASTNodeImpl2(parent, offset, length) {
+    var _this = _super.call(this, parent, offset, length) || this;
+    _this.type = "string";
+    _this.value = "";
+    return _this;
+  }
+  return StringASTNodeImpl2;
+}(ASTNodeImpl);
+var PropertyASTNodeImpl = function(_super) {
+  __extends(PropertyASTNodeImpl2, _super);
+  function PropertyASTNodeImpl2(parent, offset, keyNode) {
+    var _this = _super.call(this, parent, offset) || this;
+    _this.type = "property";
+    _this.colonOffset = -1;
+    _this.keyNode = keyNode;
+    return _this;
+  }
+  Object.defineProperty(PropertyASTNodeImpl2.prototype, "children", {
+    get: function() {
+      return this.valueNode ? [this.keyNode, this.valueNode] : [this.keyNode];
+    },
+    enumerable: false,
+    configurable: true
+  });
+  return PropertyASTNodeImpl2;
+}(ASTNodeImpl);
+var ObjectASTNodeImpl = function(_super) {
+  __extends(ObjectASTNodeImpl2, _super);
+  function ObjectASTNodeImpl2(parent, offset) {
+    var _this = _super.call(this, parent, offset) || this;
+    _this.type = "object";
+    _this.properties = [];
+    return _this;
+  }
+  Object.defineProperty(ObjectASTNodeImpl2.prototype, "children", {
+    get: function() {
+      return this.properties;
+    },
+    enumerable: false,
+    configurable: true
+  });
+  return ObjectASTNodeImpl2;
+}(ASTNodeImpl);
 function asSchema(schema) {
   if (isBoolean(schema)) {
     return schema ? {} : { "not": {} };
@@ -21322,123 +21160,114 @@ var EnumMatch;
   EnumMatch2[EnumMatch2["Key"] = 0] = "Key";
   EnumMatch2[EnumMatch2["Enum"] = 1] = "Enum";
 })(EnumMatch || (EnumMatch = {}));
-var SchemaCollector = (
-  /** @class */
-  function() {
-    function SchemaCollector2(focusOffset, exclude) {
-      if (focusOffset === void 0) {
-        focusOffset = -1;
-      }
-      this.focusOffset = focusOffset;
-      this.exclude = exclude;
-      this.schemas = [];
+var SchemaCollector = function() {
+  function SchemaCollector2(focusOffset, exclude) {
+    if (focusOffset === void 0) {
+      focusOffset = -1;
     }
-    SchemaCollector2.prototype.add = function(schema) {
-      this.schemas.push(schema);
-    };
-    SchemaCollector2.prototype.merge = function(other) {
-      Array.prototype.push.apply(this.schemas, other.schemas);
-    };
-    SchemaCollector2.prototype.include = function(node) {
-      return (this.focusOffset === -1 || contains2(node, this.focusOffset)) && node !== this.exclude;
-    };
-    SchemaCollector2.prototype.newSub = function() {
-      return new SchemaCollector2(-1, this.exclude);
-    };
-    return SchemaCollector2;
-  }()
-);
-var NoOpSchemaCollector = (
-  /** @class */
-  function() {
-    function NoOpSchemaCollector2() {
+    this.focusOffset = focusOffset;
+    this.exclude = exclude;
+    this.schemas = [];
+  }
+  SchemaCollector2.prototype.add = function(schema) {
+    this.schemas.push(schema);
+  };
+  SchemaCollector2.prototype.merge = function(other) {
+    Array.prototype.push.apply(this.schemas, other.schemas);
+  };
+  SchemaCollector2.prototype.include = function(node) {
+    return (this.focusOffset === -1 || contains2(node, this.focusOffset)) && node !== this.exclude;
+  };
+  SchemaCollector2.prototype.newSub = function() {
+    return new SchemaCollector2(-1, this.exclude);
+  };
+  return SchemaCollector2;
+}();
+var NoOpSchemaCollector = function() {
+  function NoOpSchemaCollector2() {
+  }
+  Object.defineProperty(NoOpSchemaCollector2.prototype, "schemas", {
+    get: function() {
+      return [];
+    },
+    enumerable: false,
+    configurable: true
+  });
+  NoOpSchemaCollector2.prototype.add = function(schema) {
+  };
+  NoOpSchemaCollector2.prototype.merge = function(other) {
+  };
+  NoOpSchemaCollector2.prototype.include = function(node) {
+    return true;
+  };
+  NoOpSchemaCollector2.prototype.newSub = function() {
+    return this;
+  };
+  NoOpSchemaCollector2.instance = new NoOpSchemaCollector2();
+  return NoOpSchemaCollector2;
+}();
+var ValidationResult = function() {
+  function ValidationResult2() {
+    this.problems = [];
+    this.propertiesMatches = 0;
+    this.propertiesValueMatches = 0;
+    this.primaryValueMatches = 0;
+    this.enumValueMatch = false;
+    this.enumValues = void 0;
+  }
+  ValidationResult2.prototype.hasProblems = function() {
+    return !!this.problems.length;
+  };
+  ValidationResult2.prototype.mergeAll = function(validationResults) {
+    for (var _i = 0, validationResults_1 = validationResults; _i < validationResults_1.length; _i++) {
+      var validationResult = validationResults_1[_i];
+      this.merge(validationResult);
     }
-    Object.defineProperty(NoOpSchemaCollector2.prototype, "schemas", {
-      get: function() {
-        return [];
-      },
-      enumerable: false,
-      configurable: true
-    });
-    NoOpSchemaCollector2.prototype.add = function(schema) {
-    };
-    NoOpSchemaCollector2.prototype.merge = function(other) {
-    };
-    NoOpSchemaCollector2.prototype.include = function(node) {
-      return true;
-    };
-    NoOpSchemaCollector2.prototype.newSub = function() {
-      return this;
-    };
-    NoOpSchemaCollector2.instance = new NoOpSchemaCollector2();
-    return NoOpSchemaCollector2;
-  }()
-);
-var ValidationResult = (
-  /** @class */
-  function() {
-    function ValidationResult2() {
-      this.problems = [];
-      this.propertiesMatches = 0;
-      this.propertiesValueMatches = 0;
-      this.primaryValueMatches = 0;
-      this.enumValueMatch = false;
-      this.enumValues = void 0;
-    }
-    ValidationResult2.prototype.hasProblems = function() {
-      return !!this.problems.length;
-    };
-    ValidationResult2.prototype.mergeAll = function(validationResults) {
-      for (var _i = 0, validationResults_1 = validationResults; _i < validationResults_1.length; _i++) {
-        var validationResult = validationResults_1[_i];
-        this.merge(validationResult);
-      }
-    };
-    ValidationResult2.prototype.merge = function(validationResult) {
-      this.problems = this.problems.concat(validationResult.problems);
-    };
-    ValidationResult2.prototype.mergeEnumValues = function(validationResult) {
-      if (!this.enumValueMatch && !validationResult.enumValueMatch && this.enumValues && validationResult.enumValues) {
-        this.enumValues = this.enumValues.concat(validationResult.enumValues);
-        for (var _i = 0, _a = this.problems; _i < _a.length; _i++) {
-          var error = _a[_i];
-          if (error.code === ErrorCode.EnumValueMismatch) {
-            error.message = localize2("enumWarning", "Value is not accepted. Valid values: {0}.", this.enumValues.map(function(v) {
-              return JSON.stringify(v);
-            }).join(", "));
-          }
+  };
+  ValidationResult2.prototype.merge = function(validationResult) {
+    this.problems = this.problems.concat(validationResult.problems);
+  };
+  ValidationResult2.prototype.mergeEnumValues = function(validationResult) {
+    if (!this.enumValueMatch && !validationResult.enumValueMatch && this.enumValues && validationResult.enumValues) {
+      this.enumValues = this.enumValues.concat(validationResult.enumValues);
+      for (var _i = 0, _a = this.problems; _i < _a.length; _i++) {
+        var error = _a[_i];
+        if (error.code === ErrorCode.EnumValueMismatch) {
+          error.message = localize2("enumWarning", "Value is not accepted. Valid values: {0}.", this.enumValues.map(function(v) {
+            return JSON.stringify(v);
+          }).join(", "));
         }
       }
-    };
-    ValidationResult2.prototype.mergePropertyMatch = function(propertyValidationResult) {
-      this.merge(propertyValidationResult);
-      this.propertiesMatches++;
-      if (propertyValidationResult.enumValueMatch || !propertyValidationResult.hasProblems() && propertyValidationResult.propertiesMatches) {
-        this.propertiesValueMatches++;
-      }
-      if (propertyValidationResult.enumValueMatch && propertyValidationResult.enumValues && propertyValidationResult.enumValues.length === 1) {
-        this.primaryValueMatches++;
-      }
-    };
-    ValidationResult2.prototype.compare = function(other) {
-      var hasProblems = this.hasProblems();
-      if (hasProblems !== other.hasProblems()) {
-        return hasProblems ? -1 : 1;
-      }
-      if (this.enumValueMatch !== other.enumValueMatch) {
-        return other.enumValueMatch ? -1 : 1;
-      }
-      if (this.primaryValueMatches !== other.primaryValueMatches) {
-        return this.primaryValueMatches - other.primaryValueMatches;
-      }
-      if (this.propertiesValueMatches !== other.propertiesValueMatches) {
-        return this.propertiesValueMatches - other.propertiesValueMatches;
-      }
-      return this.propertiesMatches - other.propertiesMatches;
-    };
-    return ValidationResult2;
-  }()
-);
+    }
+  };
+  ValidationResult2.prototype.mergePropertyMatch = function(propertyValidationResult) {
+    this.merge(propertyValidationResult);
+    this.propertiesMatches++;
+    if (propertyValidationResult.enumValueMatch || !propertyValidationResult.hasProblems() && propertyValidationResult.propertiesMatches) {
+      this.propertiesValueMatches++;
+    }
+    if (propertyValidationResult.enumValueMatch && propertyValidationResult.enumValues && propertyValidationResult.enumValues.length === 1) {
+      this.primaryValueMatches++;
+    }
+  };
+  ValidationResult2.prototype.compare = function(other) {
+    var hasProblems = this.hasProblems();
+    if (hasProblems !== other.hasProblems()) {
+      return hasProblems ? -1 : 1;
+    }
+    if (this.enumValueMatch !== other.enumValueMatch) {
+      return other.enumValueMatch ? -1 : 1;
+    }
+    if (this.primaryValueMatches !== other.primaryValueMatches) {
+      return this.primaryValueMatches - other.primaryValueMatches;
+    }
+    if (this.propertiesValueMatches !== other.propertiesValueMatches) {
+      return this.propertiesValueMatches - other.propertiesValueMatches;
+    }
+    return this.propertiesMatches - other.propertiesMatches;
+  };
+  return ValidationResult2;
+}();
 function newJSONDocument(root, diagnostics) {
   if (diagnostics === void 0) {
     diagnostics = [];
@@ -21457,72 +21286,69 @@ function contains2(node, offset, includeRightBound) {
   }
   return offset >= node.offset && offset < node.offset + node.length || includeRightBound && offset === node.offset + node.length;
 }
-var JSONDocument = (
-  /** @class */
-  function() {
-    function JSONDocument2(root, syntaxErrors, comments) {
-      if (syntaxErrors === void 0) {
-        syntaxErrors = [];
-      }
-      if (comments === void 0) {
-        comments = [];
-      }
-      this.root = root;
-      this.syntaxErrors = syntaxErrors;
-      this.comments = comments;
+var JSONDocument = function() {
+  function JSONDocument2(root, syntaxErrors, comments) {
+    if (syntaxErrors === void 0) {
+      syntaxErrors = [];
     }
-    JSONDocument2.prototype.getNodeFromOffset = function(offset, includeRightBound) {
-      if (includeRightBound === void 0) {
-        includeRightBound = false;
-      }
-      if (this.root) {
-        return findNodeAtOffset2(this.root, offset, includeRightBound);
-      }
-      return void 0;
-    };
-    JSONDocument2.prototype.visit = function(visitor) {
-      if (this.root) {
-        var doVisit_1 = function(node) {
-          var ctn = visitor(node);
-          var children = node.children;
-          if (Array.isArray(children)) {
-            for (var i = 0; i < children.length && ctn; i++) {
-              ctn = doVisit_1(children[i]);
-            }
+    if (comments === void 0) {
+      comments = [];
+    }
+    this.root = root;
+    this.syntaxErrors = syntaxErrors;
+    this.comments = comments;
+  }
+  JSONDocument2.prototype.getNodeFromOffset = function(offset, includeRightBound) {
+    if (includeRightBound === void 0) {
+      includeRightBound = false;
+    }
+    if (this.root) {
+      return findNodeAtOffset2(this.root, offset, includeRightBound);
+    }
+    return void 0;
+  };
+  JSONDocument2.prototype.visit = function(visitor) {
+    if (this.root) {
+      var doVisit_1 = function(node) {
+        var ctn = visitor(node);
+        var children = node.children;
+        if (Array.isArray(children)) {
+          for (var i = 0; i < children.length && ctn; i++) {
+            ctn = doVisit_1(children[i]);
           }
-          return ctn;
-        };
-        doVisit_1(this.root);
-      }
-    };
-    JSONDocument2.prototype.validate = function(textDocument, schema, severity) {
-      if (severity === void 0) {
-        severity = DiagnosticSeverity.Warning;
-      }
-      if (this.root && schema) {
-        var validationResult = new ValidationResult();
-        validate(this.root, schema, validationResult, NoOpSchemaCollector.instance);
-        return validationResult.problems.map(function(p) {
-          var _a;
-          var range = Range.create(textDocument.positionAt(p.location.offset), textDocument.positionAt(p.location.offset + p.location.length));
-          return Diagnostic.create(range, p.message, (_a = p.severity) !== null && _a !== void 0 ? _a : severity, p.code);
-        });
-      }
-      return void 0;
-    };
-    JSONDocument2.prototype.getMatchingSchemas = function(schema, focusOffset, exclude) {
-      if (focusOffset === void 0) {
-        focusOffset = -1;
-      }
-      var matchingSchemas = new SchemaCollector(focusOffset, exclude);
-      if (this.root && schema) {
-        validate(this.root, schema, new ValidationResult(), matchingSchemas);
-      }
-      return matchingSchemas.schemas;
-    };
-    return JSONDocument2;
-  }()
-);
+        }
+        return ctn;
+      };
+      doVisit_1(this.root);
+    }
+  };
+  JSONDocument2.prototype.validate = function(textDocument, schema, severity) {
+    if (severity === void 0) {
+      severity = DiagnosticSeverity.Warning;
+    }
+    if (this.root && schema) {
+      var validationResult = new ValidationResult();
+      validate(this.root, schema, validationResult, NoOpSchemaCollector.instance);
+      return validationResult.problems.map(function(p) {
+        var _a;
+        var range = Range.create(textDocument.positionAt(p.location.offset), textDocument.positionAt(p.location.offset + p.location.length));
+        return Diagnostic.create(range, p.message, (_a = p.severity) !== null && _a !== void 0 ? _a : severity, p.code);
+      });
+    }
+    return void 0;
+  };
+  JSONDocument2.prototype.getMatchingSchemas = function(schema, focusOffset, exclude) {
+    if (focusOffset === void 0) {
+      focusOffset = -1;
+    }
+    var matchingSchemas = new SchemaCollector(focusOffset, exclude);
+    if (this.root && schema) {
+      validate(this.root, schema, new ValidationResult(), matchingSchemas);
+    }
+    return matchingSchemas.schemas;
+  };
+  return JSONDocument2;
+}();
 function validate(n, schema, validationResult, matchingSchemas) {
   if (!n || !matchingSchemas.include(n)) {
     return;
@@ -22237,11 +22063,7 @@ function parse3(textDocument, config) {
       }
       var item = _parseValue(node);
       if (!item) {
-        _error(localize2("PropertyExpected", "Value expected"), ErrorCode.ValueExpected, void 0, [], [
-          4,
-          5
-          /* CommaToken */
-        ]);
+        _error(localize2("PropertyExpected", "Value expected"), ErrorCode.ValueExpected, void 0, [], [4, 5]);
       } else {
         node.items.push(item);
       }
@@ -22290,11 +22112,7 @@ function parse3(textDocument, config) {
     }
     var value = _parseValue(node);
     if (!value) {
-      return _error(localize2("ValueExpected", "Value expected"), ErrorCode.ValueExpected, node, [], [
-        2,
-        5
-        /* CommaToken */
-      ]);
+      return _error(localize2("ValueExpected", "Value expected"), ErrorCode.ValueExpected, node, [], [2, 5]);
     }
     node.valueNode = value;
     node.length = value.offset + value.length - node.offset;
@@ -22326,11 +22144,7 @@ function parse3(textDocument, config) {
       }
       var property = _parseProperty(node, keysSeen);
       if (!property) {
-        _error(localize2("PropertyExpected", "Property expected"), ErrorCode.PropertyExpected, void 0, [], [
-          2,
-          5
-          /* CommaToken */
-        ]);
+        _error(localize2("PropertyExpected", "Property expected"), ErrorCode.PropertyExpected, void 0, [], [2, 5]);
       } else {
         node.properties.push(property);
       }
@@ -22441,234 +22255,205 @@ function stringifyObject(obj, indent, stringifyLiteral) {
 var localize3 = loadMessageBundle();
 var valueCommitCharacters = [",", "}", "]"];
 var propertyCommitCharacters = [":"];
-var JSONCompletion = (
-  /** @class */
-  function() {
-    function JSONCompletion2(schemaService, contributions, promiseConstructor, clientCapabilities) {
-      if (contributions === void 0) {
-        contributions = [];
-      }
-      if (promiseConstructor === void 0) {
-        promiseConstructor = Promise;
-      }
-      if (clientCapabilities === void 0) {
-        clientCapabilities = {};
-      }
-      this.schemaService = schemaService;
-      this.contributions = contributions;
-      this.promiseConstructor = promiseConstructor;
-      this.clientCapabilities = clientCapabilities;
+var JSONCompletion = function() {
+  function JSONCompletion2(schemaService, contributions, promiseConstructor, clientCapabilities) {
+    if (contributions === void 0) {
+      contributions = [];
     }
-    JSONCompletion2.prototype.doResolve = function(item) {
-      for (var i = this.contributions.length - 1; i >= 0; i--) {
-        var resolveCompletion = this.contributions[i].resolveCompletion;
-        if (resolveCompletion) {
-          var resolver = resolveCompletion(item);
-          if (resolver) {
-            return resolver;
-          }
+    if (promiseConstructor === void 0) {
+      promiseConstructor = Promise;
+    }
+    if (clientCapabilities === void 0) {
+      clientCapabilities = {};
+    }
+    this.schemaService = schemaService;
+    this.contributions = contributions;
+    this.promiseConstructor = promiseConstructor;
+    this.clientCapabilities = clientCapabilities;
+  }
+  JSONCompletion2.prototype.doResolve = function(item) {
+    for (var i = this.contributions.length - 1; i >= 0; i--) {
+      var resolveCompletion = this.contributions[i].resolveCompletion;
+      if (resolveCompletion) {
+        var resolver = resolveCompletion(item);
+        if (resolver) {
+          return resolver;
         }
       }
-      return this.promiseConstructor.resolve(item);
+    }
+    return this.promiseConstructor.resolve(item);
+  };
+  JSONCompletion2.prototype.doComplete = function(document, position, doc) {
+    var _this = this;
+    var result = {
+      items: [],
+      isIncomplete: false
     };
-    JSONCompletion2.prototype.doComplete = function(document, position, doc) {
-      var _this = this;
-      var result = {
-        items: [],
-        isIncomplete: false
-      };
-      var text = document.getText();
-      var offset = document.offsetAt(position);
-      var node = doc.getNodeFromOffset(offset, true);
-      if (this.isInComment(document, node ? node.offset : 0, offset)) {
-        return Promise.resolve(result);
+    var text = document.getText();
+    var offset = document.offsetAt(position);
+    var node = doc.getNodeFromOffset(offset, true);
+    if (this.isInComment(document, node ? node.offset : 0, offset)) {
+      return Promise.resolve(result);
+    }
+    if (node && offset === node.offset + node.length && offset > 0) {
+      var ch = text[offset - 1];
+      if (node.type === "object" && ch === "}" || node.type === "array" && ch === "]") {
+        node = node.parent;
       }
-      if (node && offset === node.offset + node.length && offset > 0) {
-        var ch = text[offset - 1];
-        if (node.type === "object" && ch === "}" || node.type === "array" && ch === "]") {
-          node = node.parent;
-        }
+    }
+    var currentWord = this.getCurrentWord(document, offset);
+    var overwriteRange;
+    if (node && (node.type === "string" || node.type === "number" || node.type === "boolean" || node.type === "null")) {
+      overwriteRange = Range.create(document.positionAt(node.offset), document.positionAt(node.offset + node.length));
+    } else {
+      var overwriteStart = offset - currentWord.length;
+      if (overwriteStart > 0 && text[overwriteStart - 1] === '"') {
+        overwriteStart--;
       }
-      var currentWord = this.getCurrentWord(document, offset);
-      var overwriteRange;
-      if (node && (node.type === "string" || node.type === "number" || node.type === "boolean" || node.type === "null")) {
-        overwriteRange = Range.create(document.positionAt(node.offset), document.positionAt(node.offset + node.length));
-      } else {
-        var overwriteStart = offset - currentWord.length;
-        if (overwriteStart > 0 && text[overwriteStart - 1] === '"') {
-          overwriteStart--;
-        }
-        overwriteRange = Range.create(document.positionAt(overwriteStart), position);
-      }
-      var supportsCommitCharacters = false;
-      var proposed = {};
-      var collector = {
-        add: function(suggestion) {
-          var label = suggestion.label;
-          var existing = proposed[label];
-          if (!existing) {
-            label = label.replace(/[\n]/g, "\u21B5");
-            if (label.length > 60) {
-              var shortendedLabel = label.substr(0, 57).trim() + "...";
-              if (!proposed[shortendedLabel]) {
-                label = shortendedLabel;
-              }
-            }
-            if (overwriteRange && suggestion.insertText !== void 0) {
-              suggestion.textEdit = TextEdit.replace(overwriteRange, suggestion.insertText);
-            }
-            if (supportsCommitCharacters) {
-              suggestion.commitCharacters = suggestion.kind === CompletionItemKind.Property ? propertyCommitCharacters : valueCommitCharacters;
-            }
-            suggestion.label = label;
-            proposed[label] = suggestion;
-            result.items.push(suggestion);
-          } else {
-            if (!existing.documentation) {
-              existing.documentation = suggestion.documentation;
-            }
-            if (!existing.detail) {
-              existing.detail = suggestion.detail;
+      overwriteRange = Range.create(document.positionAt(overwriteStart), position);
+    }
+    var supportsCommitCharacters = false;
+    var proposed = {};
+    var collector = {
+      add: function(suggestion) {
+        var label = suggestion.label;
+        var existing = proposed[label];
+        if (!existing) {
+          label = label.replace(/[\n]/g, "\u21B5");
+          if (label.length > 60) {
+            var shortendedLabel = label.substr(0, 57).trim() + "...";
+            if (!proposed[shortendedLabel]) {
+              label = shortendedLabel;
             }
           }
-        },
-        setAsIncomplete: function() {
-          result.isIncomplete = true;
-        },
-        error: function(message) {
-          console.error(message);
-        },
-        log: function(message) {
-          console.log(message);
-        },
-        getNumberOfProposals: function() {
-          return result.items.length;
-        }
-      };
-      return this.schemaService.getSchemaForResource(document.uri, doc).then(function(schema) {
-        var collectionPromises = [];
-        var addValue = true;
-        var currentKey = "";
-        var currentProperty = void 0;
-        if (node) {
-          if (node.type === "string") {
-            var parent = node.parent;
-            if (parent && parent.type === "property" && parent.keyNode === node) {
-              addValue = !parent.valueNode;
-              currentProperty = parent;
-              currentKey = text.substr(node.offset + 1, node.length - 2);
-              if (parent) {
-                node = parent.parent;
-              }
-            }
+          if (overwriteRange && suggestion.insertText !== void 0) {
+            suggestion.textEdit = TextEdit.replace(overwriteRange, suggestion.insertText);
           }
-        }
-        if (node && node.type === "object") {
-          if (node.offset === offset) {
-            return result;
+          if (supportsCommitCharacters) {
+            suggestion.commitCharacters = suggestion.kind === CompletionItemKind.Property ? propertyCommitCharacters : valueCommitCharacters;
           }
-          var properties = node.properties;
-          properties.forEach(function(p) {
-            if (!currentProperty || currentProperty !== p) {
-              proposed[p.keyNode.value] = CompletionItem.create("__");
-            }
-          });
-          var separatorAfter_1 = "";
-          if (addValue) {
-            separatorAfter_1 = _this.evaluateSeparatorAfter(document, document.offsetAt(overwriteRange.end));
-          }
-          if (schema) {
-            _this.getPropertyCompletions(schema, doc, node, addValue, separatorAfter_1, collector);
-          } else {
-            _this.getSchemaLessPropertyCompletions(doc, node, currentKey, collector);
-          }
-          var location_1 = getNodePath3(node);
-          _this.contributions.forEach(function(contribution) {
-            var collectPromise = contribution.collectPropertyCompletions(document.uri, location_1, currentWord, addValue, separatorAfter_1 === "", collector);
-            if (collectPromise) {
-              collectionPromises.push(collectPromise);
-            }
-          });
-          if (!schema && currentWord.length > 0 && text.charAt(offset - currentWord.length - 1) !== '"') {
-            collector.add({
-              kind: CompletionItemKind.Property,
-              label: _this.getLabelForValue(currentWord),
-              insertText: _this.getInsertTextForProperty(currentWord, void 0, false, separatorAfter_1),
-              insertTextFormat: InsertTextFormat.Snippet,
-              documentation: ""
-            });
-            collector.setAsIncomplete();
-          }
-        }
-        var types = {};
-        if (schema) {
-          _this.getValueCompletions(schema, doc, node, offset, document, collector, types);
+          suggestion.label = label;
+          proposed[label] = suggestion;
+          result.items.push(suggestion);
         } else {
-          _this.getSchemaLessValueCompletions(doc, node, offset, document, collector);
-        }
-        if (_this.contributions.length > 0) {
-          _this.getContributedValueCompletions(doc, node, offset, document, collector, collectionPromises);
-        }
-        return _this.promiseConstructor.all(collectionPromises).then(function() {
-          if (collector.getNumberOfProposals() === 0) {
-            var offsetForSeparator = offset;
-            if (node && (node.type === "string" || node.type === "number" || node.type === "boolean" || node.type === "null")) {
-              offsetForSeparator = node.offset + node.length;
-            }
-            var separatorAfter = _this.evaluateSeparatorAfter(document, offsetForSeparator);
-            _this.addFillerValueCompletions(types, separatorAfter, collector);
+          if (!existing.documentation) {
+            existing.documentation = suggestion.documentation;
           }
-          return result;
-        });
-      });
+          if (!existing.detail) {
+            existing.detail = suggestion.detail;
+          }
+        }
+      },
+      setAsIncomplete: function() {
+        result.isIncomplete = true;
+      },
+      error: function(message) {
+        console.error(message);
+      },
+      log: function(message) {
+        console.log(message);
+      },
+      getNumberOfProposals: function() {
+        return result.items.length;
+      }
     };
-    JSONCompletion2.prototype.getPropertyCompletions = function(schema, doc, node, addValue, separatorAfter, collector) {
-      var _this = this;
-      var matchingSchemas = doc.getMatchingSchemas(schema.schema, node.offset);
-      matchingSchemas.forEach(function(s) {
-        if (s.node === node && !s.inverted) {
-          var schemaProperties_1 = s.schema.properties;
-          if (schemaProperties_1) {
-            Object.keys(schemaProperties_1).forEach(function(key) {
-              var propertySchema = schemaProperties_1[key];
-              if (typeof propertySchema === "object" && !propertySchema.deprecationMessage && !propertySchema.doNotSuggest) {
-                var proposal = {
-                  kind: CompletionItemKind.Property,
-                  label: key,
-                  insertText: _this.getInsertTextForProperty(key, propertySchema, addValue, separatorAfter),
-                  insertTextFormat: InsertTextFormat.Snippet,
-                  filterText: _this.getFilterTextForValue(key),
-                  documentation: _this.fromMarkup(propertySchema.markdownDescription) || propertySchema.description || ""
-                };
-                if (propertySchema.suggestSortText !== void 0) {
-                  proposal.sortText = propertySchema.suggestSortText;
-                }
-                if (proposal.insertText && endsWith(proposal.insertText, "$1".concat(separatorAfter))) {
-                  proposal.command = {
-                    title: "Suggest",
-                    command: "editor.action.triggerSuggest"
-                  };
-                }
-                collector.add(proposal);
-              }
-            });
+    return this.schemaService.getSchemaForResource(document.uri, doc).then(function(schema) {
+      var collectionPromises = [];
+      var addValue = true;
+      var currentKey = "";
+      var currentProperty = void 0;
+      if (node) {
+        if (node.type === "string") {
+          var parent = node.parent;
+          if (parent && parent.type === "property" && parent.keyNode === node) {
+            addValue = !parent.valueNode;
+            currentProperty = parent;
+            currentKey = text.substr(node.offset + 1, node.length - 2);
+            if (parent) {
+              node = parent.parent;
+            }
           }
-          var schemaPropertyNames_1 = s.schema.propertyNames;
-          if (typeof schemaPropertyNames_1 === "object" && !schemaPropertyNames_1.deprecationMessage && !schemaPropertyNames_1.doNotSuggest) {
-            var propertyNameCompletionItem = function(name, enumDescription2) {
-              if (enumDescription2 === void 0) {
-                enumDescription2 = void 0;
-              }
+        }
+      }
+      if (node && node.type === "object") {
+        if (node.offset === offset) {
+          return result;
+        }
+        var properties = node.properties;
+        properties.forEach(function(p) {
+          if (!currentProperty || currentProperty !== p) {
+            proposed[p.keyNode.value] = CompletionItem.create("__");
+          }
+        });
+        var separatorAfter_1 = "";
+        if (addValue) {
+          separatorAfter_1 = _this.evaluateSeparatorAfter(document, document.offsetAt(overwriteRange.end));
+        }
+        if (schema) {
+          _this.getPropertyCompletions(schema, doc, node, addValue, separatorAfter_1, collector);
+        } else {
+          _this.getSchemaLessPropertyCompletions(doc, node, currentKey, collector);
+        }
+        var location_1 = getNodePath3(node);
+        _this.contributions.forEach(function(contribution) {
+          var collectPromise = contribution.collectPropertyCompletions(document.uri, location_1, currentWord, addValue, separatorAfter_1 === "", collector);
+          if (collectPromise) {
+            collectionPromises.push(collectPromise);
+          }
+        });
+        if (!schema && currentWord.length > 0 && text.charAt(offset - currentWord.length - 1) !== '"') {
+          collector.add({
+            kind: CompletionItemKind.Property,
+            label: _this.getLabelForValue(currentWord),
+            insertText: _this.getInsertTextForProperty(currentWord, void 0, false, separatorAfter_1),
+            insertTextFormat: InsertTextFormat.Snippet,
+            documentation: ""
+          });
+          collector.setAsIncomplete();
+        }
+      }
+      var types = {};
+      if (schema) {
+        _this.getValueCompletions(schema, doc, node, offset, document, collector, types);
+      } else {
+        _this.getSchemaLessValueCompletions(doc, node, offset, document, collector);
+      }
+      if (_this.contributions.length > 0) {
+        _this.getContributedValueCompletions(doc, node, offset, document, collector, collectionPromises);
+      }
+      return _this.promiseConstructor.all(collectionPromises).then(function() {
+        if (collector.getNumberOfProposals() === 0) {
+          var offsetForSeparator = offset;
+          if (node && (node.type === "string" || node.type === "number" || node.type === "boolean" || node.type === "null")) {
+            offsetForSeparator = node.offset + node.length;
+          }
+          var separatorAfter = _this.evaluateSeparatorAfter(document, offsetForSeparator);
+          _this.addFillerValueCompletions(types, separatorAfter, collector);
+        }
+        return result;
+      });
+    });
+  };
+  JSONCompletion2.prototype.getPropertyCompletions = function(schema, doc, node, addValue, separatorAfter, collector) {
+    var _this = this;
+    var matchingSchemas = doc.getMatchingSchemas(schema.schema, node.offset);
+    matchingSchemas.forEach(function(s) {
+      if (s.node === node && !s.inverted) {
+        var schemaProperties_1 = s.schema.properties;
+        if (schemaProperties_1) {
+          Object.keys(schemaProperties_1).forEach(function(key) {
+            var propertySchema = schemaProperties_1[key];
+            if (typeof propertySchema === "object" && !propertySchema.deprecationMessage && !propertySchema.doNotSuggest) {
               var proposal = {
                 kind: CompletionItemKind.Property,
-                label: name,
-                insertText: _this.getInsertTextForProperty(name, void 0, addValue, separatorAfter),
+                label: key,
+                insertText: _this.getInsertTextForProperty(key, propertySchema, addValue, separatorAfter),
                 insertTextFormat: InsertTextFormat.Snippet,
-                filterText: _this.getFilterTextForValue(name),
-                documentation: enumDescription2 || _this.fromMarkup(schemaPropertyNames_1.markdownDescription) || schemaPropertyNames_1.description || ""
+                filterText: _this.getFilterTextForValue(key),
+                documentation: _this.fromMarkup(propertySchema.markdownDescription) || propertySchema.description || ""
               };
-              if (schemaPropertyNames_1.suggestSortText !== void 0) {
-                proposal.sortText = schemaPropertyNames_1.suggestSortText;
+              if (propertySchema.suggestSortText !== void 0) {
+                proposal.sortText = propertySchema.suggestSortText;
               }
               if (proposal.insertText && endsWith(proposal.insertText, "$1".concat(separatorAfter))) {
                 proposal.command = {
@@ -22677,788 +22462,811 @@ var JSONCompletion = (
                 };
               }
               collector.add(proposal);
-            };
-            if (schemaPropertyNames_1.enum) {
-              for (var i = 0; i < schemaPropertyNames_1.enum.length; i++) {
-                var enumDescription = void 0;
-                if (schemaPropertyNames_1.markdownEnumDescriptions && i < schemaPropertyNames_1.markdownEnumDescriptions.length) {
-                  enumDescription = _this.fromMarkup(schemaPropertyNames_1.markdownEnumDescriptions[i]);
-                } else if (schemaPropertyNames_1.enumDescriptions && i < schemaPropertyNames_1.enumDescriptions.length) {
-                  enumDescription = schemaPropertyNames_1.enumDescriptions[i];
-                }
-                propertyNameCompletionItem(schemaPropertyNames_1.enum[i], enumDescription);
-              }
             }
-            if (schemaPropertyNames_1.const) {
-              propertyNameCompletionItem(schemaPropertyNames_1.const);
+          });
+        }
+        var schemaPropertyNames_1 = s.schema.propertyNames;
+        if (typeof schemaPropertyNames_1 === "object" && !schemaPropertyNames_1.deprecationMessage && !schemaPropertyNames_1.doNotSuggest) {
+          var propertyNameCompletionItem = function(name, enumDescription2) {
+            if (enumDescription2 === void 0) {
+              enumDescription2 = void 0;
+            }
+            var proposal = {
+              kind: CompletionItemKind.Property,
+              label: name,
+              insertText: _this.getInsertTextForProperty(name, void 0, addValue, separatorAfter),
+              insertTextFormat: InsertTextFormat.Snippet,
+              filterText: _this.getFilterTextForValue(name),
+              documentation: enumDescription2 || _this.fromMarkup(schemaPropertyNames_1.markdownDescription) || schemaPropertyNames_1.description || ""
+            };
+            if (schemaPropertyNames_1.suggestSortText !== void 0) {
+              proposal.sortText = schemaPropertyNames_1.suggestSortText;
+            }
+            if (proposal.insertText && endsWith(proposal.insertText, "$1".concat(separatorAfter))) {
+              proposal.command = {
+                title: "Suggest",
+                command: "editor.action.triggerSuggest"
+              };
+            }
+            collector.add(proposal);
+          };
+          if (schemaPropertyNames_1.enum) {
+            for (var i = 0; i < schemaPropertyNames_1.enum.length; i++) {
+              var enumDescription = void 0;
+              if (schemaPropertyNames_1.markdownEnumDescriptions && i < schemaPropertyNames_1.markdownEnumDescriptions.length) {
+                enumDescription = _this.fromMarkup(schemaPropertyNames_1.markdownEnumDescriptions[i]);
+              } else if (schemaPropertyNames_1.enumDescriptions && i < schemaPropertyNames_1.enumDescriptions.length) {
+                enumDescription = schemaPropertyNames_1.enumDescriptions[i];
+              }
+              propertyNameCompletionItem(schemaPropertyNames_1.enum[i], enumDescription);
             }
           }
+          if (schemaPropertyNames_1.const) {
+            propertyNameCompletionItem(schemaPropertyNames_1.const);
+          }
         }
-      });
-    };
-    JSONCompletion2.prototype.getSchemaLessPropertyCompletions = function(doc, node, currentKey, collector) {
-      var _this = this;
-      var collectCompletionsForSimilarObject = function(obj) {
-        obj.properties.forEach(function(p) {
-          var key = p.keyNode.value;
-          collector.add({
-            kind: CompletionItemKind.Property,
-            label: key,
-            insertText: _this.getInsertTextForValue(key, ""),
-            insertTextFormat: InsertTextFormat.Snippet,
-            filterText: _this.getFilterTextForValue(key),
-            documentation: ""
-          });
-        });
-      };
-      if (node.parent) {
-        if (node.parent.type === "property") {
-          var parentKey_1 = node.parent.keyNode.value;
-          doc.visit(function(n) {
-            if (n.type === "property" && n !== node.parent && n.keyNode.value === parentKey_1 && n.valueNode && n.valueNode.type === "object") {
-              collectCompletionsForSimilarObject(n.valueNode);
-            }
-            return true;
-          });
-        } else if (node.parent.type === "array") {
-          node.parent.items.forEach(function(n) {
-            if (n.type === "object" && n !== node) {
-              collectCompletionsForSimilarObject(n);
-            }
-          });
-        }
-      } else if (node.type === "object") {
+      }
+    });
+  };
+  JSONCompletion2.prototype.getSchemaLessPropertyCompletions = function(doc, node, currentKey, collector) {
+    var _this = this;
+    var collectCompletionsForSimilarObject = function(obj) {
+      obj.properties.forEach(function(p) {
+        var key = p.keyNode.value;
         collector.add({
           kind: CompletionItemKind.Property,
-          label: "$schema",
-          insertText: this.getInsertTextForProperty("$schema", void 0, true, ""),
+          label: key,
+          insertText: _this.getInsertTextForValue(key, ""),
           insertTextFormat: InsertTextFormat.Snippet,
-          documentation: "",
-          filterText: this.getFilterTextForValue("$schema")
+          filterText: _this.getFilterTextForValue(key),
+          documentation: ""
+        });
+      });
+    };
+    if (node.parent) {
+      if (node.parent.type === "property") {
+        var parentKey_1 = node.parent.keyNode.value;
+        doc.visit(function(n) {
+          if (n.type === "property" && n !== node.parent && n.keyNode.value === parentKey_1 && n.valueNode && n.valueNode.type === "object") {
+            collectCompletionsForSimilarObject(n.valueNode);
+          }
+          return true;
+        });
+      } else if (node.parent.type === "array") {
+        node.parent.items.forEach(function(n) {
+          if (n.type === "object" && n !== node) {
+            collectCompletionsForSimilarObject(n);
+          }
         });
       }
-    };
-    JSONCompletion2.prototype.getSchemaLessValueCompletions = function(doc, node, offset, document, collector) {
-      var _this = this;
-      var offsetForSeparator = offset;
-      if (node && (node.type === "string" || node.type === "number" || node.type === "boolean" || node.type === "null")) {
-        offsetForSeparator = node.offset + node.length;
-        node = node.parent;
-      }
-      if (!node) {
+    } else if (node.type === "object") {
+      collector.add({
+        kind: CompletionItemKind.Property,
+        label: "$schema",
+        insertText: this.getInsertTextForProperty("$schema", void 0, true, ""),
+        insertTextFormat: InsertTextFormat.Snippet,
+        documentation: "",
+        filterText: this.getFilterTextForValue("$schema")
+      });
+    }
+  };
+  JSONCompletion2.prototype.getSchemaLessValueCompletions = function(doc, node, offset, document, collector) {
+    var _this = this;
+    var offsetForSeparator = offset;
+    if (node && (node.type === "string" || node.type === "number" || node.type === "boolean" || node.type === "null")) {
+      offsetForSeparator = node.offset + node.length;
+      node = node.parent;
+    }
+    if (!node) {
+      collector.add({
+        kind: this.getSuggestionKind("object"),
+        label: "Empty object",
+        insertText: this.getInsertTextForValue({}, ""),
+        insertTextFormat: InsertTextFormat.Snippet,
+        documentation: ""
+      });
+      collector.add({
+        kind: this.getSuggestionKind("array"),
+        label: "Empty array",
+        insertText: this.getInsertTextForValue([], ""),
+        insertTextFormat: InsertTextFormat.Snippet,
+        documentation: ""
+      });
+      return;
+    }
+    var separatorAfter = this.evaluateSeparatorAfter(document, offsetForSeparator);
+    var collectSuggestionsForValues = function(value) {
+      if (value.parent && !contains2(value.parent, offset, true)) {
         collector.add({
-          kind: this.getSuggestionKind("object"),
-          label: "Empty object",
-          insertText: this.getInsertTextForValue({}, ""),
+          kind: _this.getSuggestionKind(value.type),
+          label: _this.getLabelTextForMatchingNode(value, document),
+          insertText: _this.getInsertTextForMatchingNode(value, document, separatorAfter),
           insertTextFormat: InsertTextFormat.Snippet,
           documentation: ""
         });
-        collector.add({
-          kind: this.getSuggestionKind("array"),
-          label: "Empty array",
-          insertText: this.getInsertTextForValue([], ""),
-          insertTextFormat: InsertTextFormat.Snippet,
-          documentation: ""
-        });
-        return;
       }
-      var separatorAfter = this.evaluateSeparatorAfter(document, offsetForSeparator);
-      var collectSuggestionsForValues = function(value) {
-        if (value.parent && !contains2(value.parent, offset, true)) {
-          collector.add({
-            kind: _this.getSuggestionKind(value.type),
-            label: _this.getLabelTextForMatchingNode(value, document),
-            insertText: _this.getInsertTextForMatchingNode(value, document, separatorAfter),
-            insertTextFormat: InsertTextFormat.Snippet,
-            documentation: ""
-          });
-        }
-        if (value.type === "boolean") {
-          _this.addBooleanValueCompletion(!value.value, separatorAfter, collector);
-        }
-      };
-      if (node.type === "property") {
-        if (offset > (node.colonOffset || 0)) {
-          var valueNode = node.valueNode;
-          if (valueNode && (offset > valueNode.offset + valueNode.length || valueNode.type === "object" || valueNode.type === "array")) {
-            return;
-          }
-          var parentKey_2 = node.keyNode.value;
-          doc.visit(function(n) {
-            if (n.type === "property" && n.keyNode.value === parentKey_2 && n.valueNode) {
-              collectSuggestionsForValues(n.valueNode);
-            }
-            return true;
-          });
-          if (parentKey_2 === "$schema" && node.parent && !node.parent.parent) {
-            this.addDollarSchemaCompletions(separatorAfter, collector);
-          }
-        }
-      }
-      if (node.type === "array") {
-        if (node.parent && node.parent.type === "property") {
-          var parentKey_3 = node.parent.keyNode.value;
-          doc.visit(function(n) {
-            if (n.type === "property" && n.keyNode.value === parentKey_3 && n.valueNode && n.valueNode.type === "array") {
-              n.valueNode.items.forEach(collectSuggestionsForValues);
-            }
-            return true;
-          });
-        } else {
-          node.items.forEach(collectSuggestionsForValues);
-        }
+      if (value.type === "boolean") {
+        _this.addBooleanValueCompletion(!value.value, separatorAfter, collector);
       }
     };
-    JSONCompletion2.prototype.getValueCompletions = function(schema, doc, node, offset, document, collector, types) {
-      var offsetForSeparator = offset;
-      var parentKey = void 0;
-      var valueNode = void 0;
-      if (node && (node.type === "string" || node.type === "number" || node.type === "boolean" || node.type === "null")) {
-        offsetForSeparator = node.offset + node.length;
-        valueNode = node;
-        node = node.parent;
-      }
-      if (!node) {
-        this.addSchemaValueCompletions(schema.schema, "", collector, types);
-        return;
-      }
-      if (node.type === "property" && offset > (node.colonOffset || 0)) {
-        var valueNode_1 = node.valueNode;
-        if (valueNode_1 && offset > valueNode_1.offset + valueNode_1.length) {
+    if (node.type === "property") {
+      if (offset > (node.colonOffset || 0)) {
+        var valueNode = node.valueNode;
+        if (valueNode && (offset > valueNode.offset + valueNode.length || valueNode.type === "object" || valueNode.type === "array")) {
           return;
         }
-        parentKey = node.keyNode.value;
-        node = node.parent;
+        var parentKey_2 = node.keyNode.value;
+        doc.visit(function(n) {
+          if (n.type === "property" && n.keyNode.value === parentKey_2 && n.valueNode) {
+            collectSuggestionsForValues(n.valueNode);
+          }
+          return true;
+        });
+        if (parentKey_2 === "$schema" && node.parent && !node.parent.parent) {
+          this.addDollarSchemaCompletions(separatorAfter, collector);
+        }
       }
-      if (node && (parentKey !== void 0 || node.type === "array")) {
-        var separatorAfter = this.evaluateSeparatorAfter(document, offsetForSeparator);
-        var matchingSchemas = doc.getMatchingSchemas(schema.schema, node.offset, valueNode);
-        for (var _i = 0, matchingSchemas_1 = matchingSchemas; _i < matchingSchemas_1.length; _i++) {
-          var s = matchingSchemas_1[_i];
-          if (s.node === node && !s.inverted && s.schema) {
-            if (node.type === "array" && s.schema.items) {
-              if (Array.isArray(s.schema.items)) {
-                var index = this.findItemAtOffset(node, document, offset);
-                if (index < s.schema.items.length) {
-                  this.addSchemaValueCompletions(s.schema.items[index], separatorAfter, collector, types);
-                }
-              } else {
-                this.addSchemaValueCompletions(s.schema.items, separatorAfter, collector, types);
+    }
+    if (node.type === "array") {
+      if (node.parent && node.parent.type === "property") {
+        var parentKey_3 = node.parent.keyNode.value;
+        doc.visit(function(n) {
+          if (n.type === "property" && n.keyNode.value === parentKey_3 && n.valueNode && n.valueNode.type === "array") {
+            n.valueNode.items.forEach(collectSuggestionsForValues);
+          }
+          return true;
+        });
+      } else {
+        node.items.forEach(collectSuggestionsForValues);
+      }
+    }
+  };
+  JSONCompletion2.prototype.getValueCompletions = function(schema, doc, node, offset, document, collector, types) {
+    var offsetForSeparator = offset;
+    var parentKey = void 0;
+    var valueNode = void 0;
+    if (node && (node.type === "string" || node.type === "number" || node.type === "boolean" || node.type === "null")) {
+      offsetForSeparator = node.offset + node.length;
+      valueNode = node;
+      node = node.parent;
+    }
+    if (!node) {
+      this.addSchemaValueCompletions(schema.schema, "", collector, types);
+      return;
+    }
+    if (node.type === "property" && offset > (node.colonOffset || 0)) {
+      var valueNode_1 = node.valueNode;
+      if (valueNode_1 && offset > valueNode_1.offset + valueNode_1.length) {
+        return;
+      }
+      parentKey = node.keyNode.value;
+      node = node.parent;
+    }
+    if (node && (parentKey !== void 0 || node.type === "array")) {
+      var separatorAfter = this.evaluateSeparatorAfter(document, offsetForSeparator);
+      var matchingSchemas = doc.getMatchingSchemas(schema.schema, node.offset, valueNode);
+      for (var _i = 0, matchingSchemas_1 = matchingSchemas; _i < matchingSchemas_1.length; _i++) {
+        var s = matchingSchemas_1[_i];
+        if (s.node === node && !s.inverted && s.schema) {
+          if (node.type === "array" && s.schema.items) {
+            if (Array.isArray(s.schema.items)) {
+              var index = this.findItemAtOffset(node, document, offset);
+              if (index < s.schema.items.length) {
+                this.addSchemaValueCompletions(s.schema.items[index], separatorAfter, collector, types);
               }
+            } else {
+              this.addSchemaValueCompletions(s.schema.items, separatorAfter, collector, types);
             }
-            if (parentKey !== void 0) {
-              var propertyMatched = false;
-              if (s.schema.properties) {
-                var propertySchema = s.schema.properties[parentKey];
-                if (propertySchema) {
-                  propertyMatched = true;
-                  this.addSchemaValueCompletions(propertySchema, separatorAfter, collector, types);
-                }
-              }
-              if (s.schema.patternProperties && !propertyMatched) {
-                for (var _a = 0, _b = Object.keys(s.schema.patternProperties); _a < _b.length; _a++) {
-                  var pattern = _b[_a];
-                  var regex = extendedRegExp(pattern);
-                  if (regex === null || regex === void 0 ? void 0 : regex.test(parentKey)) {
-                    propertyMatched = true;
-                    var propertySchema = s.schema.patternProperties[pattern];
-                    this.addSchemaValueCompletions(propertySchema, separatorAfter, collector, types);
-                  }
-                }
-              }
-              if (s.schema.additionalProperties && !propertyMatched) {
-                var propertySchema = s.schema.additionalProperties;
+          }
+          if (parentKey !== void 0) {
+            var propertyMatched = false;
+            if (s.schema.properties) {
+              var propertySchema = s.schema.properties[parentKey];
+              if (propertySchema) {
+                propertyMatched = true;
                 this.addSchemaValueCompletions(propertySchema, separatorAfter, collector, types);
               }
             }
-          }
-        }
-        if (parentKey === "$schema" && !node.parent) {
-          this.addDollarSchemaCompletions(separatorAfter, collector);
-        }
-        if (types["boolean"]) {
-          this.addBooleanValueCompletion(true, separatorAfter, collector);
-          this.addBooleanValueCompletion(false, separatorAfter, collector);
-        }
-        if (types["null"]) {
-          this.addNullValueCompletion(separatorAfter, collector);
-        }
-      }
-    };
-    JSONCompletion2.prototype.getContributedValueCompletions = function(doc, node, offset, document, collector, collectionPromises) {
-      if (!node) {
-        this.contributions.forEach(function(contribution) {
-          var collectPromise = contribution.collectDefaultCompletions(document.uri, collector);
-          if (collectPromise) {
-            collectionPromises.push(collectPromise);
-          }
-        });
-      } else {
-        if (node.type === "string" || node.type === "number" || node.type === "boolean" || node.type === "null") {
-          node = node.parent;
-        }
-        if (node && node.type === "property" && offset > (node.colonOffset || 0)) {
-          var parentKey_4 = node.keyNode.value;
-          var valueNode = node.valueNode;
-          if ((!valueNode || offset <= valueNode.offset + valueNode.length) && node.parent) {
-            var location_2 = getNodePath3(node.parent);
-            this.contributions.forEach(function(contribution) {
-              var collectPromise = contribution.collectValueCompletions(document.uri, location_2, parentKey_4, collector);
-              if (collectPromise) {
-                collectionPromises.push(collectPromise);
+            if (s.schema.patternProperties && !propertyMatched) {
+              for (var _a = 0, _b = Object.keys(s.schema.patternProperties); _a < _b.length; _a++) {
+                var pattern = _b[_a];
+                var regex = extendedRegExp(pattern);
+                if (regex === null || regex === void 0 ? void 0 : regex.test(parentKey)) {
+                  propertyMatched = true;
+                  var propertySchema = s.schema.patternProperties[pattern];
+                  this.addSchemaValueCompletions(propertySchema, separatorAfter, collector, types);
+                }
               }
-            });
-          }
-        }
-      }
-    };
-    JSONCompletion2.prototype.addSchemaValueCompletions = function(schema, separatorAfter, collector, types) {
-      var _this = this;
-      if (typeof schema === "object") {
-        this.addEnumValueCompletions(schema, separatorAfter, collector);
-        this.addDefaultValueCompletions(schema, separatorAfter, collector);
-        this.collectTypes(schema, types);
-        if (Array.isArray(schema.allOf)) {
-          schema.allOf.forEach(function(s) {
-            return _this.addSchemaValueCompletions(s, separatorAfter, collector, types);
-          });
-        }
-        if (Array.isArray(schema.anyOf)) {
-          schema.anyOf.forEach(function(s) {
-            return _this.addSchemaValueCompletions(s, separatorAfter, collector, types);
-          });
-        }
-        if (Array.isArray(schema.oneOf)) {
-          schema.oneOf.forEach(function(s) {
-            return _this.addSchemaValueCompletions(s, separatorAfter, collector, types);
-          });
-        }
-      }
-    };
-    JSONCompletion2.prototype.addDefaultValueCompletions = function(schema, separatorAfter, collector, arrayDepth) {
-      var _this = this;
-      if (arrayDepth === void 0) {
-        arrayDepth = 0;
-      }
-      var hasProposals = false;
-      if (isDefined(schema.default)) {
-        var type = schema.type;
-        var value = schema.default;
-        for (var i = arrayDepth; i > 0; i--) {
-          value = [value];
-          type = "array";
-        }
-        collector.add({
-          kind: this.getSuggestionKind(type),
-          label: this.getLabelForValue(value),
-          insertText: this.getInsertTextForValue(value, separatorAfter),
-          insertTextFormat: InsertTextFormat.Snippet,
-          detail: localize3("json.suggest.default", "Default value")
-        });
-        hasProposals = true;
-      }
-      if (Array.isArray(schema.examples)) {
-        schema.examples.forEach(function(example) {
-          var type2 = schema.type;
-          var value2 = example;
-          for (var i2 = arrayDepth; i2 > 0; i2--) {
-            value2 = [value2];
-            type2 = "array";
-          }
-          collector.add({
-            kind: _this.getSuggestionKind(type2),
-            label: _this.getLabelForValue(value2),
-            insertText: _this.getInsertTextForValue(value2, separatorAfter),
-            insertTextFormat: InsertTextFormat.Snippet
-          });
-          hasProposals = true;
-        });
-      }
-      if (Array.isArray(schema.defaultSnippets)) {
-        schema.defaultSnippets.forEach(function(s) {
-          var type2 = schema.type;
-          var value2 = s.body;
-          var label = s.label;
-          var insertText;
-          var filterText;
-          if (isDefined(value2)) {
-            var type_1 = schema.type;
-            for (var i2 = arrayDepth; i2 > 0; i2--) {
-              value2 = [value2];
-              type_1 = "array";
             }
-            insertText = _this.getInsertTextForSnippetValue(value2, separatorAfter);
-            filterText = _this.getFilterTextForSnippetValue(value2);
-            label = label || _this.getLabelForSnippetValue(value2);
-          } else if (typeof s.bodyText === "string") {
-            var prefix = "", suffix = "", indent = "";
-            for (var i2 = arrayDepth; i2 > 0; i2--) {
-              prefix = prefix + indent + "[\n";
-              suffix = suffix + "\n" + indent + "]";
-              indent += "	";
-              type2 = "array";
+            if (s.schema.additionalProperties && !propertyMatched) {
+              var propertySchema = s.schema.additionalProperties;
+              this.addSchemaValueCompletions(propertySchema, separatorAfter, collector, types);
             }
-            insertText = prefix + indent + s.bodyText.split("\n").join("\n" + indent) + suffix + separatorAfter;
-            label = label || insertText, filterText = insertText.replace(/[\n]/g, "");
-          } else {
-            return;
           }
-          collector.add({
-            kind: _this.getSuggestionKind(type2),
-            label,
-            documentation: _this.fromMarkup(s.markdownDescription) || s.description,
-            insertText,
-            insertTextFormat: InsertTextFormat.Snippet,
-            filterText
-          });
-          hasProposals = true;
-        });
+        }
       }
-      if (!hasProposals && typeof schema.items === "object" && !Array.isArray(schema.items) && arrayDepth < 5) {
-        this.addDefaultValueCompletions(schema.items, separatorAfter, collector, arrayDepth + 1);
+      if (parentKey === "$schema" && !node.parent) {
+        this.addDollarSchemaCompletions(separatorAfter, collector);
       }
-    };
-    JSONCompletion2.prototype.addEnumValueCompletions = function(schema, separatorAfter, collector) {
-      if (isDefined(schema.const)) {
-        collector.add({
-          kind: this.getSuggestionKind(schema.type),
-          label: this.getLabelForValue(schema.const),
-          insertText: this.getInsertTextForValue(schema.const, separatorAfter),
-          insertTextFormat: InsertTextFormat.Snippet,
-          documentation: this.fromMarkup(schema.markdownDescription) || schema.description
-        });
+      if (types["boolean"]) {
+        this.addBooleanValueCompletion(true, separatorAfter, collector);
+        this.addBooleanValueCompletion(false, separatorAfter, collector);
       }
-      if (Array.isArray(schema.enum)) {
-        for (var i = 0, length = schema.enum.length; i < length; i++) {
-          var enm = schema.enum[i];
-          var documentation = this.fromMarkup(schema.markdownDescription) || schema.description;
-          if (schema.markdownEnumDescriptions && i < schema.markdownEnumDescriptions.length && this.doesSupportMarkdown()) {
-            documentation = this.fromMarkup(schema.markdownEnumDescriptions[i]);
-          } else if (schema.enumDescriptions && i < schema.enumDescriptions.length) {
-            documentation = schema.enumDescriptions[i];
-          }
-          collector.add({
-            kind: this.getSuggestionKind(schema.type),
-            label: this.getLabelForValue(enm),
-            insertText: this.getInsertTextForValue(enm, separatorAfter),
-            insertTextFormat: InsertTextFormat.Snippet,
-            documentation
+      if (types["null"]) {
+        this.addNullValueCompletion(separatorAfter, collector);
+      }
+    }
+  };
+  JSONCompletion2.prototype.getContributedValueCompletions = function(doc, node, offset, document, collector, collectionPromises) {
+    if (!node) {
+      this.contributions.forEach(function(contribution) {
+        var collectPromise = contribution.collectDefaultCompletions(document.uri, collector);
+        if (collectPromise) {
+          collectionPromises.push(collectPromise);
+        }
+      });
+    } else {
+      if (node.type === "string" || node.type === "number" || node.type === "boolean" || node.type === "null") {
+        node = node.parent;
+      }
+      if (node && node.type === "property" && offset > (node.colonOffset || 0)) {
+        var parentKey_4 = node.keyNode.value;
+        var valueNode = node.valueNode;
+        if ((!valueNode || offset <= valueNode.offset + valueNode.length) && node.parent) {
+          var location_2 = getNodePath3(node.parent);
+          this.contributions.forEach(function(contribution) {
+            var collectPromise = contribution.collectValueCompletions(document.uri, location_2, parentKey_4, collector);
+            if (collectPromise) {
+              collectionPromises.push(collectPromise);
+            }
           });
         }
       }
-    };
-    JSONCompletion2.prototype.collectTypes = function(schema, types) {
-      if (Array.isArray(schema.enum) || isDefined(schema.const)) {
-        return;
+    }
+  };
+  JSONCompletion2.prototype.addSchemaValueCompletions = function(schema, separatorAfter, collector, types) {
+    var _this = this;
+    if (typeof schema === "object") {
+      this.addEnumValueCompletions(schema, separatorAfter, collector);
+      this.addDefaultValueCompletions(schema, separatorAfter, collector);
+      this.collectTypes(schema, types);
+      if (Array.isArray(schema.allOf)) {
+        schema.allOf.forEach(function(s) {
+          return _this.addSchemaValueCompletions(s, separatorAfter, collector, types);
+        });
       }
+      if (Array.isArray(schema.anyOf)) {
+        schema.anyOf.forEach(function(s) {
+          return _this.addSchemaValueCompletions(s, separatorAfter, collector, types);
+        });
+      }
+      if (Array.isArray(schema.oneOf)) {
+        schema.oneOf.forEach(function(s) {
+          return _this.addSchemaValueCompletions(s, separatorAfter, collector, types);
+        });
+      }
+    }
+  };
+  JSONCompletion2.prototype.addDefaultValueCompletions = function(schema, separatorAfter, collector, arrayDepth) {
+    var _this = this;
+    if (arrayDepth === void 0) {
+      arrayDepth = 0;
+    }
+    var hasProposals = false;
+    if (isDefined(schema.default)) {
       var type = schema.type;
-      if (Array.isArray(type)) {
-        type.forEach(function(t) {
-          return types[t] = true;
-        });
-      } else if (type) {
-        types[type] = true;
+      var value = schema.default;
+      for (var i = arrayDepth; i > 0; i--) {
+        value = [value];
+        type = "array";
       }
-    };
-    JSONCompletion2.prototype.addFillerValueCompletions = function(types, separatorAfter, collector) {
-      if (types["object"]) {
-        collector.add({
-          kind: this.getSuggestionKind("object"),
-          label: "{}",
-          insertText: this.getInsertTextForGuessedValue({}, separatorAfter),
-          insertTextFormat: InsertTextFormat.Snippet,
-          detail: localize3("defaults.object", "New object"),
-          documentation: ""
-        });
-      }
-      if (types["array"]) {
-        collector.add({
-          kind: this.getSuggestionKind("array"),
-          label: "[]",
-          insertText: this.getInsertTextForGuessedValue([], separatorAfter),
-          insertTextFormat: InsertTextFormat.Snippet,
-          detail: localize3("defaults.array", "New array"),
-          documentation: ""
-        });
-      }
-    };
-    JSONCompletion2.prototype.addBooleanValueCompletion = function(value, separatorAfter, collector) {
       collector.add({
-        kind: this.getSuggestionKind("boolean"),
-        label: value ? "true" : "false",
+        kind: this.getSuggestionKind(type),
+        label: this.getLabelForValue(value),
         insertText: this.getInsertTextForValue(value, separatorAfter),
         insertTextFormat: InsertTextFormat.Snippet,
+        detail: localize3("json.suggest.default", "Default value")
+      });
+      hasProposals = true;
+    }
+    if (Array.isArray(schema.examples)) {
+      schema.examples.forEach(function(example) {
+        var type2 = schema.type;
+        var value2 = example;
+        for (var i2 = arrayDepth; i2 > 0; i2--) {
+          value2 = [value2];
+          type2 = "array";
+        }
+        collector.add({
+          kind: _this.getSuggestionKind(type2),
+          label: _this.getLabelForValue(value2),
+          insertText: _this.getInsertTextForValue(value2, separatorAfter),
+          insertTextFormat: InsertTextFormat.Snippet
+        });
+        hasProposals = true;
+      });
+    }
+    if (Array.isArray(schema.defaultSnippets)) {
+      schema.defaultSnippets.forEach(function(s) {
+        var type2 = schema.type;
+        var value2 = s.body;
+        var label = s.label;
+        var insertText;
+        var filterText;
+        if (isDefined(value2)) {
+          var type_1 = schema.type;
+          for (var i2 = arrayDepth; i2 > 0; i2--) {
+            value2 = [value2];
+            type_1 = "array";
+          }
+          insertText = _this.getInsertTextForSnippetValue(value2, separatorAfter);
+          filterText = _this.getFilterTextForSnippetValue(value2);
+          label = label || _this.getLabelForSnippetValue(value2);
+        } else if (typeof s.bodyText === "string") {
+          var prefix = "", suffix = "", indent = "";
+          for (var i2 = arrayDepth; i2 > 0; i2--) {
+            prefix = prefix + indent + "[\n";
+            suffix = suffix + "\n" + indent + "]";
+            indent += "	";
+            type2 = "array";
+          }
+          insertText = prefix + indent + s.bodyText.split("\n").join("\n" + indent) + suffix + separatorAfter;
+          label = label || insertText, filterText = insertText.replace(/[\n]/g, "");
+        } else {
+          return;
+        }
+        collector.add({
+          kind: _this.getSuggestionKind(type2),
+          label,
+          documentation: _this.fromMarkup(s.markdownDescription) || s.description,
+          insertText,
+          insertTextFormat: InsertTextFormat.Snippet,
+          filterText
+        });
+        hasProposals = true;
+      });
+    }
+    if (!hasProposals && typeof schema.items === "object" && !Array.isArray(schema.items) && arrayDepth < 5) {
+      this.addDefaultValueCompletions(schema.items, separatorAfter, collector, arrayDepth + 1);
+    }
+  };
+  JSONCompletion2.prototype.addEnumValueCompletions = function(schema, separatorAfter, collector) {
+    if (isDefined(schema.const)) {
+      collector.add({
+        kind: this.getSuggestionKind(schema.type),
+        label: this.getLabelForValue(schema.const),
+        insertText: this.getInsertTextForValue(schema.const, separatorAfter),
+        insertTextFormat: InsertTextFormat.Snippet,
+        documentation: this.fromMarkup(schema.markdownDescription) || schema.description
+      });
+    }
+    if (Array.isArray(schema.enum)) {
+      for (var i = 0, length = schema.enum.length; i < length; i++) {
+        var enm = schema.enum[i];
+        var documentation = this.fromMarkup(schema.markdownDescription) || schema.description;
+        if (schema.markdownEnumDescriptions && i < schema.markdownEnumDescriptions.length && this.doesSupportMarkdown()) {
+          documentation = this.fromMarkup(schema.markdownEnumDescriptions[i]);
+        } else if (schema.enumDescriptions && i < schema.enumDescriptions.length) {
+          documentation = schema.enumDescriptions[i];
+        }
+        collector.add({
+          kind: this.getSuggestionKind(schema.type),
+          label: this.getLabelForValue(enm),
+          insertText: this.getInsertTextForValue(enm, separatorAfter),
+          insertTextFormat: InsertTextFormat.Snippet,
+          documentation
+        });
+      }
+    }
+  };
+  JSONCompletion2.prototype.collectTypes = function(schema, types) {
+    if (Array.isArray(schema.enum) || isDefined(schema.const)) {
+      return;
+    }
+    var type = schema.type;
+    if (Array.isArray(type)) {
+      type.forEach(function(t) {
+        return types[t] = true;
+      });
+    } else if (type) {
+      types[type] = true;
+    }
+  };
+  JSONCompletion2.prototype.addFillerValueCompletions = function(types, separatorAfter, collector) {
+    if (types["object"]) {
+      collector.add({
+        kind: this.getSuggestionKind("object"),
+        label: "{}",
+        insertText: this.getInsertTextForGuessedValue({}, separatorAfter),
+        insertTextFormat: InsertTextFormat.Snippet,
+        detail: localize3("defaults.object", "New object"),
         documentation: ""
       });
-    };
-    JSONCompletion2.prototype.addNullValueCompletion = function(separatorAfter, collector) {
+    }
+    if (types["array"]) {
       collector.add({
-        kind: this.getSuggestionKind("null"),
-        label: "null",
-        insertText: "null" + separatorAfter,
+        kind: this.getSuggestionKind("array"),
+        label: "[]",
+        insertText: this.getInsertTextForGuessedValue([], separatorAfter),
+        insertTextFormat: InsertTextFormat.Snippet,
+        detail: localize3("defaults.array", "New array"),
+        documentation: ""
+      });
+    }
+  };
+  JSONCompletion2.prototype.addBooleanValueCompletion = function(value, separatorAfter, collector) {
+    collector.add({
+      kind: this.getSuggestionKind("boolean"),
+      label: value ? "true" : "false",
+      insertText: this.getInsertTextForValue(value, separatorAfter),
+      insertTextFormat: InsertTextFormat.Snippet,
+      documentation: ""
+    });
+  };
+  JSONCompletion2.prototype.addNullValueCompletion = function(separatorAfter, collector) {
+    collector.add({
+      kind: this.getSuggestionKind("null"),
+      label: "null",
+      insertText: "null" + separatorAfter,
+      insertTextFormat: InsertTextFormat.Snippet,
+      documentation: ""
+    });
+  };
+  JSONCompletion2.prototype.addDollarSchemaCompletions = function(separatorAfter, collector) {
+    var _this = this;
+    var schemaIds = this.schemaService.getRegisteredSchemaIds(function(schema) {
+      return schema === "http" || schema === "https";
+    });
+    schemaIds.forEach(function(schemaId) {
+      return collector.add({
+        kind: CompletionItemKind.Module,
+        label: _this.getLabelForValue(schemaId),
+        filterText: _this.getFilterTextForValue(schemaId),
+        insertText: _this.getInsertTextForValue(schemaId, separatorAfter),
         insertTextFormat: InsertTextFormat.Snippet,
         documentation: ""
       });
-    };
-    JSONCompletion2.prototype.addDollarSchemaCompletions = function(separatorAfter, collector) {
-      var _this = this;
-      var schemaIds = this.schemaService.getRegisteredSchemaIds(function(schema) {
-        return schema === "http" || schema === "https";
-      });
-      schemaIds.forEach(function(schemaId) {
-        return collector.add({
-          kind: CompletionItemKind.Module,
-          label: _this.getLabelForValue(schemaId),
-          filterText: _this.getFilterTextForValue(schemaId),
-          insertText: _this.getInsertTextForValue(schemaId, separatorAfter),
-          insertTextFormat: InsertTextFormat.Snippet,
-          documentation: ""
-        });
-      });
-    };
-    JSONCompletion2.prototype.getLabelForValue = function(value) {
-      return JSON.stringify(value);
-    };
-    JSONCompletion2.prototype.getFilterTextForValue = function(value) {
-      return JSON.stringify(value);
-    };
-    JSONCompletion2.prototype.getFilterTextForSnippetValue = function(value) {
-      return JSON.stringify(value).replace(/\$\{\d+:([^}]+)\}|\$\d+/g, "$1");
-    };
-    JSONCompletion2.prototype.getLabelForSnippetValue = function(value) {
-      var label = JSON.stringify(value);
-      return label.replace(/\$\{\d+:([^}]+)\}|\$\d+/g, "$1");
-    };
-    JSONCompletion2.prototype.getInsertTextForPlainText = function(text) {
-      return text.replace(/[\\\$\}]/g, "\\$&");
-    };
-    JSONCompletion2.prototype.getInsertTextForValue = function(value, separatorAfter) {
-      var text = JSON.stringify(value, null, "	");
-      if (text === "{}") {
-        return "{$1}" + separatorAfter;
-      } else if (text === "[]") {
-        return "[$1]" + separatorAfter;
-      }
-      return this.getInsertTextForPlainText(text + separatorAfter);
-    };
-    JSONCompletion2.prototype.getInsertTextForSnippetValue = function(value, separatorAfter) {
-      var replacer = function(value2) {
-        if (typeof value2 === "string") {
-          if (value2[0] === "^") {
-            return value2.substr(1);
-          }
+    });
+  };
+  JSONCompletion2.prototype.getLabelForValue = function(value) {
+    return JSON.stringify(value);
+  };
+  JSONCompletion2.prototype.getFilterTextForValue = function(value) {
+    return JSON.stringify(value);
+  };
+  JSONCompletion2.prototype.getFilterTextForSnippetValue = function(value) {
+    return JSON.stringify(value).replace(/\$\{\d+:([^}]+)\}|\$\d+/g, "$1");
+  };
+  JSONCompletion2.prototype.getLabelForSnippetValue = function(value) {
+    var label = JSON.stringify(value);
+    return label.replace(/\$\{\d+:([^}]+)\}|\$\d+/g, "$1");
+  };
+  JSONCompletion2.prototype.getInsertTextForPlainText = function(text) {
+    return text.replace(/[\\\$\}]/g, "\\$&");
+  };
+  JSONCompletion2.prototype.getInsertTextForValue = function(value, separatorAfter) {
+    var text = JSON.stringify(value, null, "	");
+    if (text === "{}") {
+      return "{$1}" + separatorAfter;
+    } else if (text === "[]") {
+      return "[$1]" + separatorAfter;
+    }
+    return this.getInsertTextForPlainText(text + separatorAfter);
+  };
+  JSONCompletion2.prototype.getInsertTextForSnippetValue = function(value, separatorAfter) {
+    var replacer = function(value2) {
+      if (typeof value2 === "string") {
+        if (value2[0] === "^") {
+          return value2.substr(1);
         }
-        return JSON.stringify(value2);
-      };
-      return stringifyObject(value, "", replacer) + separatorAfter;
-    };
-    JSONCompletion2.prototype.getInsertTextForGuessedValue = function(value, separatorAfter) {
-      switch (typeof value) {
-        case "object":
-          if (value === null) {
-            return "${1:null}" + separatorAfter;
-          }
-          return this.getInsertTextForValue(value, separatorAfter);
-        case "string":
-          var snippetValue = JSON.stringify(value);
-          snippetValue = snippetValue.substr(1, snippetValue.length - 2);
-          snippetValue = this.getInsertTextForPlainText(snippetValue);
-          return '"${1:' + snippetValue + '}"' + separatorAfter;
-        case "number":
-        case "boolean":
-          return "${1:" + JSON.stringify(value) + "}" + separatorAfter;
       }
-      return this.getInsertTextForValue(value, separatorAfter);
+      return JSON.stringify(value2);
     };
-    JSONCompletion2.prototype.getSuggestionKind = function(type) {
-      if (Array.isArray(type)) {
-        var array = type;
-        type = array.length > 0 ? array[0] : void 0;
-      }
-      if (!type) {
+    return stringifyObject(value, "", replacer) + separatorAfter;
+  };
+  JSONCompletion2.prototype.getInsertTextForGuessedValue = function(value, separatorAfter) {
+    switch (typeof value) {
+      case "object":
+        if (value === null) {
+          return "${1:null}" + separatorAfter;
+        }
+        return this.getInsertTextForValue(value, separatorAfter);
+      case "string":
+        var snippetValue = JSON.stringify(value);
+        snippetValue = snippetValue.substr(1, snippetValue.length - 2);
+        snippetValue = this.getInsertTextForPlainText(snippetValue);
+        return '"${1:' + snippetValue + '}"' + separatorAfter;
+      case "number":
+      case "boolean":
+        return "${1:" + JSON.stringify(value) + "}" + separatorAfter;
+    }
+    return this.getInsertTextForValue(value, separatorAfter);
+  };
+  JSONCompletion2.prototype.getSuggestionKind = function(type) {
+    if (Array.isArray(type)) {
+      var array = type;
+      type = array.length > 0 ? array[0] : void 0;
+    }
+    if (!type) {
+      return CompletionItemKind.Value;
+    }
+    switch (type) {
+      case "string":
         return CompletionItemKind.Value;
-      }
-      switch (type) {
-        case "string":
-          return CompletionItemKind.Value;
-        case "object":
-          return CompletionItemKind.Module;
-        case "property":
-          return CompletionItemKind.Property;
-        default:
-          return CompletionItemKind.Value;
-      }
-    };
-    JSONCompletion2.prototype.getLabelTextForMatchingNode = function(node, document) {
-      switch (node.type) {
-        case "array":
-          return "[]";
-        case "object":
-          return "{}";
-        default:
-          var content = document.getText().substr(node.offset, node.length);
-          return content;
-      }
-    };
-    JSONCompletion2.prototype.getInsertTextForMatchingNode = function(node, document, separatorAfter) {
-      switch (node.type) {
-        case "array":
-          return this.getInsertTextForValue([], separatorAfter);
-        case "object":
-          return this.getInsertTextForValue({}, separatorAfter);
-        default:
-          var content = document.getText().substr(node.offset, node.length) + separatorAfter;
-          return this.getInsertTextForPlainText(content);
-      }
-    };
-    JSONCompletion2.prototype.getInsertTextForProperty = function(key, propertySchema, addValue, separatorAfter) {
-      var propertyText = this.getInsertTextForValue(key, "");
-      if (!addValue) {
-        return propertyText;
-      }
-      var resultText = propertyText + ": ";
-      var value;
-      var nValueProposals = 0;
-      if (propertySchema) {
-        if (Array.isArray(propertySchema.defaultSnippets)) {
-          if (propertySchema.defaultSnippets.length === 1) {
-            var body = propertySchema.defaultSnippets[0].body;
-            if (isDefined(body)) {
-              value = this.getInsertTextForSnippetValue(body, "");
-            }
-          }
-          nValueProposals += propertySchema.defaultSnippets.length;
-        }
-        if (propertySchema.enum) {
-          if (!value && propertySchema.enum.length === 1) {
-            value = this.getInsertTextForGuessedValue(propertySchema.enum[0], "");
-          }
-          nValueProposals += propertySchema.enum.length;
-        }
-        if (isDefined(propertySchema.default)) {
-          if (!value) {
-            value = this.getInsertTextForGuessedValue(propertySchema.default, "");
-          }
-          nValueProposals++;
-        }
-        if (Array.isArray(propertySchema.examples) && propertySchema.examples.length) {
-          if (!value) {
-            value = this.getInsertTextForGuessedValue(propertySchema.examples[0], "");
-          }
-          nValueProposals += propertySchema.examples.length;
-        }
-        if (nValueProposals === 0) {
-          var type = Array.isArray(propertySchema.type) ? propertySchema.type[0] : propertySchema.type;
-          if (!type) {
-            if (propertySchema.properties) {
-              type = "object";
-            } else if (propertySchema.items) {
-              type = "array";
-            }
-          }
-          switch (type) {
-            case "boolean":
-              value = "$1";
-              break;
-            case "string":
-              value = '"$1"';
-              break;
-            case "object":
-              value = "{$1}";
-              break;
-            case "array":
-              value = "[$1]";
-              break;
-            case "number":
-            case "integer":
-              value = "${1:0}";
-              break;
-            case "null":
-              value = "${1:null}";
-              break;
-            default:
-              return propertyText;
+      case "object":
+        return CompletionItemKind.Module;
+      case "property":
+        return CompletionItemKind.Property;
+      default:
+        return CompletionItemKind.Value;
+    }
+  };
+  JSONCompletion2.prototype.getLabelTextForMatchingNode = function(node, document) {
+    switch (node.type) {
+      case "array":
+        return "[]";
+      case "object":
+        return "{}";
+      default:
+        var content = document.getText().substr(node.offset, node.length);
+        return content;
+    }
+  };
+  JSONCompletion2.prototype.getInsertTextForMatchingNode = function(node, document, separatorAfter) {
+    switch (node.type) {
+      case "array":
+        return this.getInsertTextForValue([], separatorAfter);
+      case "object":
+        return this.getInsertTextForValue({}, separatorAfter);
+      default:
+        var content = document.getText().substr(node.offset, node.length) + separatorAfter;
+        return this.getInsertTextForPlainText(content);
+    }
+  };
+  JSONCompletion2.prototype.getInsertTextForProperty = function(key, propertySchema, addValue, separatorAfter) {
+    var propertyText = this.getInsertTextForValue(key, "");
+    if (!addValue) {
+      return propertyText;
+    }
+    var resultText = propertyText + ": ";
+    var value;
+    var nValueProposals = 0;
+    if (propertySchema) {
+      if (Array.isArray(propertySchema.defaultSnippets)) {
+        if (propertySchema.defaultSnippets.length === 1) {
+          var body = propertySchema.defaultSnippets[0].body;
+          if (isDefined(body)) {
+            value = this.getInsertTextForSnippetValue(body, "");
           }
         }
+        nValueProposals += propertySchema.defaultSnippets.length;
       }
-      if (!value || nValueProposals > 1) {
-        value = "$1";
+      if (propertySchema.enum) {
+        if (!value && propertySchema.enum.length === 1) {
+          value = this.getInsertTextForGuessedValue(propertySchema.enum[0], "");
+        }
+        nValueProposals += propertySchema.enum.length;
       }
-      return resultText + value + separatorAfter;
-    };
-    JSONCompletion2.prototype.getCurrentWord = function(document, offset) {
-      var i = offset - 1;
-      var text = document.getText();
-      while (i >= 0 && ' 	\n\r\v":{[,]}'.indexOf(text.charAt(i)) === -1) {
-        i--;
+      if (isDefined(propertySchema.default)) {
+        if (!value) {
+          value = this.getInsertTextForGuessedValue(propertySchema.default, "");
+        }
+        nValueProposals++;
       }
-      return text.substring(i + 1, offset);
-    };
-    JSONCompletion2.prototype.evaluateSeparatorAfter = function(document, offset) {
-      var scanner = createScanner2(document.getText(), true);
-      scanner.setPosition(offset);
-      var token = scanner.scan();
-      switch (token) {
-        case 5:
-        case 2:
-        case 4:
-        case 17:
-          return "";
-        default:
-          return ",";
+      if (Array.isArray(propertySchema.examples) && propertySchema.examples.length) {
+        if (!value) {
+          value = this.getInsertTextForGuessedValue(propertySchema.examples[0], "");
+        }
+        nValueProposals += propertySchema.examples.length;
       }
-    };
-    JSONCompletion2.prototype.findItemAtOffset = function(node, document, offset) {
-      var scanner = createScanner2(document.getText(), true);
-      var children = node.items;
-      for (var i = children.length - 1; i >= 0; i--) {
-        var child = children[i];
-        if (offset > child.offset + child.length) {
-          scanner.setPosition(child.offset + child.length);
-          var token = scanner.scan();
-          if (token === 5 && offset >= scanner.getTokenOffset() + scanner.getTokenLength()) {
-            return i + 1;
+      if (nValueProposals === 0) {
+        var type = Array.isArray(propertySchema.type) ? propertySchema.type[0] : propertySchema.type;
+        if (!type) {
+          if (propertySchema.properties) {
+            type = "object";
+          } else if (propertySchema.items) {
+            type = "array";
           }
-          return i;
-        } else if (offset >= child.offset) {
-          return i;
+        }
+        switch (type) {
+          case "boolean":
+            value = "$1";
+            break;
+          case "string":
+            value = '"$1"';
+            break;
+          case "object":
+            value = "{$1}";
+            break;
+          case "array":
+            value = "[$1]";
+            break;
+          case "number":
+          case "integer":
+            value = "${1:0}";
+            break;
+          case "null":
+            value = "${1:null}";
+            break;
+          default:
+            return propertyText;
         }
       }
-      return 0;
-    };
-    JSONCompletion2.prototype.isInComment = function(document, start, offset) {
-      var scanner = createScanner2(document.getText(), false);
-      scanner.setPosition(start);
-      var token = scanner.scan();
-      while (token !== 17 && scanner.getTokenOffset() + scanner.getTokenLength() < offset) {
-        token = scanner.scan();
+    }
+    if (!value || nValueProposals > 1) {
+      value = "$1";
+    }
+    return resultText + value + separatorAfter;
+  };
+  JSONCompletion2.prototype.getCurrentWord = function(document, offset) {
+    var i = offset - 1;
+    var text = document.getText();
+    while (i >= 0 && ' 	\n\r\v":{[,]}'.indexOf(text.charAt(i)) === -1) {
+      i--;
+    }
+    return text.substring(i + 1, offset);
+  };
+  JSONCompletion2.prototype.evaluateSeparatorAfter = function(document, offset) {
+    var scanner = createScanner2(document.getText(), true);
+    scanner.setPosition(offset);
+    var token = scanner.scan();
+    switch (token) {
+      case 5:
+      case 2:
+      case 4:
+      case 17:
+        return "";
+      default:
+        return ",";
+    }
+  };
+  JSONCompletion2.prototype.findItemAtOffset = function(node, document, offset) {
+    var scanner = createScanner2(document.getText(), true);
+    var children = node.items;
+    for (var i = children.length - 1; i >= 0; i--) {
+      var child = children[i];
+      if (offset > child.offset + child.length) {
+        scanner.setPosition(child.offset + child.length);
+        var token = scanner.scan();
+        if (token === 5 && offset >= scanner.getTokenOffset() + scanner.getTokenLength()) {
+          return i + 1;
+        }
+        return i;
+      } else if (offset >= child.offset) {
+        return i;
       }
-      return (token === 12 || token === 13) && scanner.getTokenOffset() <= offset;
-    };
-    JSONCompletion2.prototype.fromMarkup = function(markupString) {
-      if (markupString && this.doesSupportMarkdown()) {
-        return {
-          kind: MarkupKind.Markdown,
-          value: markupString
-        };
-      }
-      return void 0;
-    };
-    JSONCompletion2.prototype.doesSupportMarkdown = function() {
-      if (!isDefined(this.supportsMarkdown)) {
-        var completion = this.clientCapabilities.textDocument && this.clientCapabilities.textDocument.completion;
-        this.supportsMarkdown = completion && completion.completionItem && Array.isArray(completion.completionItem.documentationFormat) && completion.completionItem.documentationFormat.indexOf(MarkupKind.Markdown) !== -1;
-      }
-      return this.supportsMarkdown;
-    };
-    JSONCompletion2.prototype.doesSupportsCommitCharacters = function() {
-      if (!isDefined(this.supportsCommitCharacters)) {
-        var completion = this.clientCapabilities.textDocument && this.clientCapabilities.textDocument.completion;
-        this.supportsCommitCharacters = completion && completion.completionItem && !!completion.completionItem.commitCharactersSupport;
-      }
-      return this.supportsCommitCharacters;
-    };
-    return JSONCompletion2;
-  }()
-);
+    }
+    return 0;
+  };
+  JSONCompletion2.prototype.isInComment = function(document, start, offset) {
+    var scanner = createScanner2(document.getText(), false);
+    scanner.setPosition(start);
+    var token = scanner.scan();
+    while (token !== 17 && scanner.getTokenOffset() + scanner.getTokenLength() < offset) {
+      token = scanner.scan();
+    }
+    return (token === 12 || token === 13) && scanner.getTokenOffset() <= offset;
+  };
+  JSONCompletion2.prototype.fromMarkup = function(markupString) {
+    if (markupString && this.doesSupportMarkdown()) {
+      return {
+        kind: MarkupKind.Markdown,
+        value: markupString
+      };
+    }
+    return void 0;
+  };
+  JSONCompletion2.prototype.doesSupportMarkdown = function() {
+    if (!isDefined(this.supportsMarkdown)) {
+      var completion = this.clientCapabilities.textDocument && this.clientCapabilities.textDocument.completion;
+      this.supportsMarkdown = completion && completion.completionItem && Array.isArray(completion.completionItem.documentationFormat) && completion.completionItem.documentationFormat.indexOf(MarkupKind.Markdown) !== -1;
+    }
+    return this.supportsMarkdown;
+  };
+  JSONCompletion2.prototype.doesSupportsCommitCharacters = function() {
+    if (!isDefined(this.supportsCommitCharacters)) {
+      var completion = this.clientCapabilities.textDocument && this.clientCapabilities.textDocument.completion;
+      this.supportsCommitCharacters = completion && completion.completionItem && !!completion.completionItem.commitCharactersSupport;
+    }
+    return this.supportsCommitCharacters;
+  };
+  return JSONCompletion2;
+}();
 
 // node_modules/vscode-json-languageservice/lib/esm/services/jsonHover.js
-var JSONHover = (
-  /** @class */
-  function() {
-    function JSONHover2(schemaService, contributions, promiseConstructor) {
-      if (contributions === void 0) {
-        contributions = [];
-      }
-      this.schemaService = schemaService;
-      this.contributions = contributions;
-      this.promise = promiseConstructor || Promise;
+var JSONHover = function() {
+  function JSONHover2(schemaService, contributions, promiseConstructor) {
+    if (contributions === void 0) {
+      contributions = [];
     }
-    JSONHover2.prototype.doHover = function(document, position, doc) {
-      var offset = document.offsetAt(position);
-      var node = doc.getNodeFromOffset(offset);
-      if (!node || (node.type === "object" || node.type === "array") && offset > node.offset + 1 && offset < node.offset + node.length - 1) {
-        return this.promise.resolve(null);
-      }
-      var hoverRangeNode = node;
-      if (node.type === "string") {
-        var parent = node.parent;
-        if (parent && parent.type === "property" && parent.keyNode === node) {
-          node = parent.valueNode;
-          if (!node) {
-            return this.promise.resolve(null);
-          }
+    this.schemaService = schemaService;
+    this.contributions = contributions;
+    this.promise = promiseConstructor || Promise;
+  }
+  JSONHover2.prototype.doHover = function(document, position, doc) {
+    var offset = document.offsetAt(position);
+    var node = doc.getNodeFromOffset(offset);
+    if (!node || (node.type === "object" || node.type === "array") && offset > node.offset + 1 && offset < node.offset + node.length - 1) {
+      return this.promise.resolve(null);
+    }
+    var hoverRangeNode = node;
+    if (node.type === "string") {
+      var parent = node.parent;
+      if (parent && parent.type === "property" && parent.keyNode === node) {
+        node = parent.valueNode;
+        if (!node) {
+          return this.promise.resolve(null);
         }
       }
-      var hoverRange = Range.create(document.positionAt(hoverRangeNode.offset), document.positionAt(hoverRangeNode.offset + hoverRangeNode.length));
-      var createHover = function(contents) {
-        var result = {
-          contents,
-          range: hoverRange
-        };
-        return result;
+    }
+    var hoverRange = Range.create(document.positionAt(hoverRangeNode.offset), document.positionAt(hoverRangeNode.offset + hoverRangeNode.length));
+    var createHover = function(contents) {
+      var result = {
+        contents,
+        range: hoverRange
       };
-      var location = getNodePath3(node);
-      for (var i = this.contributions.length - 1; i >= 0; i--) {
-        var contribution = this.contributions[i];
-        var promise = contribution.getInfoContribution(document.uri, location);
-        if (promise) {
-          return promise.then(function(htmlContent) {
-            return createHover(htmlContent);
-          });
-        }
+      return result;
+    };
+    var location = getNodePath3(node);
+    for (var i = this.contributions.length - 1; i >= 0; i--) {
+      var contribution = this.contributions[i];
+      var promise = contribution.getInfoContribution(document.uri, location);
+      if (promise) {
+        return promise.then(function(htmlContent) {
+          return createHover(htmlContent);
+        });
       }
-      return this.schemaService.getSchemaForResource(document.uri, doc).then(function(schema) {
-        if (schema && node) {
-          var matchingSchemas = doc.getMatchingSchemas(schema.schema, node.offset);
-          var title_1 = void 0;
-          var markdownDescription_1 = void 0;
-          var markdownEnumValueDescription_1 = void 0, enumValue_1 = void 0;
-          matchingSchemas.every(function(s) {
-            if (s.node === node && !s.inverted && s.schema) {
-              title_1 = title_1 || s.schema.title;
-              markdownDescription_1 = markdownDescription_1 || s.schema.markdownDescription || toMarkdown(s.schema.description);
-              if (s.schema.enum) {
-                var idx = s.schema.enum.indexOf(getNodeValue3(node));
-                if (s.schema.markdownEnumDescriptions) {
-                  markdownEnumValueDescription_1 = s.schema.markdownEnumDescriptions[idx];
-                } else if (s.schema.enumDescriptions) {
-                  markdownEnumValueDescription_1 = toMarkdown(s.schema.enumDescriptions[idx]);
-                }
-                if (markdownEnumValueDescription_1) {
-                  enumValue_1 = s.schema.enum[idx];
-                  if (typeof enumValue_1 !== "string") {
-                    enumValue_1 = JSON.stringify(enumValue_1);
-                  }
+    }
+    return this.schemaService.getSchemaForResource(document.uri, doc).then(function(schema) {
+      if (schema && node) {
+        var matchingSchemas = doc.getMatchingSchemas(schema.schema, node.offset);
+        var title_1 = void 0;
+        var markdownDescription_1 = void 0;
+        var markdownEnumValueDescription_1 = void 0, enumValue_1 = void 0;
+        matchingSchemas.every(function(s) {
+          if (s.node === node && !s.inverted && s.schema) {
+            title_1 = title_1 || s.schema.title;
+            markdownDescription_1 = markdownDescription_1 || s.schema.markdownDescription || toMarkdown(s.schema.description);
+            if (s.schema.enum) {
+              var idx = s.schema.enum.indexOf(getNodeValue3(node));
+              if (s.schema.markdownEnumDescriptions) {
+                markdownEnumValueDescription_1 = s.schema.markdownEnumDescriptions[idx];
+              } else if (s.schema.enumDescriptions) {
+                markdownEnumValueDescription_1 = toMarkdown(s.schema.enumDescriptions[idx]);
+              }
+              if (markdownEnumValueDescription_1) {
+                enumValue_1 = s.schema.enum[idx];
+                if (typeof enumValue_1 !== "string") {
+                  enumValue_1 = JSON.stringify(enumValue_1);
                 }
               }
             }
-            return true;
-          });
-          var result = "";
-          if (title_1) {
-            result = toMarkdown(title_1);
           }
-          if (markdownDescription_1) {
-            if (result.length > 0) {
-              result += "\n\n";
-            }
-            result += markdownDescription_1;
-          }
-          if (markdownEnumValueDescription_1) {
-            if (result.length > 0) {
-              result += "\n\n";
-            }
-            result += "`".concat(toMarkdownCodeBlock(enumValue_1), "`: ").concat(markdownEnumValueDescription_1);
-          }
-          return createHover([result]);
+          return true;
+        });
+        var result = "";
+        if (title_1) {
+          result = toMarkdown(title_1);
         }
-        return null;
-      });
-    };
-    return JSONHover2;
-  }()
-);
+        if (markdownDescription_1) {
+          if (result.length > 0) {
+            result += "\n\n";
+          }
+          result += markdownDescription_1;
+        }
+        if (markdownEnumValueDescription_1) {
+          if (result.length > 0) {
+            result += "\n\n";
+          }
+          result += "`".concat(toMarkdownCodeBlock(enumValue_1), "`: ").concat(markdownEnumValueDescription_1);
+        }
+        return createHover([result]);
+      }
+      return null;
+    });
+  };
+  return JSONHover2;
+}();
 function toMarkdown(plain) {
   if (plain) {
     var res = plain.replace(/([^\n\r])(\r?\n)([^\n\r])/gm, "$1\n\n$3");
@@ -23475,99 +23283,96 @@ function toMarkdownCodeBlock(content) {
 
 // node_modules/vscode-json-languageservice/lib/esm/services/jsonValidation.js
 var localize4 = loadMessageBundle();
-var JSONValidation = (
-  /** @class */
-  function() {
-    function JSONValidation2(jsonSchemaService, promiseConstructor) {
-      this.jsonSchemaService = jsonSchemaService;
-      this.promise = promiseConstructor;
-      this.validationEnabled = true;
+var JSONValidation = function() {
+  function JSONValidation2(jsonSchemaService, promiseConstructor) {
+    this.jsonSchemaService = jsonSchemaService;
+    this.promise = promiseConstructor;
+    this.validationEnabled = true;
+  }
+  JSONValidation2.prototype.configure = function(raw) {
+    if (raw) {
+      this.validationEnabled = raw.validate !== false;
+      this.commentSeverity = raw.allowComments ? void 0 : DiagnosticSeverity.Error;
     }
-    JSONValidation2.prototype.configure = function(raw) {
-      if (raw) {
-        this.validationEnabled = raw.validate !== false;
-        this.commentSeverity = raw.allowComments ? void 0 : DiagnosticSeverity.Error;
+  };
+  JSONValidation2.prototype.doValidation = function(textDocument, jsonDocument, documentSettings, schema) {
+    var _this = this;
+    if (!this.validationEnabled) {
+      return this.promise.resolve([]);
+    }
+    var diagnostics = [];
+    var added = {};
+    var addProblem = function(problem) {
+      var signature = problem.range.start.line + " " + problem.range.start.character + " " + problem.message;
+      if (!added[signature]) {
+        added[signature] = true;
+        diagnostics.push(problem);
       }
     };
-    JSONValidation2.prototype.doValidation = function(textDocument, jsonDocument, documentSettings, schema) {
-      var _this = this;
-      if (!this.validationEnabled) {
-        return this.promise.resolve([]);
+    var getDiagnostics = function(schema2) {
+      var trailingCommaSeverity = (documentSettings === null || documentSettings === void 0 ? void 0 : documentSettings.trailingCommas) ? toDiagnosticSeverity(documentSettings.trailingCommas) : DiagnosticSeverity.Error;
+      var commentSeverity = (documentSettings === null || documentSettings === void 0 ? void 0 : documentSettings.comments) ? toDiagnosticSeverity(documentSettings.comments) : _this.commentSeverity;
+      var schemaValidation = (documentSettings === null || documentSettings === void 0 ? void 0 : documentSettings.schemaValidation) ? toDiagnosticSeverity(documentSettings.schemaValidation) : DiagnosticSeverity.Warning;
+      var schemaRequest = (documentSettings === null || documentSettings === void 0 ? void 0 : documentSettings.schemaRequest) ? toDiagnosticSeverity(documentSettings.schemaRequest) : DiagnosticSeverity.Warning;
+      if (schema2) {
+        if (schema2.errors.length && jsonDocument.root && schemaRequest) {
+          var astRoot = jsonDocument.root;
+          var property = astRoot.type === "object" ? astRoot.properties[0] : void 0;
+          if (property && property.keyNode.value === "$schema") {
+            var node = property.valueNode || property;
+            var range = Range.create(textDocument.positionAt(node.offset), textDocument.positionAt(node.offset + node.length));
+            addProblem(Diagnostic.create(range, schema2.errors[0], schemaRequest, ErrorCode.SchemaResolveError));
+          } else {
+            var range = Range.create(textDocument.positionAt(astRoot.offset), textDocument.positionAt(astRoot.offset + 1));
+            addProblem(Diagnostic.create(range, schema2.errors[0], schemaRequest, ErrorCode.SchemaResolveError));
+          }
+        } else if (schemaValidation) {
+          var semanticErrors = jsonDocument.validate(textDocument, schema2.schema, schemaValidation);
+          if (semanticErrors) {
+            semanticErrors.forEach(addProblem);
+          }
+        }
+        if (schemaAllowsComments(schema2.schema)) {
+          commentSeverity = void 0;
+        }
+        if (schemaAllowsTrailingCommas(schema2.schema)) {
+          trailingCommaSeverity = void 0;
+        }
       }
-      var diagnostics = [];
-      var added = {};
-      var addProblem = function(problem) {
-        var signature = problem.range.start.line + " " + problem.range.start.character + " " + problem.message;
-        if (!added[signature]) {
-          added[signature] = true;
-          diagnostics.push(problem);
-        }
-      };
-      var getDiagnostics = function(schema2) {
-        var trailingCommaSeverity = (documentSettings === null || documentSettings === void 0 ? void 0 : documentSettings.trailingCommas) ? toDiagnosticSeverity(documentSettings.trailingCommas) : DiagnosticSeverity.Error;
-        var commentSeverity = (documentSettings === null || documentSettings === void 0 ? void 0 : documentSettings.comments) ? toDiagnosticSeverity(documentSettings.comments) : _this.commentSeverity;
-        var schemaValidation = (documentSettings === null || documentSettings === void 0 ? void 0 : documentSettings.schemaValidation) ? toDiagnosticSeverity(documentSettings.schemaValidation) : DiagnosticSeverity.Warning;
-        var schemaRequest = (documentSettings === null || documentSettings === void 0 ? void 0 : documentSettings.schemaRequest) ? toDiagnosticSeverity(documentSettings.schemaRequest) : DiagnosticSeverity.Warning;
-        if (schema2) {
-          if (schema2.errors.length && jsonDocument.root && schemaRequest) {
-            var astRoot = jsonDocument.root;
-            var property = astRoot.type === "object" ? astRoot.properties[0] : void 0;
-            if (property && property.keyNode.value === "$schema") {
-              var node = property.valueNode || property;
-              var range = Range.create(textDocument.positionAt(node.offset), textDocument.positionAt(node.offset + node.length));
-              addProblem(Diagnostic.create(range, schema2.errors[0], schemaRequest, ErrorCode.SchemaResolveError));
-            } else {
-              var range = Range.create(textDocument.positionAt(astRoot.offset), textDocument.positionAt(astRoot.offset + 1));
-              addProblem(Diagnostic.create(range, schema2.errors[0], schemaRequest, ErrorCode.SchemaResolveError));
-            }
-          } else if (schemaValidation) {
-            var semanticErrors = jsonDocument.validate(textDocument, schema2.schema, schemaValidation);
-            if (semanticErrors) {
-              semanticErrors.forEach(addProblem);
-            }
+      for (var _i = 0, _a = jsonDocument.syntaxErrors; _i < _a.length; _i++) {
+        var p = _a[_i];
+        if (p.code === ErrorCode.TrailingComma) {
+          if (typeof trailingCommaSeverity !== "number") {
+            continue;
           }
-          if (schemaAllowsComments(schema2.schema)) {
-            commentSeverity = void 0;
-          }
-          if (schemaAllowsTrailingCommas(schema2.schema)) {
-            trailingCommaSeverity = void 0;
-          }
+          p.severity = trailingCommaSeverity;
         }
-        for (var _i = 0, _a = jsonDocument.syntaxErrors; _i < _a.length; _i++) {
-          var p = _a[_i];
-          if (p.code === ErrorCode.TrailingComma) {
-            if (typeof trailingCommaSeverity !== "number") {
-              continue;
-            }
-            p.severity = trailingCommaSeverity;
-          }
-          addProblem(p);
-        }
-        if (typeof commentSeverity === "number") {
-          var message_1 = localize4("InvalidCommentToken", "Comments are not permitted in JSON.");
-          jsonDocument.comments.forEach(function(c) {
-            addProblem(Diagnostic.create(c, message_1, commentSeverity, ErrorCode.CommentNotPermitted));
-          });
-        }
-        return diagnostics;
-      };
-      if (schema) {
-        var id = schema.id || "schemaservice://untitled/" + idCounter++;
-        var handle = this.jsonSchemaService.registerExternalSchema(id, [], schema);
-        return handle.getResolvedSchema().then(function(resolvedSchema) {
-          return getDiagnostics(resolvedSchema);
+        addProblem(p);
+      }
+      if (typeof commentSeverity === "number") {
+        var message_1 = localize4("InvalidCommentToken", "Comments are not permitted in JSON.");
+        jsonDocument.comments.forEach(function(c) {
+          addProblem(Diagnostic.create(c, message_1, commentSeverity, ErrorCode.CommentNotPermitted));
         });
       }
-      return this.jsonSchemaService.getSchemaForResource(textDocument.uri, jsonDocument).then(function(schema2) {
-        return getDiagnostics(schema2);
+      return diagnostics;
+    };
+    if (schema) {
+      var id = schema.id || "schemaservice://untitled/" + idCounter++;
+      var handle = this.jsonSchemaService.registerExternalSchema(id, [], schema);
+      return handle.getResolvedSchema().then(function(resolvedSchema) {
+        return getDiagnostics(resolvedSchema);
       });
-    };
-    JSONValidation2.prototype.getLanguageStatus = function(textDocument, jsonDocument) {
-      return { schemas: this.jsonSchemaService.getSchemaURIsForResource(textDocument.uri, jsonDocument) };
-    };
-    return JSONValidation2;
-  }()
-);
+    }
+    return this.jsonSchemaService.getSchemaForResource(textDocument.uri, jsonDocument).then(function(schema2) {
+      return getDiagnostics(schema2);
+    });
+  };
+  JSONValidation2.prototype.getLanguageStatus = function(textDocument, jsonDocument) {
+    return { schemas: this.jsonSchemaService.getSchemaURIsForResource(textDocument.uri, jsonDocument) };
+  };
+  return JSONValidation2;
+}();
 var idCounter = 0;
 function schemaAllowsComments(schemaRef) {
   if (schemaRef && typeof schemaRef === "object") {
@@ -23678,267 +23483,264 @@ function colorFromHex(text) {
 }
 
 // node_modules/vscode-json-languageservice/lib/esm/services/jsonDocumentSymbols.js
-var JSONDocumentSymbols = (
-  /** @class */
-  function() {
-    function JSONDocumentSymbols2(schemaService) {
-      this.schemaService = schemaService;
+var JSONDocumentSymbols = function() {
+  function JSONDocumentSymbols2(schemaService) {
+    this.schemaService = schemaService;
+  }
+  JSONDocumentSymbols2.prototype.findDocumentSymbols = function(document, doc, context) {
+    var _this = this;
+    if (context === void 0) {
+      context = { resultLimit: Number.MAX_VALUE };
     }
-    JSONDocumentSymbols2.prototype.findDocumentSymbols = function(document, doc, context) {
-      var _this = this;
-      if (context === void 0) {
-        context = { resultLimit: Number.MAX_VALUE };
-      }
-      var root = doc.root;
-      if (!root) {
-        return [];
-      }
-      var limit = context.resultLimit || Number.MAX_VALUE;
-      var resourceString = document.uri;
-      if (resourceString === "vscode://defaultsettings/keybindings.json" || endsWith(resourceString.toLowerCase(), "/user/keybindings.json")) {
-        if (root.type === "array") {
-          var result_1 = [];
-          for (var _i = 0, _a = root.items; _i < _a.length; _i++) {
-            var item = _a[_i];
-            if (item.type === "object") {
-              for (var _b = 0, _c = item.properties; _b < _c.length; _b++) {
-                var property = _c[_b];
-                if (property.keyNode.value === "key" && property.valueNode) {
-                  var location = Location.create(document.uri, getRange(document, item));
-                  result_1.push({ name: getNodeValue3(property.valueNode), kind: SymbolKind.Function, location });
-                  limit--;
-                  if (limit <= 0) {
-                    if (context && context.onResultLimitExceeded) {
-                      context.onResultLimitExceeded(resourceString);
-                    }
-                    return result_1;
-                  }
-                }
-              }
-            }
-          }
-          return result_1;
-        }
-      }
-      var toVisit = [
-        { node: root, containerName: "" }
-      ];
-      var nextToVisit = 0;
-      var limitExceeded = false;
-      var result = [];
-      var collectOutlineEntries = function(node, containerName) {
-        if (node.type === "array") {
-          node.items.forEach(function(node2) {
-            if (node2) {
-              toVisit.push({ node: node2, containerName });
-            }
-          });
-        } else if (node.type === "object") {
-          node.properties.forEach(function(property2) {
-            var valueNode = property2.valueNode;
-            if (valueNode) {
-              if (limit > 0) {
-                limit--;
-                var location2 = Location.create(document.uri, getRange(document, property2));
-                var childContainerName = containerName ? containerName + "." + property2.keyNode.value : property2.keyNode.value;
-                result.push({ name: _this.getKeyLabel(property2), kind: _this.getSymbolKind(valueNode.type), location: location2, containerName });
-                toVisit.push({ node: valueNode, containerName: childContainerName });
-              } else {
-                limitExceeded = true;
-              }
-            }
-          });
-        }
-      };
-      while (nextToVisit < toVisit.length) {
-        var next = toVisit[nextToVisit++];
-        collectOutlineEntries(next.node, next.containerName);
-      }
-      if (limitExceeded && context && context.onResultLimitExceeded) {
-        context.onResultLimitExceeded(resourceString);
-      }
-      return result;
-    };
-    JSONDocumentSymbols2.prototype.findDocumentSymbols2 = function(document, doc, context) {
-      var _this = this;
-      if (context === void 0) {
-        context = { resultLimit: Number.MAX_VALUE };
-      }
-      var root = doc.root;
-      if (!root) {
-        return [];
-      }
-      var limit = context.resultLimit || Number.MAX_VALUE;
-      var resourceString = document.uri;
-      if (resourceString === "vscode://defaultsettings/keybindings.json" || endsWith(resourceString.toLowerCase(), "/user/keybindings.json")) {
-        if (root.type === "array") {
-          var result_2 = [];
-          for (var _i = 0, _a = root.items; _i < _a.length; _i++) {
-            var item = _a[_i];
-            if (item.type === "object") {
-              for (var _b = 0, _c = item.properties; _b < _c.length; _b++) {
-                var property = _c[_b];
-                if (property.keyNode.value === "key" && property.valueNode) {
-                  var range = getRange(document, item);
-                  var selectionRange = getRange(document, property.keyNode);
-                  result_2.push({ name: getNodeValue3(property.valueNode), kind: SymbolKind.Function, range, selectionRange });
-                  limit--;
-                  if (limit <= 0) {
-                    if (context && context.onResultLimitExceeded) {
-                      context.onResultLimitExceeded(resourceString);
-                    }
-                    return result_2;
-                  }
-                }
-              }
-            }
-          }
-          return result_2;
-        }
-      }
-      var result = [];
-      var toVisit = [
-        { node: root, result }
-      ];
-      var nextToVisit = 0;
-      var limitExceeded = false;
-      var collectOutlineEntries = function(node, result2) {
-        if (node.type === "array") {
-          node.items.forEach(function(node2, index) {
-            if (node2) {
-              if (limit > 0) {
-                limit--;
-                var range2 = getRange(document, node2);
-                var selectionRange2 = range2;
-                var name = String(index);
-                var symbol = { name, kind: _this.getSymbolKind(node2.type), range: range2, selectionRange: selectionRange2, children: [] };
-                result2.push(symbol);
-                toVisit.push({ result: symbol.children, node: node2 });
-              } else {
-                limitExceeded = true;
-              }
-            }
-          });
-        } else if (node.type === "object") {
-          node.properties.forEach(function(property2) {
-            var valueNode = property2.valueNode;
-            if (valueNode) {
-              if (limit > 0) {
-                limit--;
-                var range2 = getRange(document, property2);
-                var selectionRange2 = getRange(document, property2.keyNode);
-                var children = [];
-                var symbol = { name: _this.getKeyLabel(property2), kind: _this.getSymbolKind(valueNode.type), range: range2, selectionRange: selectionRange2, children, detail: _this.getDetail(valueNode) };
-                result2.push(symbol);
-                toVisit.push({ result: children, node: valueNode });
-              } else {
-                limitExceeded = true;
-              }
-            }
-          });
-        }
-      };
-      while (nextToVisit < toVisit.length) {
-        var next = toVisit[nextToVisit++];
-        collectOutlineEntries(next.node, next.result);
-      }
-      if (limitExceeded && context && context.onResultLimitExceeded) {
-        context.onResultLimitExceeded(resourceString);
-      }
-      return result;
-    };
-    JSONDocumentSymbols2.prototype.getSymbolKind = function(nodeType) {
-      switch (nodeType) {
-        case "object":
-          return SymbolKind.Module;
-        case "string":
-          return SymbolKind.String;
-        case "number":
-          return SymbolKind.Number;
-        case "array":
-          return SymbolKind.Array;
-        case "boolean":
-          return SymbolKind.Boolean;
-        default:
-          return SymbolKind.Variable;
-      }
-    };
-    JSONDocumentSymbols2.prototype.getKeyLabel = function(property) {
-      var name = property.keyNode.value;
-      if (name) {
-        name = name.replace(/[\n]/g, "\u21B5");
-      }
-      if (name && name.trim()) {
-        return name;
-      }
-      return '"'.concat(name, '"');
-    };
-    JSONDocumentSymbols2.prototype.getDetail = function(node) {
-      if (!node) {
-        return void 0;
-      }
-      if (node.type === "boolean" || node.type === "number" || node.type === "null" || node.type === "string") {
-        return String(node.value);
-      } else {
-        if (node.type === "array") {
-          return node.children.length ? void 0 : "[]";
-        } else if (node.type === "object") {
-          return node.children.length ? void 0 : "{}";
-        }
-      }
-      return void 0;
-    };
-    JSONDocumentSymbols2.prototype.findDocumentColors = function(document, doc, context) {
-      return this.schemaService.getSchemaForResource(document.uri, doc).then(function(schema) {
-        var result = [];
-        if (schema) {
-          var limit = context && typeof context.resultLimit === "number" ? context.resultLimit : Number.MAX_VALUE;
-          var matchingSchemas = doc.getMatchingSchemas(schema.schema);
-          var visitedNode = {};
-          for (var _i = 0, matchingSchemas_1 = matchingSchemas; _i < matchingSchemas_1.length; _i++) {
-            var s = matchingSchemas_1[_i];
-            if (!s.inverted && s.schema && (s.schema.format === "color" || s.schema.format === "color-hex") && s.node && s.node.type === "string") {
-              var nodeId = String(s.node.offset);
-              if (!visitedNode[nodeId]) {
-                var color = colorFromHex(getNodeValue3(s.node));
-                if (color) {
-                  var range = getRange(document, s.node);
-                  result.push({ color, range });
-                }
-                visitedNode[nodeId] = true;
+    var root = doc.root;
+    if (!root) {
+      return [];
+    }
+    var limit = context.resultLimit || Number.MAX_VALUE;
+    var resourceString = document.uri;
+    if (resourceString === "vscode://defaultsettings/keybindings.json" || endsWith(resourceString.toLowerCase(), "/user/keybindings.json")) {
+      if (root.type === "array") {
+        var result_1 = [];
+        for (var _i = 0, _a = root.items; _i < _a.length; _i++) {
+          var item = _a[_i];
+          if (item.type === "object") {
+            for (var _b = 0, _c = item.properties; _b < _c.length; _b++) {
+              var property = _c[_b];
+              if (property.keyNode.value === "key" && property.valueNode) {
+                var location = Location.create(document.uri, getRange(document, item));
+                result_1.push({ name: getNodeValue3(property.valueNode), kind: SymbolKind.Function, location });
                 limit--;
                 if (limit <= 0) {
                   if (context && context.onResultLimitExceeded) {
-                    context.onResultLimitExceeded(document.uri);
+                    context.onResultLimitExceeded(resourceString);
                   }
-                  return result;
+                  return result_1;
                 }
               }
             }
           }
         }
-        return result;
-      });
+        return result_1;
+      }
+    }
+    var toVisit = [
+      { node: root, containerName: "" }
+    ];
+    var nextToVisit = 0;
+    var limitExceeded = false;
+    var result = [];
+    var collectOutlineEntries = function(node, containerName) {
+      if (node.type === "array") {
+        node.items.forEach(function(node2) {
+          if (node2) {
+            toVisit.push({ node: node2, containerName });
+          }
+        });
+      } else if (node.type === "object") {
+        node.properties.forEach(function(property2) {
+          var valueNode = property2.valueNode;
+          if (valueNode) {
+            if (limit > 0) {
+              limit--;
+              var location2 = Location.create(document.uri, getRange(document, property2));
+              var childContainerName = containerName ? containerName + "." + property2.keyNode.value : property2.keyNode.value;
+              result.push({ name: _this.getKeyLabel(property2), kind: _this.getSymbolKind(valueNode.type), location: location2, containerName });
+              toVisit.push({ node: valueNode, containerName: childContainerName });
+            } else {
+              limitExceeded = true;
+            }
+          }
+        });
+      }
     };
-    JSONDocumentSymbols2.prototype.getColorPresentations = function(document, doc, color, range) {
+    while (nextToVisit < toVisit.length) {
+      var next = toVisit[nextToVisit++];
+      collectOutlineEntries(next.node, next.containerName);
+    }
+    if (limitExceeded && context && context.onResultLimitExceeded) {
+      context.onResultLimitExceeded(resourceString);
+    }
+    return result;
+  };
+  JSONDocumentSymbols2.prototype.findDocumentSymbols2 = function(document, doc, context) {
+    var _this = this;
+    if (context === void 0) {
+      context = { resultLimit: Number.MAX_VALUE };
+    }
+    var root = doc.root;
+    if (!root) {
+      return [];
+    }
+    var limit = context.resultLimit || Number.MAX_VALUE;
+    var resourceString = document.uri;
+    if (resourceString === "vscode://defaultsettings/keybindings.json" || endsWith(resourceString.toLowerCase(), "/user/keybindings.json")) {
+      if (root.type === "array") {
+        var result_2 = [];
+        for (var _i = 0, _a = root.items; _i < _a.length; _i++) {
+          var item = _a[_i];
+          if (item.type === "object") {
+            for (var _b = 0, _c = item.properties; _b < _c.length; _b++) {
+              var property = _c[_b];
+              if (property.keyNode.value === "key" && property.valueNode) {
+                var range = getRange(document, item);
+                var selectionRange = getRange(document, property.keyNode);
+                result_2.push({ name: getNodeValue3(property.valueNode), kind: SymbolKind.Function, range, selectionRange });
+                limit--;
+                if (limit <= 0) {
+                  if (context && context.onResultLimitExceeded) {
+                    context.onResultLimitExceeded(resourceString);
+                  }
+                  return result_2;
+                }
+              }
+            }
+          }
+        }
+        return result_2;
+      }
+    }
+    var result = [];
+    var toVisit = [
+      { node: root, result }
+    ];
+    var nextToVisit = 0;
+    var limitExceeded = false;
+    var collectOutlineEntries = function(node, result2) {
+      if (node.type === "array") {
+        node.items.forEach(function(node2, index) {
+          if (node2) {
+            if (limit > 0) {
+              limit--;
+              var range2 = getRange(document, node2);
+              var selectionRange2 = range2;
+              var name = String(index);
+              var symbol = { name, kind: _this.getSymbolKind(node2.type), range: range2, selectionRange: selectionRange2, children: [] };
+              result2.push(symbol);
+              toVisit.push({ result: symbol.children, node: node2 });
+            } else {
+              limitExceeded = true;
+            }
+          }
+        });
+      } else if (node.type === "object") {
+        node.properties.forEach(function(property2) {
+          var valueNode = property2.valueNode;
+          if (valueNode) {
+            if (limit > 0) {
+              limit--;
+              var range2 = getRange(document, property2);
+              var selectionRange2 = getRange(document, property2.keyNode);
+              var children = [];
+              var symbol = { name: _this.getKeyLabel(property2), kind: _this.getSymbolKind(valueNode.type), range: range2, selectionRange: selectionRange2, children, detail: _this.getDetail(valueNode) };
+              result2.push(symbol);
+              toVisit.push({ result: children, node: valueNode });
+            } else {
+              limitExceeded = true;
+            }
+          }
+        });
+      }
+    };
+    while (nextToVisit < toVisit.length) {
+      var next = toVisit[nextToVisit++];
+      collectOutlineEntries(next.node, next.result);
+    }
+    if (limitExceeded && context && context.onResultLimitExceeded) {
+      context.onResultLimitExceeded(resourceString);
+    }
+    return result;
+  };
+  JSONDocumentSymbols2.prototype.getSymbolKind = function(nodeType) {
+    switch (nodeType) {
+      case "object":
+        return SymbolKind.Module;
+      case "string":
+        return SymbolKind.String;
+      case "number":
+        return SymbolKind.Number;
+      case "array":
+        return SymbolKind.Array;
+      case "boolean":
+        return SymbolKind.Boolean;
+      default:
+        return SymbolKind.Variable;
+    }
+  };
+  JSONDocumentSymbols2.prototype.getKeyLabel = function(property) {
+    var name = property.keyNode.value;
+    if (name) {
+      name = name.replace(/[\n]/g, "\u21B5");
+    }
+    if (name && name.trim()) {
+      return name;
+    }
+    return '"'.concat(name, '"');
+  };
+  JSONDocumentSymbols2.prototype.getDetail = function(node) {
+    if (!node) {
+      return void 0;
+    }
+    if (node.type === "boolean" || node.type === "number" || node.type === "null" || node.type === "string") {
+      return String(node.value);
+    } else {
+      if (node.type === "array") {
+        return node.children.length ? void 0 : "[]";
+      } else if (node.type === "object") {
+        return node.children.length ? void 0 : "{}";
+      }
+    }
+    return void 0;
+  };
+  JSONDocumentSymbols2.prototype.findDocumentColors = function(document, doc, context) {
+    return this.schemaService.getSchemaForResource(document.uri, doc).then(function(schema) {
       var result = [];
-      var red256 = Math.round(color.red * 255), green256 = Math.round(color.green * 255), blue256 = Math.round(color.blue * 255);
-      function toTwoDigitHex(n) {
-        var r = n.toString(16);
-        return r.length !== 2 ? "0" + r : r;
+      if (schema) {
+        var limit = context && typeof context.resultLimit === "number" ? context.resultLimit : Number.MAX_VALUE;
+        var matchingSchemas = doc.getMatchingSchemas(schema.schema);
+        var visitedNode = {};
+        for (var _i = 0, matchingSchemas_1 = matchingSchemas; _i < matchingSchemas_1.length; _i++) {
+          var s = matchingSchemas_1[_i];
+          if (!s.inverted && s.schema && (s.schema.format === "color" || s.schema.format === "color-hex") && s.node && s.node.type === "string") {
+            var nodeId = String(s.node.offset);
+            if (!visitedNode[nodeId]) {
+              var color = colorFromHex(getNodeValue3(s.node));
+              if (color) {
+                var range = getRange(document, s.node);
+                result.push({ color, range });
+              }
+              visitedNode[nodeId] = true;
+              limit--;
+              if (limit <= 0) {
+                if (context && context.onResultLimitExceeded) {
+                  context.onResultLimitExceeded(document.uri);
+                }
+                return result;
+              }
+            }
+          }
+        }
       }
-      var label;
-      if (color.alpha === 1) {
-        label = "#".concat(toTwoDigitHex(red256)).concat(toTwoDigitHex(green256)).concat(toTwoDigitHex(blue256));
-      } else {
-        label = "#".concat(toTwoDigitHex(red256)).concat(toTwoDigitHex(green256)).concat(toTwoDigitHex(blue256)).concat(toTwoDigitHex(Math.round(color.alpha * 255)));
-      }
-      result.push({ label, textEdit: TextEdit.replace(range, JSON.stringify(label)) });
       return result;
-    };
-    return JSONDocumentSymbols2;
-  }()
-);
+    });
+  };
+  JSONDocumentSymbols2.prototype.getColorPresentations = function(document, doc, color, range) {
+    var result = [];
+    var red256 = Math.round(color.red * 255), green256 = Math.round(color.green * 255), blue256 = Math.round(color.blue * 255);
+    function toTwoDigitHex(n) {
+      var r = n.toString(16);
+      return r.length !== 2 ? "0" + r : r;
+    }
+    var label;
+    if (color.alpha === 1) {
+      label = "#".concat(toTwoDigitHex(red256)).concat(toTwoDigitHex(green256)).concat(toTwoDigitHex(blue256));
+    } else {
+      label = "#".concat(toTwoDigitHex(red256)).concat(toTwoDigitHex(green256)).concat(toTwoDigitHex(blue256)).concat(toTwoDigitHex(Math.round(color.alpha * 255)));
+    }
+    result.push({ label, textEdit: TextEdit.replace(range, JSON.stringify(label)) });
+    return result;
+  };
+  return JSONDocumentSymbols2;
+}();
 function getRange(document, node) {
   return Range.create(document.positionAt(node.offset), document.positionAt(node.offset + node.length));
 }
@@ -23948,11 +23750,9 @@ var localize5 = loadMessageBundle();
 var schemaContributions = {
   schemaAssociations: [],
   schemas: {
-    // refer to the latest schema
     "http://json-schema.org/schema#": {
       $ref: "http://json-schema.org/draft-07/schema#"
     },
-    // bundle the schema-schema to include (localized) descriptions
     "http://json-schema.org/draft-04/schema#": {
       "$schema": "http://json-schema.org/draft-04/schema#",
       "definitions": {
@@ -24683,7 +24483,7 @@ LIB = (() => {
     }
     var l = "", p = "/", g = /^(([^:/?#]+?):)?(\/\/([^/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))?/, d = function() {
       function t3(t4, e3, r3, n2, o2, i2) {
-        void 0 === i2 && (i2 = false), "object" == typeof t4 ? (this.scheme = t4.scheme || l, this.authority = t4.authority || l, this.path = t4.path || l, this.query = t4.query || l, this.fragment = t4.fragment || l) : (this.scheme = /* @__PURE__ */ function(t5, e4) {
+        void 0 === i2 && (i2 = false), "object" == typeof t4 ? (this.scheme = t4.scheme || l, this.authority = t4.authority || l, this.path = t4.path || l, this.query = t4.query || l, this.fragment = t4.fragment || l) : (this.scheme = function(t5, e4) {
           return t5 || e4 ? t5 : "file";
         }(t4, i2), this.authority = e3 || l, this.path = function(t5, e4) {
           switch (t5) {
@@ -24939,569 +24739,554 @@ function createRegex(glob, opts) {
 var localize6 = loadMessageBundle();
 var BANG = "!";
 var PATH_SEP = "/";
-var FilePatternAssociation = (
-  /** @class */
-  function() {
-    function FilePatternAssociation2(pattern, uris) {
-      this.globWrappers = [];
-      try {
-        for (var _i = 0, pattern_1 = pattern; _i < pattern_1.length; _i++) {
-          var patternString = pattern_1[_i];
-          var include = patternString[0] !== BANG;
-          if (!include) {
+var FilePatternAssociation = function() {
+  function FilePatternAssociation2(pattern, uris) {
+    this.globWrappers = [];
+    try {
+      for (var _i = 0, pattern_1 = pattern; _i < pattern_1.length; _i++) {
+        var patternString = pattern_1[_i];
+        var include = patternString[0] !== BANG;
+        if (!include) {
+          patternString = patternString.substring(1);
+        }
+        if (patternString.length > 0) {
+          if (patternString[0] === PATH_SEP) {
             patternString = patternString.substring(1);
           }
-          if (patternString.length > 0) {
-            if (patternString[0] === PATH_SEP) {
-              patternString = patternString.substring(1);
-            }
-            this.globWrappers.push({
-              regexp: createRegex("**/" + patternString, { extended: true, globstar: true }),
-              include
-            });
-          }
-        }
-        ;
-        this.uris = uris;
-      } catch (e) {
-        this.globWrappers.length = 0;
-        this.uris = [];
-      }
-    }
-    FilePatternAssociation2.prototype.matchesPattern = function(fileName) {
-      var match = false;
-      for (var _i = 0, _a = this.globWrappers; _i < _a.length; _i++) {
-        var _b = _a[_i], regexp = _b.regexp, include = _b.include;
-        if (regexp.test(fileName)) {
-          match = include;
+          this.globWrappers.push({
+            regexp: createRegex("**/" + patternString, { extended: true, globstar: true }),
+            include
+          });
         }
       }
-      return match;
-    };
-    FilePatternAssociation2.prototype.getURIs = function() {
-      return this.uris;
-    };
-    return FilePatternAssociation2;
-  }()
-);
-var SchemaHandle = (
-  /** @class */
-  function() {
-    function SchemaHandle2(service, uri, unresolvedSchemaContent) {
-      this.service = service;
-      this.uri = uri;
-      this.dependencies = /* @__PURE__ */ new Set();
-      this.anchors = void 0;
-      if (unresolvedSchemaContent) {
-        this.unresolvedSchema = this.service.promise.resolve(new UnresolvedSchema(unresolvedSchemaContent));
+      ;
+      this.uris = uris;
+    } catch (e) {
+      this.globWrappers.length = 0;
+      this.uris = [];
+    }
+  }
+  FilePatternAssociation2.prototype.matchesPattern = function(fileName) {
+    var match = false;
+    for (var _i = 0, _a = this.globWrappers; _i < _a.length; _i++) {
+      var _b = _a[_i], regexp = _b.regexp, include = _b.include;
+      if (regexp.test(fileName)) {
+        match = include;
       }
     }
-    SchemaHandle2.prototype.getUnresolvedSchema = function() {
-      if (!this.unresolvedSchema) {
-        this.unresolvedSchema = this.service.loadSchema(this.uri);
-      }
-      return this.unresolvedSchema;
-    };
-    SchemaHandle2.prototype.getResolvedSchema = function() {
-      var _this = this;
-      if (!this.resolvedSchema) {
-        this.resolvedSchema = this.getUnresolvedSchema().then(function(unresolved) {
-          return _this.service.resolveSchemaContent(unresolved, _this);
-        });
-      }
-      return this.resolvedSchema;
-    };
-    SchemaHandle2.prototype.clearSchema = function() {
-      var hasChanges = !!this.unresolvedSchema;
-      this.resolvedSchema = void 0;
-      this.unresolvedSchema = void 0;
-      this.dependencies.clear();
-      this.anchors = void 0;
-      return hasChanges;
-    };
-    return SchemaHandle2;
-  }()
-);
-var UnresolvedSchema = (
-  /** @class */
-  /* @__PURE__ */ function() {
-    function UnresolvedSchema2(schema, errors) {
-      if (errors === void 0) {
-        errors = [];
-      }
-      this.schema = schema;
-      this.errors = errors;
+    return match;
+  };
+  FilePatternAssociation2.prototype.getURIs = function() {
+    return this.uris;
+  };
+  return FilePatternAssociation2;
+}();
+var SchemaHandle = function() {
+  function SchemaHandle2(service, uri, unresolvedSchemaContent) {
+    this.service = service;
+    this.uri = uri;
+    this.dependencies = /* @__PURE__ */ new Set();
+    this.anchors = void 0;
+    if (unresolvedSchemaContent) {
+      this.unresolvedSchema = this.service.promise.resolve(new UnresolvedSchema(unresolvedSchemaContent));
     }
-    return UnresolvedSchema2;
-  }()
-);
-var ResolvedSchema = (
-  /** @class */
-  function() {
-    function ResolvedSchema2(schema, errors) {
-      if (errors === void 0) {
-        errors = [];
-      }
-      this.schema = schema;
-      this.errors = errors;
+  }
+  SchemaHandle2.prototype.getUnresolvedSchema = function() {
+    if (!this.unresolvedSchema) {
+      this.unresolvedSchema = this.service.loadSchema(this.uri);
     }
-    ResolvedSchema2.prototype.getSection = function(path) {
-      var schemaRef = this.getSectionRecursive(path, this.schema);
-      if (schemaRef) {
-        return asSchema(schemaRef);
-      }
-      return void 0;
-    };
-    ResolvedSchema2.prototype.getSectionRecursive = function(path, schema) {
-      if (!schema || typeof schema === "boolean" || path.length === 0) {
-        return schema;
-      }
-      var next = path.shift();
-      if (schema.properties && typeof schema.properties[next]) {
-        return this.getSectionRecursive(path, schema.properties[next]);
-      } else if (schema.patternProperties) {
-        for (var _i = 0, _a = Object.keys(schema.patternProperties); _i < _a.length; _i++) {
-          var pattern = _a[_i];
-          var regex = extendedRegExp(pattern);
-          if (regex === null || regex === void 0 ? void 0 : regex.test(next)) {
-            return this.getSectionRecursive(path, schema.patternProperties[pattern]);
-          }
-        }
-      } else if (typeof schema.additionalProperties === "object") {
-        return this.getSectionRecursive(path, schema.additionalProperties);
-      } else if (next.match("[0-9]+")) {
-        if (Array.isArray(schema.items)) {
-          var index = parseInt(next, 10);
-          if (!isNaN(index) && schema.items[index]) {
-            return this.getSectionRecursive(path, schema.items[index]);
-          }
-        } else if (schema.items) {
-          return this.getSectionRecursive(path, schema.items);
-        }
-      }
-      return void 0;
-    };
-    return ResolvedSchema2;
-  }()
-);
-var JSONSchemaService = (
-  /** @class */
-  function() {
-    function JSONSchemaService2(requestService, contextService, promiseConstructor) {
-      this.contextService = contextService;
-      this.requestService = requestService;
-      this.promiseConstructor = promiseConstructor || Promise;
-      this.callOnDispose = [];
-      this.contributionSchemas = {};
-      this.contributionAssociations = [];
-      this.schemasById = {};
-      this.filePatternAssociations = [];
-      this.registeredSchemasIds = {};
-    }
-    JSONSchemaService2.prototype.getRegisteredSchemaIds = function(filter) {
-      return Object.keys(this.registeredSchemasIds).filter(function(id) {
-        var scheme = URI.parse(id).scheme;
-        return scheme !== "schemaservice" && (!filter || filter(scheme));
+    return this.unresolvedSchema;
+  };
+  SchemaHandle2.prototype.getResolvedSchema = function() {
+    var _this = this;
+    if (!this.resolvedSchema) {
+      this.resolvedSchema = this.getUnresolvedSchema().then(function(unresolved) {
+        return _this.service.resolveSchemaContent(unresolved, _this);
       });
-    };
-    Object.defineProperty(JSONSchemaService2.prototype, "promise", {
-      get: function() {
-        return this.promiseConstructor;
-      },
-      enumerable: false,
-      configurable: true
+    }
+    return this.resolvedSchema;
+  };
+  SchemaHandle2.prototype.clearSchema = function() {
+    var hasChanges = !!this.unresolvedSchema;
+    this.resolvedSchema = void 0;
+    this.unresolvedSchema = void 0;
+    this.dependencies.clear();
+    this.anchors = void 0;
+    return hasChanges;
+  };
+  return SchemaHandle2;
+}();
+var UnresolvedSchema = function() {
+  function UnresolvedSchema2(schema, errors) {
+    if (errors === void 0) {
+      errors = [];
+    }
+    this.schema = schema;
+    this.errors = errors;
+  }
+  return UnresolvedSchema2;
+}();
+var ResolvedSchema = function() {
+  function ResolvedSchema2(schema, errors) {
+    if (errors === void 0) {
+      errors = [];
+    }
+    this.schema = schema;
+    this.errors = errors;
+  }
+  ResolvedSchema2.prototype.getSection = function(path) {
+    var schemaRef = this.getSectionRecursive(path, this.schema);
+    if (schemaRef) {
+      return asSchema(schemaRef);
+    }
+    return void 0;
+  };
+  ResolvedSchema2.prototype.getSectionRecursive = function(path, schema) {
+    if (!schema || typeof schema === "boolean" || path.length === 0) {
+      return schema;
+    }
+    var next = path.shift();
+    if (schema.properties && typeof schema.properties[next]) {
+      return this.getSectionRecursive(path, schema.properties[next]);
+    } else if (schema.patternProperties) {
+      for (var _i = 0, _a = Object.keys(schema.patternProperties); _i < _a.length; _i++) {
+        var pattern = _a[_i];
+        var regex = extendedRegExp(pattern);
+        if (regex === null || regex === void 0 ? void 0 : regex.test(next)) {
+          return this.getSectionRecursive(path, schema.patternProperties[pattern]);
+        }
+      }
+    } else if (typeof schema.additionalProperties === "object") {
+      return this.getSectionRecursive(path, schema.additionalProperties);
+    } else if (next.match("[0-9]+")) {
+      if (Array.isArray(schema.items)) {
+        var index = parseInt(next, 10);
+        if (!isNaN(index) && schema.items[index]) {
+          return this.getSectionRecursive(path, schema.items[index]);
+        }
+      } else if (schema.items) {
+        return this.getSectionRecursive(path, schema.items);
+      }
+    }
+    return void 0;
+  };
+  return ResolvedSchema2;
+}();
+var JSONSchemaService = function() {
+  function JSONSchemaService2(requestService, contextService, promiseConstructor) {
+    this.contextService = contextService;
+    this.requestService = requestService;
+    this.promiseConstructor = promiseConstructor || Promise;
+    this.callOnDispose = [];
+    this.contributionSchemas = {};
+    this.contributionAssociations = [];
+    this.schemasById = {};
+    this.filePatternAssociations = [];
+    this.registeredSchemasIds = {};
+  }
+  JSONSchemaService2.prototype.getRegisteredSchemaIds = function(filter) {
+    return Object.keys(this.registeredSchemasIds).filter(function(id) {
+      var scheme = URI.parse(id).scheme;
+      return scheme !== "schemaservice" && (!filter || filter(scheme));
     });
-    JSONSchemaService2.prototype.dispose = function() {
-      while (this.callOnDispose.length > 0) {
-        this.callOnDispose.pop()();
-      }
-    };
-    JSONSchemaService2.prototype.onResourceChange = function(uri) {
-      var _this = this;
-      this.cachedSchemaForResource = void 0;
-      var hasChanges = false;
-      uri = normalizeId(uri);
-      var toWalk = [uri];
-      var all = Object.keys(this.schemasById).map(function(key) {
-        return _this.schemasById[key];
-      });
-      while (toWalk.length) {
-        var curr = toWalk.pop();
-        for (var i = 0; i < all.length; i++) {
-          var handle = all[i];
-          if (handle && (handle.uri === curr || handle.dependencies.has(curr))) {
-            if (handle.uri !== curr) {
-              toWalk.push(handle.uri);
-            }
-            if (handle.clearSchema()) {
-              hasChanges = true;
-            }
-            all[i] = void 0;
+  };
+  Object.defineProperty(JSONSchemaService2.prototype, "promise", {
+    get: function() {
+      return this.promiseConstructor;
+    },
+    enumerable: false,
+    configurable: true
+  });
+  JSONSchemaService2.prototype.dispose = function() {
+    while (this.callOnDispose.length > 0) {
+      this.callOnDispose.pop()();
+    }
+  };
+  JSONSchemaService2.prototype.onResourceChange = function(uri) {
+    var _this = this;
+    this.cachedSchemaForResource = void 0;
+    var hasChanges = false;
+    uri = normalizeId(uri);
+    var toWalk = [uri];
+    var all = Object.keys(this.schemasById).map(function(key) {
+      return _this.schemasById[key];
+    });
+    while (toWalk.length) {
+      var curr = toWalk.pop();
+      for (var i = 0; i < all.length; i++) {
+        var handle = all[i];
+        if (handle && (handle.uri === curr || handle.dependencies.has(curr))) {
+          if (handle.uri !== curr) {
+            toWalk.push(handle.uri);
           }
+          if (handle.clearSchema()) {
+            hasChanges = true;
+          }
+          all[i] = void 0;
         }
       }
-      return hasChanges;
-    };
-    JSONSchemaService2.prototype.setSchemaContributions = function(schemaContributions2) {
-      if (schemaContributions2.schemas) {
-        var schemas = schemaContributions2.schemas;
-        for (var id in schemas) {
-          var normalizedId = normalizeId(id);
-          this.contributionSchemas[normalizedId] = this.addSchemaHandle(normalizedId, schemas[id]);
-        }
+    }
+    return hasChanges;
+  };
+  JSONSchemaService2.prototype.setSchemaContributions = function(schemaContributions2) {
+    if (schemaContributions2.schemas) {
+      var schemas = schemaContributions2.schemas;
+      for (var id in schemas) {
+        var normalizedId = normalizeId(id);
+        this.contributionSchemas[normalizedId] = this.addSchemaHandle(normalizedId, schemas[id]);
       }
-      if (Array.isArray(schemaContributions2.schemaAssociations)) {
-        var schemaAssociations = schemaContributions2.schemaAssociations;
-        for (var _i = 0, schemaAssociations_1 = schemaAssociations; _i < schemaAssociations_1.length; _i++) {
-          var schemaAssociation = schemaAssociations_1[_i];
-          var uris = schemaAssociation.uris.map(normalizeId);
-          var association = this.addFilePatternAssociation(schemaAssociation.pattern, uris);
-          this.contributionAssociations.push(association);
-        }
+    }
+    if (Array.isArray(schemaContributions2.schemaAssociations)) {
+      var schemaAssociations = schemaContributions2.schemaAssociations;
+      for (var _i = 0, schemaAssociations_1 = schemaAssociations; _i < schemaAssociations_1.length; _i++) {
+        var schemaAssociation = schemaAssociations_1[_i];
+        var uris = schemaAssociation.uris.map(normalizeId);
+        var association = this.addFilePatternAssociation(schemaAssociation.pattern, uris);
+        this.contributionAssociations.push(association);
       }
-    };
-    JSONSchemaService2.prototype.addSchemaHandle = function(id, unresolvedSchemaContent) {
-      var schemaHandle = new SchemaHandle(this, id, unresolvedSchemaContent);
-      this.schemasById[id] = schemaHandle;
-      return schemaHandle;
-    };
-    JSONSchemaService2.prototype.getOrAddSchemaHandle = function(id, unresolvedSchemaContent) {
-      return this.schemasById[id] || this.addSchemaHandle(id, unresolvedSchemaContent);
-    };
-    JSONSchemaService2.prototype.addFilePatternAssociation = function(pattern, uris) {
-      var fpa = new FilePatternAssociation(pattern, uris);
-      this.filePatternAssociations.push(fpa);
-      return fpa;
-    };
-    JSONSchemaService2.prototype.registerExternalSchema = function(uri, filePatterns, unresolvedSchemaContent) {
-      var id = normalizeId(uri);
+    }
+  };
+  JSONSchemaService2.prototype.addSchemaHandle = function(id, unresolvedSchemaContent) {
+    var schemaHandle = new SchemaHandle(this, id, unresolvedSchemaContent);
+    this.schemasById[id] = schemaHandle;
+    return schemaHandle;
+  };
+  JSONSchemaService2.prototype.getOrAddSchemaHandle = function(id, unresolvedSchemaContent) {
+    return this.schemasById[id] || this.addSchemaHandle(id, unresolvedSchemaContent);
+  };
+  JSONSchemaService2.prototype.addFilePatternAssociation = function(pattern, uris) {
+    var fpa = new FilePatternAssociation(pattern, uris);
+    this.filePatternAssociations.push(fpa);
+    return fpa;
+  };
+  JSONSchemaService2.prototype.registerExternalSchema = function(uri, filePatterns, unresolvedSchemaContent) {
+    var id = normalizeId(uri);
+    this.registeredSchemasIds[id] = true;
+    this.cachedSchemaForResource = void 0;
+    if (filePatterns) {
+      this.addFilePatternAssociation(filePatterns, [id]);
+    }
+    return unresolvedSchemaContent ? this.addSchemaHandle(id, unresolvedSchemaContent) : this.getOrAddSchemaHandle(id);
+  };
+  JSONSchemaService2.prototype.clearExternalSchemas = function() {
+    this.schemasById = {};
+    this.filePatternAssociations = [];
+    this.registeredSchemasIds = {};
+    this.cachedSchemaForResource = void 0;
+    for (var id in this.contributionSchemas) {
+      this.schemasById[id] = this.contributionSchemas[id];
       this.registeredSchemasIds[id] = true;
-      this.cachedSchemaForResource = void 0;
-      if (filePatterns) {
-        this.addFilePatternAssociation(filePatterns, [id]);
+    }
+    for (var _i = 0, _a = this.contributionAssociations; _i < _a.length; _i++) {
+      var contributionAssociation = _a[_i];
+      this.filePatternAssociations.push(contributionAssociation);
+    }
+  };
+  JSONSchemaService2.prototype.getResolvedSchema = function(schemaId) {
+    var id = normalizeId(schemaId);
+    var schemaHandle = this.schemasById[id];
+    if (schemaHandle) {
+      return schemaHandle.getResolvedSchema();
+    }
+    return this.promise.resolve(void 0);
+  };
+  JSONSchemaService2.prototype.loadSchema = function(url) {
+    if (!this.requestService) {
+      var errorMessage = localize6("json.schema.norequestservice", "Unable to load schema from '{0}'. No schema request service available", toDisplayString(url));
+      return this.promise.resolve(new UnresolvedSchema({}, [errorMessage]));
+    }
+    return this.requestService(url).then(function(content) {
+      if (!content) {
+        var errorMessage2 = localize6("json.schema.nocontent", "Unable to load schema from '{0}': No content.", toDisplayString(url));
+        return new UnresolvedSchema({}, [errorMessage2]);
       }
-      return unresolvedSchemaContent ? this.addSchemaHandle(id, unresolvedSchemaContent) : this.getOrAddSchemaHandle(id);
-    };
-    JSONSchemaService2.prototype.clearExternalSchemas = function() {
-      this.schemasById = {};
-      this.filePatternAssociations = [];
-      this.registeredSchemasIds = {};
-      this.cachedSchemaForResource = void 0;
-      for (var id in this.contributionSchemas) {
-        this.schemasById[id] = this.contributionSchemas[id];
-        this.registeredSchemasIds[id] = true;
+      var schemaContent = {};
+      var jsonErrors = [];
+      schemaContent = parse2(content, jsonErrors);
+      var errors = jsonErrors.length ? [localize6("json.schema.invalidFormat", "Unable to parse content from '{0}': Parse error at offset {1}.", toDisplayString(url), jsonErrors[0].offset)] : [];
+      return new UnresolvedSchema(schemaContent, errors);
+    }, function(error) {
+      var errorMessage2 = error.toString();
+      var errorSplit = error.toString().split("Error: ");
+      if (errorSplit.length > 1) {
+        errorMessage2 = errorSplit[1];
       }
-      for (var _i = 0, _a = this.contributionAssociations; _i < _a.length; _i++) {
-        var contributionAssociation = _a[_i];
-        this.filePatternAssociations.push(contributionAssociation);
+      if (endsWith(errorMessage2, ".")) {
+        errorMessage2 = errorMessage2.substr(0, errorMessage2.length - 1);
       }
-    };
-    JSONSchemaService2.prototype.getResolvedSchema = function(schemaId) {
-      var id = normalizeId(schemaId);
-      var schemaHandle = this.schemasById[id];
-      if (schemaHandle) {
-        return schemaHandle.getResolvedSchema();
+      return new UnresolvedSchema({}, [localize6("json.schema.nocontent", "Unable to load schema from '{0}': {1}.", toDisplayString(url), errorMessage2)]);
+    });
+  };
+  JSONSchemaService2.prototype.resolveSchemaContent = function(schemaToResolve, handle) {
+    var _this = this;
+    var resolveErrors = schemaToResolve.errors.slice(0);
+    var schema = schemaToResolve.schema;
+    if (schema.$schema) {
+      var id = normalizeId(schema.$schema);
+      if (id === "http://json-schema.org/draft-03/schema") {
+        return this.promise.resolve(new ResolvedSchema({}, [localize6("json.schema.draft03.notsupported", "Draft-03 schemas are not supported.")]));
+      } else if (id === "https://json-schema.org/draft/2019-09/schema") {
+        resolveErrors.push(localize6("json.schema.draft201909.notsupported", "Draft 2019-09 schemas are not yet fully supported."));
+      } else if (id === "https://json-schema.org/draft/2020-12/schema") {
+        resolveErrors.push(localize6("json.schema.draft202012.notsupported", "Draft 2020-12 schemas are not yet fully supported."));
       }
-      return this.promise.resolve(void 0);
-    };
-    JSONSchemaService2.prototype.loadSchema = function(url) {
-      if (!this.requestService) {
-        var errorMessage = localize6("json.schema.norequestservice", "Unable to load schema from '{0}'. No schema request service available", toDisplayString(url));
-        return this.promise.resolve(new UnresolvedSchema({}, [errorMessage]));
+    }
+    var contextService = this.contextService;
+    var findSectionByJSONPointer = function(schema2, path) {
+      path = decodeURIComponent(path);
+      var current = schema2;
+      if (path[0] === "/") {
+        path = path.substring(1);
       }
-      return this.requestService(url).then(function(content) {
-        if (!content) {
-          var errorMessage2 = localize6("json.schema.nocontent", "Unable to load schema from '{0}': No content.", toDisplayString(url));
-          return new UnresolvedSchema({}, [errorMessage2]);
-        }
-        var schemaContent = {};
-        var jsonErrors = [];
-        schemaContent = parse2(content, jsonErrors);
-        var errors = jsonErrors.length ? [localize6("json.schema.invalidFormat", "Unable to parse content from '{0}': Parse error at offset {1}.", toDisplayString(url), jsonErrors[0].offset)] : [];
-        return new UnresolvedSchema(schemaContent, errors);
-      }, function(error) {
-        var errorMessage2 = error.toString();
-        var errorSplit = error.toString().split("Error: ");
-        if (errorSplit.length > 1) {
-          errorMessage2 = errorSplit[1];
-        }
-        if (endsWith(errorMessage2, ".")) {
-          errorMessage2 = errorMessage2.substr(0, errorMessage2.length - 1);
-        }
-        return new UnresolvedSchema({}, [localize6("json.schema.nocontent", "Unable to load schema from '{0}': {1}.", toDisplayString(url), errorMessage2)]);
+      path.split("/").some(function(part) {
+        part = part.replace(/~1/g, "/").replace(/~0/g, "~");
+        current = current[part];
+        return !current;
       });
+      return current;
     };
-    JSONSchemaService2.prototype.resolveSchemaContent = function(schemaToResolve, handle) {
-      var _this = this;
-      var resolveErrors = schemaToResolve.errors.slice(0);
-      var schema = schemaToResolve.schema;
-      if (schema.$schema) {
-        var id = normalizeId(schema.$schema);
-        if (id === "http://json-schema.org/draft-03/schema") {
-          return this.promise.resolve(new ResolvedSchema({}, [localize6("json.schema.draft03.notsupported", "Draft-03 schemas are not supported.")]));
-        } else if (id === "https://json-schema.org/draft/2019-09/schema") {
-          resolveErrors.push(localize6("json.schema.draft201909.notsupported", "Draft 2019-09 schemas are not yet fully supported."));
-        } else if (id === "https://json-schema.org/draft/2020-12/schema") {
-          resolveErrors.push(localize6("json.schema.draft202012.notsupported", "Draft 2020-12 schemas are not yet fully supported."));
-        }
+    var findSchemaById = function(schema2, handle2, id2) {
+      if (!handle2.anchors) {
+        handle2.anchors = collectAnchors(schema2);
       }
-      var contextService = this.contextService;
-      var findSectionByJSONPointer = function(schema2, path) {
-        path = decodeURIComponent(path);
-        var current = schema2;
-        if (path[0] === "/") {
-          path = path.substring(1);
-        }
-        path.split("/").some(function(part) {
-          part = part.replace(/~1/g, "/").replace(/~0/g, "~");
-          current = current[part];
-          return !current;
-        });
-        return current;
-      };
-      var findSchemaById = function(schema2, handle2, id2) {
-        if (!handle2.anchors) {
-          handle2.anchors = collectAnchors(schema2);
-        }
-        return handle2.anchors.get(id2);
-      };
-      var merge = function(target, section) {
-        for (var key in section) {
-          if (section.hasOwnProperty(key) && !target.hasOwnProperty(key) && key !== "id" && key !== "$id") {
-            target[key] = section[key];
-          }
-        }
-      };
-      var mergeRef = function(target, sourceRoot, sourceHandle, refSegment) {
-        var section;
-        if (refSegment === void 0 || refSegment.length === 0) {
-          section = sourceRoot;
-        } else if (refSegment.charAt(0) === "/") {
-          section = findSectionByJSONPointer(sourceRoot, refSegment);
-        } else {
-          section = findSchemaById(sourceRoot, sourceHandle, refSegment);
-        }
-        if (section) {
-          merge(target, section);
-        } else {
-          resolveErrors.push(localize6("json.schema.invalidid", "$ref '{0}' in '{1}' can not be resolved.", refSegment, sourceHandle.uri));
-        }
-      };
-      var resolveExternalLink = function(node, uri, refSegment, parentHandle) {
-        if (contextService && !/^[A-Za-z][A-Za-z0-9+\-.+]*:\/\/.*/.test(uri)) {
-          uri = contextService.resolveRelativePath(uri, parentHandle.uri);
-        }
-        uri = normalizeId(uri);
-        var referencedHandle = _this.getOrAddSchemaHandle(uri);
-        return referencedHandle.getUnresolvedSchema().then(function(unresolvedSchema) {
-          parentHandle.dependencies.add(uri);
-          if (unresolvedSchema.errors.length) {
-            var loc = refSegment ? uri + "#" + refSegment : uri;
-            resolveErrors.push(localize6("json.schema.problemloadingref", "Problems loading reference '{0}': {1}", loc, unresolvedSchema.errors[0]));
-          }
-          mergeRef(node, unresolvedSchema.schema, referencedHandle, refSegment);
-          return resolveRefs(node, unresolvedSchema.schema, referencedHandle);
-        });
-      };
-      var resolveRefs = function(node, parentSchema, parentHandle) {
-        var openPromises = [];
-        _this.traverseNodes(node, function(next) {
-          var seenRefs = /* @__PURE__ */ new Set();
-          while (next.$ref) {
-            var ref = next.$ref;
-            var segments = ref.split("#", 2);
-            delete next.$ref;
-            if (segments[0].length > 0) {
-              openPromises.push(resolveExternalLink(next, segments[0], segments[1], parentHandle));
-              return;
-            } else {
-              if (!seenRefs.has(ref)) {
-                var id2 = segments[1];
-                mergeRef(next, parentSchema, parentHandle, id2);
-                seenRefs.add(ref);
-              }
-            }
-          }
-        });
-        return _this.promise.all(openPromises);
-      };
-      var collectAnchors = function(root) {
-        var result = /* @__PURE__ */ new Map();
-        _this.traverseNodes(root, function(next) {
-          var id2 = next.$id || next.id;
-          if (typeof id2 === "string" && id2.charAt(0) === "#") {
-            var anchor = id2.substring(1);
-            if (result.has(anchor)) {
-              resolveErrors.push(localize6("json.schema.duplicateid", "Duplicate id declaration: '{0}'", id2));
-            } else {
-              result.set(anchor, next);
-            }
-          }
-        });
-        return result;
-      };
-      return resolveRefs(schema, schema, handle).then(function(_) {
-        return new ResolvedSchema(schema, resolveErrors);
-      });
+      return handle2.anchors.get(id2);
     };
-    JSONSchemaService2.prototype.traverseNodes = function(root, handle) {
-      if (!root || typeof root !== "object") {
-        return Promise.resolve(null);
-      }
-      var seen = /* @__PURE__ */ new Set();
-      var collectEntries = function() {
-        var entries = [];
-        for (var _i = 0; _i < arguments.length; _i++) {
-          entries[_i] = arguments[_i];
+    var merge = function(target, section) {
+      for (var key in section) {
+        if (section.hasOwnProperty(key) && !target.hasOwnProperty(key) && key !== "id" && key !== "$id") {
+          target[key] = section[key];
         }
-        for (var _a = 0, entries_1 = entries; _a < entries_1.length; _a++) {
-          var entry = entries_1[_a];
-          if (typeof entry === "object") {
-            toWalk.push(entry);
-          }
-        }
-      };
-      var collectMapEntries = function() {
-        var maps = [];
-        for (var _i = 0; _i < arguments.length; _i++) {
-          maps[_i] = arguments[_i];
-        }
-        for (var _a = 0, maps_1 = maps; _a < maps_1.length; _a++) {
-          var map = maps_1[_a];
-          if (typeof map === "object") {
-            for (var k in map) {
-              var key = k;
-              var entry = map[key];
-              if (typeof entry === "object") {
-                toWalk.push(entry);
-              }
-            }
-          }
-        }
-      };
-      var collectArrayEntries = function() {
-        var arrays = [];
-        for (var _i = 0; _i < arguments.length; _i++) {
-          arrays[_i] = arguments[_i];
-        }
-        for (var _a = 0, arrays_1 = arrays; _a < arrays_1.length; _a++) {
-          var array = arrays_1[_a];
-          if (Array.isArray(array)) {
-            for (var _b = 0, array_1 = array; _b < array_1.length; _b++) {
-              var entry = array_1[_b];
-              if (typeof entry === "object") {
-                toWalk.push(entry);
-              }
-            }
-          }
-        }
-      };
-      var toWalk = [root];
-      var next = toWalk.pop();
-      while (next) {
-        if (!seen.has(next)) {
-          seen.add(next);
-          handle(next);
-          collectEntries(next.items, next.additionalItems, next.additionalProperties, next.not, next.contains, next.propertyNames, next.if, next.then, next.else);
-          collectMapEntries(next.definitions, next.properties, next.patternProperties, next.dependencies);
-          collectArrayEntries(next.anyOf, next.allOf, next.oneOf, next.items);
-        }
-        next = toWalk.pop();
       }
     };
-    ;
-    JSONSchemaService2.prototype.getSchemaFromProperty = function(resource, document) {
-      var _a, _b;
-      if (((_a = document.root) === null || _a === void 0 ? void 0 : _a.type) === "object") {
-        for (var _i = 0, _c = document.root.properties; _i < _c.length; _i++) {
-          var p = _c[_i];
-          if (p.keyNode.value === "$schema" && ((_b = p.valueNode) === null || _b === void 0 ? void 0 : _b.type) === "string") {
-            var schemaId = p.valueNode.value;
-            if (this.contextService && !/^\w[\w\d+.-]*:/.test(schemaId)) {
-              schemaId = this.contextService.resolveRelativePath(schemaId, resource);
-            }
-            return schemaId;
-          }
-        }
-      }
-      return void 0;
-    };
-    JSONSchemaService2.prototype.getAssociatedSchemas = function(resource) {
-      var seen = /* @__PURE__ */ Object.create(null);
-      var schemas = [];
-      var normalizedResource = normalizeResourceForMatching(resource);
-      for (var _i = 0, _a = this.filePatternAssociations; _i < _a.length; _i++) {
-        var entry = _a[_i];
-        if (entry.matchesPattern(normalizedResource)) {
-          for (var _b = 0, _c = entry.getURIs(); _b < _c.length; _b++) {
-            var schemaId = _c[_b];
-            if (!seen[schemaId]) {
-              schemas.push(schemaId);
-              seen[schemaId] = true;
-            }
-          }
-        }
-      }
-      return schemas;
-    };
-    JSONSchemaService2.prototype.getSchemaURIsForResource = function(resource, document) {
-      var schemeId = document && this.getSchemaFromProperty(resource, document);
-      if (schemeId) {
-        return [schemeId];
-      }
-      return this.getAssociatedSchemas(resource);
-    };
-    JSONSchemaService2.prototype.getSchemaForResource = function(resource, document) {
-      if (document) {
-        var schemeId = this.getSchemaFromProperty(resource, document);
-        if (schemeId) {
-          var id = normalizeId(schemeId);
-          return this.getOrAddSchemaHandle(id).getResolvedSchema();
-        }
-      }
-      if (this.cachedSchemaForResource && this.cachedSchemaForResource.resource === resource) {
-        return this.cachedSchemaForResource.resolvedSchema;
-      }
-      var schemas = this.getAssociatedSchemas(resource);
-      var resolvedSchema = schemas.length > 0 ? this.createCombinedSchema(resource, schemas).getResolvedSchema() : this.promise.resolve(void 0);
-      this.cachedSchemaForResource = { resource, resolvedSchema };
-      return resolvedSchema;
-    };
-    JSONSchemaService2.prototype.createCombinedSchema = function(resource, schemaIds) {
-      if (schemaIds.length === 1) {
-        return this.getOrAddSchemaHandle(schemaIds[0]);
+    var mergeRef = function(target, sourceRoot, sourceHandle, refSegment) {
+      var section;
+      if (refSegment === void 0 || refSegment.length === 0) {
+        section = sourceRoot;
+      } else if (refSegment.charAt(0) === "/") {
+        section = findSectionByJSONPointer(sourceRoot, refSegment);
       } else {
-        var combinedSchemaId = "schemaservice://combinedSchema/" + encodeURIComponent(resource);
-        var combinedSchema = {
-          allOf: schemaIds.map(function(schemaId) {
-            return { $ref: schemaId };
-          })
-        };
-        return this.addSchemaHandle(combinedSchemaId, combinedSchema);
+        section = findSchemaById(sourceRoot, sourceHandle, refSegment);
+      }
+      if (section) {
+        merge(target, section);
+      } else {
+        resolveErrors.push(localize6("json.schema.invalidid", "$ref '{0}' in '{1}' can not be resolved.", refSegment, sourceHandle.uri));
       }
     };
-    JSONSchemaService2.prototype.getMatchingSchemas = function(document, jsonDocument, schema) {
-      if (schema) {
-        var id = schema.id || "schemaservice://untitled/matchingSchemas/" + idCounter2++;
-        var handle = this.addSchemaHandle(id, schema);
-        return handle.getResolvedSchema().then(function(resolvedSchema) {
-          return jsonDocument.getMatchingSchemas(resolvedSchema.schema).filter(function(s) {
-            return !s.inverted;
-          });
-        });
+    var resolveExternalLink = function(node, uri, refSegment, parentHandle) {
+      if (contextService && !/^[A-Za-z][A-Za-z0-9+\-.+]*:\/\/.*/.test(uri)) {
+        uri = contextService.resolveRelativePath(uri, parentHandle.uri);
       }
-      return this.getSchemaForResource(document.uri, jsonDocument).then(function(schema2) {
-        if (schema2) {
-          return jsonDocument.getMatchingSchemas(schema2.schema).filter(function(s) {
-            return !s.inverted;
-          });
+      uri = normalizeId(uri);
+      var referencedHandle = _this.getOrAddSchemaHandle(uri);
+      return referencedHandle.getUnresolvedSchema().then(function(unresolvedSchema) {
+        parentHandle.dependencies.add(uri);
+        if (unresolvedSchema.errors.length) {
+          var loc = refSegment ? uri + "#" + refSegment : uri;
+          resolveErrors.push(localize6("json.schema.problemloadingref", "Problems loading reference '{0}': {1}", loc, unresolvedSchema.errors[0]));
         }
-        return [];
+        mergeRef(node, unresolvedSchema.schema, referencedHandle, refSegment);
+        return resolveRefs(node, unresolvedSchema.schema, referencedHandle);
       });
     };
-    return JSONSchemaService2;
-  }()
-);
+    var resolveRefs = function(node, parentSchema, parentHandle) {
+      var openPromises = [];
+      _this.traverseNodes(node, function(next) {
+        var seenRefs = /* @__PURE__ */ new Set();
+        while (next.$ref) {
+          var ref = next.$ref;
+          var segments = ref.split("#", 2);
+          delete next.$ref;
+          if (segments[0].length > 0) {
+            openPromises.push(resolveExternalLink(next, segments[0], segments[1], parentHandle));
+            return;
+          } else {
+            if (!seenRefs.has(ref)) {
+              var id2 = segments[1];
+              mergeRef(next, parentSchema, parentHandle, id2);
+              seenRefs.add(ref);
+            }
+          }
+        }
+      });
+      return _this.promise.all(openPromises);
+    };
+    var collectAnchors = function(root) {
+      var result = /* @__PURE__ */ new Map();
+      _this.traverseNodes(root, function(next) {
+        var id2 = next.$id || next.id;
+        if (typeof id2 === "string" && id2.charAt(0) === "#") {
+          var anchor = id2.substring(1);
+          if (result.has(anchor)) {
+            resolveErrors.push(localize6("json.schema.duplicateid", "Duplicate id declaration: '{0}'", id2));
+          } else {
+            result.set(anchor, next);
+          }
+        }
+      });
+      return result;
+    };
+    return resolveRefs(schema, schema, handle).then(function(_) {
+      return new ResolvedSchema(schema, resolveErrors);
+    });
+  };
+  JSONSchemaService2.prototype.traverseNodes = function(root, handle) {
+    if (!root || typeof root !== "object") {
+      return Promise.resolve(null);
+    }
+    var seen = /* @__PURE__ */ new Set();
+    var collectEntries = function() {
+      var entries = [];
+      for (var _i = 0; _i < arguments.length; _i++) {
+        entries[_i] = arguments[_i];
+      }
+      for (var _a = 0, entries_1 = entries; _a < entries_1.length; _a++) {
+        var entry = entries_1[_a];
+        if (typeof entry === "object") {
+          toWalk.push(entry);
+        }
+      }
+    };
+    var collectMapEntries = function() {
+      var maps = [];
+      for (var _i = 0; _i < arguments.length; _i++) {
+        maps[_i] = arguments[_i];
+      }
+      for (var _a = 0, maps_1 = maps; _a < maps_1.length; _a++) {
+        var map = maps_1[_a];
+        if (typeof map === "object") {
+          for (var k in map) {
+            var key = k;
+            var entry = map[key];
+            if (typeof entry === "object") {
+              toWalk.push(entry);
+            }
+          }
+        }
+      }
+    };
+    var collectArrayEntries = function() {
+      var arrays = [];
+      for (var _i = 0; _i < arguments.length; _i++) {
+        arrays[_i] = arguments[_i];
+      }
+      for (var _a = 0, arrays_1 = arrays; _a < arrays_1.length; _a++) {
+        var array = arrays_1[_a];
+        if (Array.isArray(array)) {
+          for (var _b = 0, array_1 = array; _b < array_1.length; _b++) {
+            var entry = array_1[_b];
+            if (typeof entry === "object") {
+              toWalk.push(entry);
+            }
+          }
+        }
+      }
+    };
+    var toWalk = [root];
+    var next = toWalk.pop();
+    while (next) {
+      if (!seen.has(next)) {
+        seen.add(next);
+        handle(next);
+        collectEntries(next.items, next.additionalItems, next.additionalProperties, next.not, next.contains, next.propertyNames, next.if, next.then, next.else);
+        collectMapEntries(next.definitions, next.properties, next.patternProperties, next.dependencies);
+        collectArrayEntries(next.anyOf, next.allOf, next.oneOf, next.items);
+      }
+      next = toWalk.pop();
+    }
+  };
+  ;
+  JSONSchemaService2.prototype.getSchemaFromProperty = function(resource, document) {
+    var _a, _b;
+    if (((_a = document.root) === null || _a === void 0 ? void 0 : _a.type) === "object") {
+      for (var _i = 0, _c = document.root.properties; _i < _c.length; _i++) {
+        var p = _c[_i];
+        if (p.keyNode.value === "$schema" && ((_b = p.valueNode) === null || _b === void 0 ? void 0 : _b.type) === "string") {
+          var schemaId = p.valueNode.value;
+          if (this.contextService && !/^\w[\w\d+.-]*:/.test(schemaId)) {
+            schemaId = this.contextService.resolveRelativePath(schemaId, resource);
+          }
+          return schemaId;
+        }
+      }
+    }
+    return void 0;
+  };
+  JSONSchemaService2.prototype.getAssociatedSchemas = function(resource) {
+    var seen = /* @__PURE__ */ Object.create(null);
+    var schemas = [];
+    var normalizedResource = normalizeResourceForMatching(resource);
+    for (var _i = 0, _a = this.filePatternAssociations; _i < _a.length; _i++) {
+      var entry = _a[_i];
+      if (entry.matchesPattern(normalizedResource)) {
+        for (var _b = 0, _c = entry.getURIs(); _b < _c.length; _b++) {
+          var schemaId = _c[_b];
+          if (!seen[schemaId]) {
+            schemas.push(schemaId);
+            seen[schemaId] = true;
+          }
+        }
+      }
+    }
+    return schemas;
+  };
+  JSONSchemaService2.prototype.getSchemaURIsForResource = function(resource, document) {
+    var schemeId = document && this.getSchemaFromProperty(resource, document);
+    if (schemeId) {
+      return [schemeId];
+    }
+    return this.getAssociatedSchemas(resource);
+  };
+  JSONSchemaService2.prototype.getSchemaForResource = function(resource, document) {
+    if (document) {
+      var schemeId = this.getSchemaFromProperty(resource, document);
+      if (schemeId) {
+        var id = normalizeId(schemeId);
+        return this.getOrAddSchemaHandle(id).getResolvedSchema();
+      }
+    }
+    if (this.cachedSchemaForResource && this.cachedSchemaForResource.resource === resource) {
+      return this.cachedSchemaForResource.resolvedSchema;
+    }
+    var schemas = this.getAssociatedSchemas(resource);
+    var resolvedSchema = schemas.length > 0 ? this.createCombinedSchema(resource, schemas).getResolvedSchema() : this.promise.resolve(void 0);
+    this.cachedSchemaForResource = { resource, resolvedSchema };
+    return resolvedSchema;
+  };
+  JSONSchemaService2.prototype.createCombinedSchema = function(resource, schemaIds) {
+    if (schemaIds.length === 1) {
+      return this.getOrAddSchemaHandle(schemaIds[0]);
+    } else {
+      var combinedSchemaId = "schemaservice://combinedSchema/" + encodeURIComponent(resource);
+      var combinedSchema = {
+        allOf: schemaIds.map(function(schemaId) {
+          return { $ref: schemaId };
+        })
+      };
+      return this.addSchemaHandle(combinedSchemaId, combinedSchema);
+    }
+  };
+  JSONSchemaService2.prototype.getMatchingSchemas = function(document, jsonDocument, schema) {
+    if (schema) {
+      var id = schema.id || "schemaservice://untitled/matchingSchemas/" + idCounter2++;
+      var handle = this.addSchemaHandle(id, schema);
+      return handle.getResolvedSchema().then(function(resolvedSchema) {
+        return jsonDocument.getMatchingSchemas(resolvedSchema.schema).filter(function(s) {
+          return !s.inverted;
+        });
+      });
+    }
+    return this.getSchemaForResource(document.uri, jsonDocument).then(function(schema2) {
+      if (schema2) {
+        return jsonDocument.getMatchingSchemas(schema2.schema).filter(function(s) {
+          return !s.inverted;
+        });
+      }
+      return [];
+    });
+  };
+  return JSONSchemaService2;
+}();
 var idCounter2 = 0;
 function normalizeId(id) {
   try {
@@ -25668,11 +25453,7 @@ function getSelectionRanges(document, positions, doc) {
           break;
       }
       if (node.type === "property" || node.parent && node.parent.type === "array") {
-        var afterCommaOffset = getOffsetAfterNextToken(
-          node.offset + node.length,
-          5
-          /* CommaToken */
-        );
+        var afterCommaOffset = getOffsetAfterNextToken(node.offset + node.length, 5);
         if (afterCommaOffset !== -1) {
           result.push(newRange(node.offset, afterCommaOffset));
         }
@@ -25841,6 +25622,10 @@ if (typeof fetch !== "undefined") {
   };
 }
 var JSONWorker = class {
+  _ctx;
+  _languageService;
+  _languageSettings;
+  _languageId;
   constructor(ctx, createData) {
     this._ctx = ctx;
     this._languageSettings = createData.languageSettings;
@@ -25852,8 +25637,7 @@ var JSONWorker = class {
           return resolvePath(base, relativePath);
         }
       },
-      schemaRequestService: createData.enableSchemaRequest ? defaultSchemaRequestService : void 0,
-      clientCapabilities: ClientCapabilities.LATEST
+      schemaRequestService: createData.enableSchemaRequest ? defaultSchemaRequestService : void 0
     });
     this._languageService.configure(this._languageSettings);
   }
@@ -25901,7 +25685,7 @@ var JSONWorker = class {
       return [];
     }
     let jsonDocument = this._languageService.parseJSONDocument(document);
-    let symbols = this._languageService.findDocumentSymbols2(document, jsonDocument);
+    let symbols = this._languageService.findDocumentSymbols(document, jsonDocument);
     return Promise.resolve(symbols);
   }
   async findDocumentColors(uri) {
@@ -25919,12 +25703,7 @@ var JSONWorker = class {
       return [];
     }
     let jsonDocument = this._languageService.parseJSONDocument(document);
-    let colorPresentations = this._languageService.getColorPresentations(
-      document,
-      jsonDocument,
-      color,
-      range
-    );
+    let colorPresentations = this._languageService.getColorPresentations(document, jsonDocument, color, range);
     return Promise.resolve(colorPresentations);
   }
   async getFoldingRanges(uri, context) {
@@ -25944,32 +25723,11 @@ var JSONWorker = class {
     let ranges = this._languageService.getSelectionRanges(document, positions, jsonDocument);
     return Promise.resolve(ranges);
   }
-  async parseJSONDocument(uri) {
-    let document = this._getTextDocument(uri);
-    if (!document) {
-      return null;
-    }
-    let jsonDocument = this._languageService.parseJSONDocument(document);
-    return Promise.resolve(jsonDocument);
-  }
-  async getMatchingSchemas(uri) {
-    let document = this._getTextDocument(uri);
-    if (!document) {
-      return [];
-    }
-    let jsonDocument = this._languageService.parseJSONDocument(document);
-    return Promise.resolve(this._languageService.getMatchingSchemas(document, jsonDocument));
-  }
   _getTextDocument(uri) {
     let models = this._ctx.getMirrorModels();
     for (let model of models) {
       if (model.uri.toString() === uri) {
-        return TextDocument2.create(
-          uri,
-          this._languageId,
-          model.version,
-          model.getValue()
-        );
+        return TextDocument2.create(uri, this._languageId, model.version, model.getValue());
       }
     }
     return null;

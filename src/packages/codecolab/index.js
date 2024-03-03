@@ -6,15 +6,14 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import React from 'react';
 import { AppData } from './src/data/appdata.js';
-import {getApp, useSetApp} from './src/hooks/useSetApp.js'
-import {getSession} from './src/utils/getsession.js'
+import { useSetApp } from './src/hooks/useSetApp.js';
+
 
 // Our launcher
 const register = (core, args, options, metadata) => {
   // Create a new Application instance
   const proc = core.make('osjs/application', { args, options, metadata });
-  let socket = proc.socket('/socket')
-  
+
   // Create  a new Window instance
   var win = proc.createWindow({
     id: 'codecolabWindow',
@@ -24,8 +23,8 @@ const register = (core, args, options, metadata) => {
     position: { left: 700, top: 200 }
   }).on('destroy', () => proc.destroy())
 
-
-  const app_data = new AppData(win, args, options, proc, osjs, socket,core)
+  const socket = proc.socket('/socket')
+  const app_data = new AppData(win, args, options, proc, osjs, socket, core)
   useSetApp(app_data)
 
 

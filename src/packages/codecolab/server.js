@@ -21,10 +21,9 @@ module.exports = (core, proc) => {
             if (!sessions[inputID]) {
       
               sessions[inputID] = { session: '' }
-              const session = new CreateNewSession(data.sessionIden)
+              const session = new CreateNewSession(data.file)
               session.createSession(ws)
               const sharelink = session.createShareLink(inputID)
-
               const language = session.getLanguage()
               sessions[inputID].session = session
               ws.send(JSON.stringify({ type: 'sessioncreated', sharelink: sharelink, language: language, sessionID: inputID }));
@@ -33,7 +32,7 @@ module.exports = (core, proc) => {
           }
           if (data.type === 'codechange') {
             
-            sessions[data.sessionID].session.instance.sessionIden.file.data = data.code
+            sessions[data.sessionID].session.instance.sessionFile.data = data.code
 
             sessions[data.sessionID].session.instance.clients.forEach((client) => {
               if (client !== ws) {
@@ -50,8 +49,8 @@ module.exports = (core, proc) => {
               
               sessions[data.sessionID].session.instance.clients.push(ws)
 
-              const code = sessions[data.sessionID].session.instance.sessionIden.file.data
-          
+              const code = sessions[data.sessionID].session.instance.sessionFile.data
+
               const language = sessions[data.sessionID].session.language
 
               ws.send(JSON.stringify({ type: 'joinedsession', code: code, language: language }))
