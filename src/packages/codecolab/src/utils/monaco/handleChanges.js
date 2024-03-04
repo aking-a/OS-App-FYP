@@ -8,6 +8,10 @@ function clientChange(actions) {
 function incomingChange(actions) {
     const editor = getSession().editorRef
     const monaco = getSession().monaco
+    console.log(actions)
+
+    getSession().lockedlines.add(actions.Start_Line)
+
     if(actions.Action === 'insert') {
         editor.executeEdits('', [{
             range: new monaco.Range(actions.Start_Line, actions.Start_Column, actions.End_Line, actions.End_Column),

@@ -1,7 +1,8 @@
 const { cli } = require('webpack');
 const CreateNewSession = require('./server_modules/newsession.js')
-const Lock = require('./server_modules/linelock.js')
 const crypto = require('crypto');
+const Lock = require('./server_modules/linelock.js');
+const tryoperation = require('./server_modules/functions/tryoperation.js');
 const sessions = {}
 
 function generateUUID() {
@@ -41,16 +42,8 @@ module.exports = (core, proc) => {
           if (data.type === 'codechange') {
             
             console.log(sessions[data.sessionID].lock)
-            
-            sessions[data.sessionID].session.instance.sessionFile.data = data.code
-            sessions[data.sessionID].session.instance.clients.forEach((client) => {
-              if (client !== ws) {
+            tryoperation(sessions[data.sessionID].lock,ws,sessions[data.sessionID].session,data.code,data.actions)
 
-                client.send(JSON.stringify({ type: 'incodechange', actions: data.actions }));
-
-              }
-
-            });
           }
           if (data.type === 'joinsession') {
 

@@ -21,7 +21,6 @@ const useSocketListener = (socket, navigate) => {
 
                 }
                 if (data.type === 'incodechange') {
-                    console.log(data.actions)
                     getSession().ProgrammaticChange = true
                     incomingChange(data.actions)
 
@@ -75,6 +74,11 @@ const useSocketListener = (socket, navigate) => {
                     session.showPopup(true)
                     addUsername(data.username)
 
+                }
+                if (data.type === 'releaseline') {
+                    setTimeout(() => {
+                        getSession().lockedlines.delete(data.line)
+                    }, 5000) 
                 }
 
             };

@@ -1,27 +1,36 @@
 class Lock {
     constructor() {
-        this.isLocked = false;
-        this.queue = [];
+        this.locks = new Map();
     }
 
-    async acquire() {
+    async acquire(line) {
+        if (!this.locks.has(line)) {
+            this.locks.set(line, { isLocked: false, queue: [] });
+        }
+
+        const lock = this.locks.get(line);
+
         return new Promise((resolve) => {
-            if (!this.isLocked) {
-                this.isLocked = true;
+            if (!lock.isLocked) {
+                lock.isLocked = true;
                 resolve();
             } else {
-                this.queue.push(resolve);
+                lock.queue.push(resolve);
             }
         });
     }
 
-    release() {
-        if (this.queue.length > 0) {
-            const resolve = this.queue.shift();
-            resolve();
-        } else {
-            this.isLocked = false;
+    release(line) {
+        if (this.locks.has(line)) {
+            const lock = this.locks.get(line);
+
+            if (lock.queue.length > 0) {
+                const resolve = lock.queue.shift();
+                resolve();
+            } else {
+                lock.isLocked = false;
+            }
         }
     }
 }
-module.exports = Lock
+module.exports = Lock;

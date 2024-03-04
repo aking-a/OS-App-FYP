@@ -12,6 +12,7 @@ import { options } from '../data/editoroptions.js';
 import useShowPopupListener from '../hooks/useShowPopupListener.js';
 import { getSession } from "../utils/getsession"
 import useActionListener from '../hooks/useActionListener.js';
+import readOnlyLines from '../utils/monaco/handleReadOnlyLines'
 
 export function FileSession() {
   const [language, setLanguage] = useState('')
@@ -30,6 +31,8 @@ export function FileSession() {
   useShowPopupListener(showPopup, setShowPopup)
 
   useActionListener(DidMount)
+
+  readOnlyLines(DidMount)
 
 
   const copyToClipboard = async () => {
