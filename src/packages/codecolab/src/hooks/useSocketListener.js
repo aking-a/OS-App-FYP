@@ -3,7 +3,7 @@ import { getSession, Terminate } from '../utils/getsession.js'
 import { incomingChange } from '../utils/monaco/handleChanges.js';
 import { getApp } from './useSetApp.js';
 import { addUsername, removeUsername } from '../utils/username/updatelist.js'
-import {terminatewindow} from '../utils/events/renderlist.js'
+import { terminatewindow } from '../utils/events/renderlist.js'
 
 const useSocketListener = (socket, navigate) => {
     useEffect(() => {
@@ -12,7 +12,7 @@ const useSocketListener = (socket, navigate) => {
                 const data = JSON.parse(event.data);
                 if (data.type === 'sessioncreated') {
                     const session = getSession()
-
+                    getSession().ProgrammaticChange = true
                     session.language = data.language
                     session.sharelink = data.sharelink
                     session.isVisible = true
@@ -21,12 +21,15 @@ const useSocketListener = (socket, navigate) => {
 
                 }
                 if (data.type === 'incodechange') {
-                    incomingChange(data.code)
+                    console.log(data.actions)
+                    getSession().ProgrammaticChange = true
+                    incomingChange(data.actions)
 
 
                 }
                 if (data.type === 'joinedsession') {
                     const session = getSession()
+                    getSession().ProgrammaticChange = true
                     session.language = data.language
                     session.code = data.code
                     session.isVisible = false
