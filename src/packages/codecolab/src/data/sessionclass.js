@@ -14,5 +14,8 @@ export class Session {
         this.userlist= null
         this.usernameslist = null
         this.itemlist = null
+        this.ProgrammaticChange = false
+        this.monaco = null
+        this.lockedlines = new Set()
     }
 }

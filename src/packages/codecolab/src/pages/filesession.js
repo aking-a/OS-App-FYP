@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import MonacoEditor from 'react-monaco-editor';
 import DidMount from '../utils/monaco/handledidmount.js'
-import { clientChange } from '../utils/monaco/handleChanges.js';
 import DisconnectButton from '../components/buttons/disconnect.js'
 import DropdownMenu from '../components/dropdown/dropdown.js'; // import your DropdownMenu component
 import { getApp } from '../hooks/useSetApp.js';
@@ -12,6 +11,8 @@ import useDidMountListener from '../hooks/useDidMountListener.js';
 import { options } from '../data/editoroptions.js';
 import useShowPopupListener from '../hooks/useShowPopupListener.js';
 import { getSession } from "../utils/getsession"
+import useActionListener from '../hooks/useActionListener.js';
+import readOnlyLines from '../utils/monaco/handleReadOnlyLines'
 
 export function FileSession() {
   const [language, setLanguage] = useState('')
@@ -28,6 +29,10 @@ export function FileSession() {
   useDidMountListener(DidMount, setSid, setUser, setCode, setLanguage, setPopupMessage, setShowPopup, setIsVisible, setLink)
 
   useShowPopupListener(showPopup, setShowPopup)
+
+  useActionListener(DidMount)
+
+  readOnlyLines(DidMount)
 
 
   const copyToClipboard = async () => {
@@ -75,7 +80,6 @@ export function FileSession() {
           options={options}
           editorDidMount={DidMount}
           value={code}
-          onChange={clientChange}
         />
       </div>
       {showPopup && <Popup message={popupMessage} />}

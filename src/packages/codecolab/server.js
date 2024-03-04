@@ -1,7 +1,16 @@
 const { cli } = require('webpack');
 const CreateNewSession = require('./server_modules/newsession.js')
 const crypto = require('crypto');
+const Lock = require('./server_modules/linelock.js');
+const tryoperation = require('./server_modules/functions/tryoperation.js');
 const sessions = {}
+
+function generateUUID() {
+  const bytes = crypto.randomBytes(16);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40; // Version 4
+  bytes[8] = (bytes[8] & 0x3f) | 0x80; // Variant 1
+  return bytes.toString('hex').match(/.{1,2}/g).join('-');
+}
 
 module.exports = (core, proc) => {
   const { routeAuthenticated } = core.make('osjs/express');
@@ -16,11 +25,11 @@ module.exports = (core, proc) => {
           const data = JSON.parse(message);
 
           if (data.type === 'startsession') {
-            let inputID = crypto.randomUUID();
+            let inputID = generateUUID()
 
             if (!sessions[inputID]) {
-      
-              sessions[inputID] = { session: '' }
+              const  locklines = new Lock()
+              sessions[inputID] = { session: '', lock: locklines}
               const session = new CreateNewSession(data.file)
               session.createSession(ws)
               const sharelink = session.createShareLink(inputID)
@@ -32,16 +41,9 @@ module.exports = (core, proc) => {
           }
           if (data.type === 'codechange') {
             
-            sessions[data.sessionID].session.instance.sessionFile.data = data.code
+            console.log(sessions[data.sessionID].lock)
+            tryoperation(sessions[data.sessionID].lock,ws,sessions[data.sessionID].session,data.code,data.actions)
 
-            sessions[data.sessionID].session.instance.clients.forEach((client) => {
-              if (client !== ws) {
-
-                client.send(JSON.stringify({ type: 'incodechange', code: data.code }));
-
-              }
-
-            });
           }
           if (data.type === 'joinsession') {
 

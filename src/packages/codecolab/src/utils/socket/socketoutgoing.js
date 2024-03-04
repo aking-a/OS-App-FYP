@@ -3,9 +3,10 @@ function StartFileShare(socket,newfile, username) {
         socket.send(JSON.stringify({ type: 'startsession', file: newfile, username: username }));
     }
 }
-function CodeChange(code, socket, sessionID) {
+function CodeChange(actions, socket, sessionID,code) {
+    
     if (socket.connected) {
-        socket.send(JSON.stringify({ type: 'codechange', code: code, sessionID: sessionID }));
+        socket.send(JSON.stringify({ type: 'codechange', actions:actions, sessionID: sessionID, code: code}));
     }
 }
 function JoinSession(socket, sessionID, username) {
