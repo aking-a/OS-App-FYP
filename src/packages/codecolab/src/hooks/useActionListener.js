@@ -18,9 +18,7 @@ export default function useActionListener(DidMount) {
           console.log(`Action: ${action}, Start Line: ${startLine}, End Line: ${endLine}, Start Column: ${startColumn}, End Column: ${endColumn}, Text: ${text}`);
           const actions = { Action: action, Start_Line: startLine, End_Line: endLine, Start_Column: startColumn, End_Column: endColumn, Text: text }
 
-          console.log(getSession().ProgrammaticChange)
           if (!getSession().ProgrammaticChange) {
-            console.log('hasactive')
             clientChange(actions)
           }
           if(getSession().ProgrammaticChange){

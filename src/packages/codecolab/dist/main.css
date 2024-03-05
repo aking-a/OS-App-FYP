@@ -144,6 +144,9 @@
     opacity: 0;
   }
 }
+.highlight {
+  background-color: rgba(255, 0, 0, 0.448);
+}
 @keyframes CEdhbyGgLiHoi9hhGGU9 {
   0% {
     opacity: 0;

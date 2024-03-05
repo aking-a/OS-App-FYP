@@ -5,7 +5,7 @@ class CreateNewSession {
         this.language = null
     }
     createSession(ws) {
-        this.instance = { clients: [], sessionFile: this.data }
+        this.instance = { clients: [],sessionFile: this.data }
         this.instance.clients.push(ws)
 
     }

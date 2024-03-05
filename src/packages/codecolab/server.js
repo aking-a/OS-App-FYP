@@ -3,6 +3,9 @@ const CreateNewSession = require('./server_modules/newsession.js')
 const crypto = require('crypto');
 const Lock = require('./server_modules/linelock.js');
 const tryoperation = require('./server_modules/functions/tryoperation.js');
+const applyEdit = require('./server_modules/functions/serverDocEditor.js');
+const onDisconnect = require('./server_modules/functions/onDisconnect.js');
+const { on } = require('events');
 const sessions = {}
 
 function generateUUID() {
@@ -21,6 +24,16 @@ module.exports = (core, proc) => {
 
 
       core.app.ws(proc.resource('/socket'), (ws, req) => {
+        ws.on('close', () => {
+        Object.entries(sessions).forEach(([sessionID, obj]) => {
+            const index = obj.session.instance.clients.indexOf(ws);
+            if (index !== -1) {
+                onDisconnect(sessions, sessionID, ws, index);
+                return;
+            }
+        });
+
+        });
         ws.on('message', (message) => {
           const data = JSON.parse(message);
 
@@ -28,8 +41,8 @@ module.exports = (core, proc) => {
             let inputID = generateUUID()
 
             if (!sessions[inputID]) {
-              const  locklines = new Lock()
-              sessions[inputID] = { session: '', lock: locklines}
+              const locklines = new Lock()
+              sessions[inputID] = { session: '', lock: locklines }
               const session = new CreateNewSession(data.file)
               session.createSession(ws)
               const sharelink = session.createShareLink(inputID)
@@ -40,15 +53,17 @@ module.exports = (core, proc) => {
 
           }
           if (data.type === 'codechange') {
-            
-            console.log(sessions[data.sessionID].lock)
-            tryoperation(sessions[data.sessionID].lock,ws,sessions[data.sessionID].session,data.code,data.actions)
+
+
+            const doc = sessions[data.sessionID].session.instance.sessionFile.data
+            tryoperation(sessions[data.sessionID].lock, ws, sessions[data.sessionID].session, data.actions)
+            const updated_doc = applyEdit(data.actions, doc)
+            sessions[data.sessionID].session.instance.sessionFile.data = updated_doc
 
           }
           if (data.type === 'joinsession') {
 
             if (sessions[data.sessionID]) {
-              
               sessions[data.sessionID].session.instance.clients.push(ws)
 
               const code = sessions[data.sessionID].session.instance.sessionFile.data
@@ -60,42 +75,16 @@ module.exports = (core, proc) => {
               sessions[data.sessionID].session.instance.clients.forEach((client) => {
                 if (client !== ws) {
 
-                  client.send(JSON.stringify({ type: 'joined', username: data.username}));
+                  client.send(JSON.stringify({ type: 'joined', username: data.username }));
 
                 }
 
               });
-             
+
             }
           }
           if (data.type === 'disconnect') {
-
-            if (sessions[data.sessionID].session.instance.clients[0] == ws) {
-
-              sessions[data.sessionID].session.instance.clients.forEach((client) => {
-
-                client.send(JSON.stringify({ type: 'disconnected', status: 'true' }))
-              });
-              delete sessions[data.sessionID];
-
-            }
-            else {
-
-              sessions[data.sessionID].session.instance.clients.forEach((client) => {
-                if (client !== ws) {
-
-                  client.send(JSON.stringify({ type: 'disconnected', status: 'alert', username: data.username}))
-
-                }
-                if (client == ws) {
-                  client.send(JSON.stringify({ type: 'disconnected', status: 'false' }))
-                }
-
-              });
-              const index = sessions[data.sessionID].session.instance.clients.indexOf(ws)
-              delete sessions[data.sessionID].session.instance.clients[index]
-
-            }
+            onDisconnect(sessions, data.sessionID, ws, data.username)
           }
 
         })

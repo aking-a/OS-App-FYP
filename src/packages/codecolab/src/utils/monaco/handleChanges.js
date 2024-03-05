@@ -3,7 +3,7 @@ import { CodeChange } from '../socket/socketoutgoing.js'
 //Action: action, Start_Line: startLine, End_Line: endLine, Start_Column: startColumn, End_Column: endColumn, Text: text
 function clientChange(actions) {
     const session = getSession()
-    CodeChange(actions, session.socket, session.sessionID,getSession().editorRef.getValue())
+    CodeChange(actions, session.socket, session.sessionID, getSession().editorRef.getValue())
 }
 function incomingChange(actions) {
     const editor = getSession().editorRef
@@ -12,24 +12,25 @@ function incomingChange(actions) {
 
     getSession().lockedlines.add(actions.Start_Line)
 
-    if(actions.Action === 'insert') {
+    if (actions.Action === 'insert') {
         editor.executeEdits('', [{
             range: new monaco.Range(actions.Start_Line, actions.Start_Column, actions.End_Line, actions.End_Column),
             text: actions.Text,
             forceMoveMarkers: true
         }]);
     }
-    if(actions.Action === 'delete') {
+    if (actions.Action === 'delete') {
         editor.executeEdits('', [{
             range: new monaco.Range(actions.Start_Line, actions.Start_Column, actions.End_Line, actions.End_Column),
-            text: null,
+            text: actions.Text,
             forceMoveMarkers: true
         }]);
     }
-    if(actions.Action === 'newline') {
+    if (actions.Action === 'newline') {
+
         editor.executeEdits('', [{
             range: new monaco.Range(actions.Start_Line, actions.Start_Column, actions.Start_Line, actions.Start_Column),
-            text: '\n',
+            text: actions.Text,
             forceMoveMarkers: true
         }]);
     }
