@@ -67,7 +67,6 @@ const useSocketListener = (socket, navigate) => {
                             removeUsername(session.usernameslist[index])
                         }else{
                             session.popupMessage(data.username + " has left the session")
-                            console.log('usernamenonindex', data.username)
                             removeUsername(data.username)
                         }
                         session.showPopup(true)
