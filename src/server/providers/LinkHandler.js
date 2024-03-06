@@ -34,7 +34,11 @@ class LinkHandlerServiceProvider {
    */
   init() {
     const app = this.core.make('osjs/express')
-
+    //this is where MULE is listening for the /open route
+    //This opens my application when the link is put into the browser and opens a session based on the data in the link which is the session id
+    //This /open is doing this by responding with a html page that has a script that fetches the index.html host and then runs the codecolab package with the session id and options set 
+    //to true so the user will go through landing page and then join the session
+    //This html was given to me by the OS.js team someone in thw OS.js community that helped me with this
     app.route('get', '/open', (req, res) => {
       let data = req.query.data;
       let ans = decodeURIComponent(data);

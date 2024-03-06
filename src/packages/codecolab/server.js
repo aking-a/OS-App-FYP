@@ -22,12 +22,15 @@ module.exports = (core, proc) => {
     // When server initializes
     async init() {
 
-
       core.app.ws(proc.resource('/socket'), (ws, req) => {
+
+        //when the a client loses connection or closes the window
         ws.on('close', () => {
+          //this loop checks if the client is in any of the sessions and if it is it will remove it from the session
         Object.entries(sessions).forEach(([sessionID, obj]) => {
             const index = obj.session.instance.clients.indexOf(ws);
             if (index !== -1) {
+              //we dont know the clients username because that is only stored on the client side so we just pass the index of the client in the username list array
                 onDisconnect(sessions, sessionID, ws, index);
                 return;
             }
@@ -37,30 +40,42 @@ module.exports = (core, proc) => {
         ws.on('message', (message) => {
           const data = JSON.parse(message);
 
+          //handles creating a new session
           if (data.type === 'startsession') {
+            //gens a new session id using crypto
             let inputID = generateUUID()
-
+            //checks if the session already exists
             if (!sessions[inputID]) {
+              //creates a lockines obj so a user can acquire and release locks on lines in the text
               const locklines = new Lock()
               sessions[inputID] = { session: '', lock: locklines }
+
+              //creates a new session on the server and adds the websocket to that session list of clients
+              //also takes the session file and gets the language of the file by checking its extension
               const session = new CreateNewSession(data.file)
               session.createSession(ws)
+              //creates a share link for the session
               const sharelink = session.createShareLink(inputID)
               const language = session.getLanguage()
               sessions[inputID].session = session
+              //sends the relavent data back to the client
               ws.send(JSON.stringify({ type: 'sessioncreated', sharelink: sharelink, language: language, sessionID: inputID }));
             }
 
           }
+          //handles code changes
           if (data.type === 'codechange') {
 
-
+            //gets the document from the session
             const doc = sessions[data.sessionID].session.instance.sessionFile.data
+            //acquires a lock on the lines that are being edited
             tryoperation(sessions[data.sessionID].lock, ws, sessions[data.sessionID].session, data.actions)
+            //applies the edits to the document	on the server so whenever a new client joins they will get the updated document
             const updated_doc = applyEdit(data.actions, doc)
             sessions[data.sessionID].session.instance.sessionFile.data = updated_doc
 
           }
+          //handles a user joining a session, sends all the relavent data to the client and boradcasts to all other clients that a new user has joined
           if (data.type === 'joinsession') {
 
             if (sessions[data.sessionID]) {
@@ -83,6 +98,7 @@ module.exports = (core, proc) => {
 
             }
           }
+          //handles the disconnect event through the disconnect button
           if (data.type === 'disconnect') {
             onDisconnect(sessions, data.sessionID, ws, data.username)
           }
