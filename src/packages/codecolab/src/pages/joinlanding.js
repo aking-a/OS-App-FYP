@@ -17,7 +17,7 @@ export function Joinlanding() {
     setTimeout(() => {
         const args = getApp().args
         JoinSession(socket, args, username)
-    }, [3000])
+    }, [2000])
     return (
         <div className={styles.container}>
             <p className={styles.loadingIcon}>Loading...</p>

@@ -61,9 +61,15 @@ const useSocketListener = (socket, navigate) => {
                     }
                     else if (data.status == 'alert') {
                         const session = getSession()
-                        session.popupMessage(data.username + " has left the session")
+                        if(typeof data.username == 'number'){
+                            const index = data.username -1;
+                            session.popupMessage(session.usernameslist[index] + " has left the session")
+                            removeUsername(session.usernameslist[index])
+                        }else{
+                            session.popupMessage(data.username + " has left the session")
+                            removeUsername(data.username)
+                        }
                         session.showPopup(true)
-                        removeUsername(data.username)
 
                     }
                 }

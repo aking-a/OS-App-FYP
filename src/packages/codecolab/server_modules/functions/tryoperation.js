@@ -1,8 +1,8 @@
-async function tryoperation(linelock, ws, session, code, actions) {
+async function tryoperation(linelock, ws, session, actions) {
     await linelock.acquire(actions.Start_Line)
     try {
         // Edit the line
-        await broadcastEdit(ws, session, code, actions)
+        await broadcastEdit(ws, session, actions)
     } finally {
         // Release the lock for the line
         linelock.release(actions.Start_Line);
@@ -14,8 +14,7 @@ async function tryoperation(linelock, ws, session, code, actions) {
 
 }
 
-async function broadcastEdit(ws, session, code, actions) {
-    session.instance.sessionFile.data = code
+async function broadcastEdit(ws, session, actions) {
     session.instance.clients.forEach((client) => {
         if (client !== ws) {
 
