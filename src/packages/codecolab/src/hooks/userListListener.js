@@ -8,5 +8,9 @@ export default function listlistener(usernames) {
             console.log('usernames', getSession().itemlist)
             getSession().itemlist(usernames);
         }
+        if(getSession().usernameslist.length == 0 &&  getSession().itemlist === null) {
+            consoleq.log('usernameshasdone')
+            getSession().itemlist(usernames)
+        }
     }, [usernames]);
 }

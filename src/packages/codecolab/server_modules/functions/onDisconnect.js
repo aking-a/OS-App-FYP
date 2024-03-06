@@ -27,7 +27,7 @@ function onDisconnect(sessions,sessionID,ws,username) {
             }
         });
         const index = sessions[sessionID].session.instance.clients.indexOf(ws)
-        delete sessions[sessionID].session.instance.clients[index]
+        sessions[sessionID].session.instance.clients.splice(index, 1);
 
     }
 }
