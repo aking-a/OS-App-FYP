@@ -3,8 +3,10 @@ import React, { useEffect } from "react"
 
 export default function useDidMountListener(DidMount, setSid, setUser, setCode, setLanguage, setPopupMessage, setShowPopup, setIsVisible, setLink) {
   useEffect(() => {
+    //making sure the editor is mounted
     if (getSession().editorRef != null) {
 
+      //setting up all the session useStates and other variables
       const session = getSession()
       const editor = session.editorRef
 

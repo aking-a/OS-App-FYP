@@ -1,6 +1,6 @@
 import React from 'react';
-import clickevent from '../utils/events/clickevent.js';
-import styles from '../assets/button.module.css';
+import clickevent from '../utils/events/clickevent.js';//nothing happens until the click event is triggered
+import styles from '../assets/button.module.css';//some styling for the page
 
 export function FileSelector() {
 
@@ -8,6 +8,7 @@ export function FileSelector() {
     <div className={styles.container}>
       <p className={styles.paragraph}>Click the share button to start sharing your file:</p>
       <button onClick={clickevent} className={styles.button}>
+        {/* provided by git copilot simple share icon created using svg */}
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="18" cy="5" r="3"></circle>
           <circle cx="6" cy="12" r="3"></circle>
