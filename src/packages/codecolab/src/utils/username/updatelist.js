@@ -1,4 +1,6 @@
 import { getSession} from '../../utils/getsession.js'
+
+//just adds/removes a username from the usernames state array
 function addUsername(username) {
     const setUsernames = getSession().userlist;
     setUsernames(oldUsernames => [...oldUsernames, username]);
