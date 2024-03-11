@@ -115,6 +115,7 @@ const useSocketListener = (socket, navigate) => {
                     console.log('releasing line')
                     getSession().lockedlines.delete(data.line)
                 }
+                //add locked lines to the list of locked lines
                 if (data.type === 'hasline') {
                     getSession().lockedlines.add(data.line)
                 }

@@ -3,7 +3,7 @@ import { handleDisconnect } from '../../utils/socket/socketoutgoing';
 import { getSession } from '../../utils/getsession';
 import styles from '../../assets/disconectbutton.module.css';
 import { Box } from "@chakra-ui/react";
-
+//simple disconnect button component using elements from chakra ui
 
 function DisconnectButton() {
 

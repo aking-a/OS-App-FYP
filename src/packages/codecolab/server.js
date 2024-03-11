@@ -7,7 +7,6 @@ const applyEdit = require('./server_modules/functions/serverDocEditor.js');
 const onDisconnect = require('./server_modules/functions/onDisconnect.js');
 const { on } = require('events');
 const sessions = {}
-const lockedlines = new Set()
 function generateUUID() {
   const bytes = crypto.randomBytes(16);
   bytes[6] = (bytes[6] & 0x0f) | 0x40; // Version 4
@@ -47,7 +46,7 @@ module.exports = (core, proc) => {
             if (!sessions[inputID]) {
               //creates a lockines obj so a user can acquire and release locks on lines in the text
               const locklines = new Lock()
-              sessions[inputID] = { session: '', lock: locklines }
+              sessions[inputID] = { session: '', lock: locklines, lockedlines: new Set() }
 
               //creates a new session on the server and adds the websocket to that session list of clients
               //also takes the session file and gets the language of the file by checking its extension
@@ -94,7 +93,7 @@ module.exports = (core, proc) => {
 
               const language = sessions[data.sessionID].session.language
 
-              ws.send(JSON.stringify({ type: 'joinedsession', code: code, language: language, lockedlines: Array.from(lockedlines) }))
+              ws.send(JSON.stringify({ type: 'joinedsession', code: code, language: language, lockedlines: Array.from(sessions[data.sessionID].lockedlines) }))
 
               sessions[data.sessionID].session.instance.clients.forEach((client) => {
                 if (client !== ws) {
@@ -108,12 +107,13 @@ module.exports = (core, proc) => {
             }
           }
           if (data.type === 'acquirelock') {
-            tryoperation(sessions[data.sessionID].lock, ws, sessions[data.sessionID].session, data.line, lockedlines);
+            
+            tryoperation(sessions[data.sessionID].lock, ws, sessions[data.sessionID].session, data.line, sessions[data.sessionID].lockedlines,data.timestamp);
           }
           if (data.type === 'releaselock') {
             //Release the lock and remove the line from the lockedlines set
             sessions[data.sessionID].lock.release(data.line)
-            lockedlines.delete(data.line)
+            sessions[data.sessionID].lockedlines.delete(data.line);
             //Broadcast the release to all other clients
             sessions[data.sessionID].session.instance.clients.forEach((client) => {
               if (client !== ws) {
