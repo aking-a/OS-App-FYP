@@ -1,9 +1,8 @@
 import React from 'react';
 import styles from '../../assets/popup.module.css';
 function Popup({ message }) {
-
+//popup component to display messages to the user
   const handleDisconnect = () => {
-    // Disconnect logic goes here
     setConnected(false);
   };
 

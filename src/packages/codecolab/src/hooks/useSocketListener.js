@@ -4,7 +4,7 @@ import { incomingChange } from '../utils/monaco/handleChanges.js';//This just ha
 import { getApp } from './useSetApp.js';//app variables
 import { addUsername, removeUsername } from '../utils/username/updatelist.js'//This is used for the list of usernames in the session adds and removes usernames from list 
 import { terminatewindow } from '../utils/events/renderlist.js'//Used for closing any open windows (for now that is just the user list window)
-
+import { acquireLock } from '../utils/socket/socketoutgoing.js';
 //socket lsitner funtions
 const useSocketListener = (socket, navigate) => {
     //this listens for incoming socket events
@@ -26,6 +26,9 @@ const useSocketListener = (socket, navigate) => {
                     session.sharelink = data.sharelink
                     session.isVisible = true//This toggles if the dropdown menu is visible or not
                     session.sessionID = data.sessionID
+                    //getting the length of the file and setting the current line to the end of the file
+                    // getSession().curline = getSession().file.data.split('\n').length
+                    // console.log(getSession().curline)
                     //navigate to the main page
                     navigate('/Session')
 
@@ -36,10 +39,14 @@ const useSocketListener = (socket, navigate) => {
                     incomingChange(data.actions)
 
 
+
                 }
                 //Sets up the session for when a user joines a session throught the share link
                 if (data.type === 'joinedsession') {
                     const session = getSession()
+                    console.log(data.lockedlines)
+                    data.lockedlines.forEach(value => session.lockedlines.add(value))
+                    session.lockedlines
                     getSession().ProgrammaticChange = true
                     session.language = data.language
                     session.code = data.code
@@ -82,11 +89,11 @@ const useSocketListener = (socket, navigate) => {
                         //There are two cases for this, when a user diconnects from the disconnect button and when a user closes the window or loses connection
                         //if the latter happens we will recive a number and if the former we will recive a string
                         //we must get the user at that index if the latter occurs hence the reason for the below statements
-                        if(typeof data.username == 'number'){
-                            const index = data.username -1;
+                        if (typeof data.username == 'number') {
+                            const index = data.username - 1;
                             session.popupMessage(session.usernameslist[index] + " has left the session")//disconnect message
                             removeUsername(session.usernameslist[index])// the function that removes the user from the list
-                        }else{
+                        } else {
                             session.popupMessage(data.username + " has left the session")
                             removeUsername(data.username)
                         }
@@ -105,13 +112,12 @@ const useSocketListener = (socket, navigate) => {
                 }
                 //relases the locked line to allow editing of that line
                 if (data.type === 'releaseline') {
-                    setTimeout(() => {
-                        getSession().lockedlines.delete(data.line)
-                    }, 1000) 
+                    console.log('releasing line')
+                    getSession().lockedlines.delete(data.line)
                 }
-                if(data.type === 'undo'){
-                    getSession().ProgrammaticChange = true
-                    getSession().editorRef.getModel().undo()
+                //add locked lines to the list of locked lines
+                if (data.type === 'hasline') {
+                    getSession().lockedlines.add(data.line)
                 }
 
             };

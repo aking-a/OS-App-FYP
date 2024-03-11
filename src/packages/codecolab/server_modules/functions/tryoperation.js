@@ -1,39 +1,35 @@
-async function tryoperation(linelock, ws, session, actions) {
-    //if another ws comes in here tring to acuire the lock it will be blocked(added to a queu) until the lock is released
-    await linelock.acquire(actions.Start_Line)
-    try {
-        // Edit the line
-        await broadcastEdit(ws, session, actions)
-    } finally {
-        // Release the lock for the line
-        linelock.release(actions.Start_Line);
-        await releaseLineBroadcast(ws, session, actions)
+// This function attempts to acquire a lock for a line.
+// If the lock is successfully acquired, it broadcasts the line to all other connected clients.
+// If the lock is not acquired, it simply returns.
+async function tryoperation(linelock, ws, session, line, lockedlines, timestamp) {
+    // Attempt to acquire the lock for the line.
+    // If another WebSocket tries to acquire the lock at the same time, it will be blocked (added to a queue) until the lock is released.
+    const verdict = await linelock.acquire(line, timestamp);
+    
+    // If the lock was successfully acquired
+    if(verdict){
+        // Add the line to the set of locked lines
+        lockedlines.add(line);
+        
+        // Broadcast the line to all other connected clients
+        await broadcastEdit(ws, session, line);
+    } else {
+        // If the lock was not acquired, return
+        return;
     }
-
-
 }
-//apply the change to all other connected clients
-async function broadcastEdit(ws, session, actions) {
+
+// This function broadcasts a line to all other connected clients.
+async function broadcastEdit(ws, session, line) {
+    // Iterate over all connected clients
     session.instance.clients.forEach((client) => {
+        // If the client is not the WebSocket that acquired the lock
         if (client !== ws) {
-
-            client.send(JSON.stringify({ type: 'incodechange', actions: actions }));
-
+            // Send a message to the client indicating that the line is locked
+            client.send(JSON.stringify({ type: 'hasline', line: line }));
         }
-
-    });
-}
-//tell all other clients that the lock has been released
-async function releaseLineBroadcast(ws, session, actions) {
-    session.instance.clients.forEach((client) => {
-        if (client !== ws) {
-
-            client.send(JSON.stringify({ type: 'releaseline', line: actions.Start_Line }));
-
-        }
-
     });
 }
 
-// Export your function
+// Export the tryoperation function
 module.exports = tryoperation;

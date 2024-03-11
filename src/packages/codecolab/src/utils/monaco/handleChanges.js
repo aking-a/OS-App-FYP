@@ -8,7 +8,6 @@ function clientChange(actions) {
 function incomingChange(actions) {
     const editor = getSession().editorRef
     const monaco = getSession().monaco
-    getSession().lockedlines.add(actions.Start_Line)
 
     //appling the chnages to the editor that have been recived by the server
     //As mentioned in other files its not nessacary to use disipher what action is being used

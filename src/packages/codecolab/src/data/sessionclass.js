@@ -17,5 +17,6 @@ export class Session {
         this.ProgrammaticChange = false
         this.monaco = null
         this.lockedlines = new Set()
+        this.curline = null
     }
 }

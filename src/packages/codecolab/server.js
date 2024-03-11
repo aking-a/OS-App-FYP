@@ -7,14 +7,12 @@ const applyEdit = require('./server_modules/functions/serverDocEditor.js');
 const onDisconnect = require('./server_modules/functions/onDisconnect.js');
 const { on } = require('events');
 const sessions = {}
-
 function generateUUID() {
   const bytes = crypto.randomBytes(16);
   bytes[6] = (bytes[6] & 0x0f) | 0x40; // Version 4
   bytes[8] = (bytes[8] & 0x3f) | 0x80; // Variant 1
   return bytes.toString('hex').match(/.{1,2}/g).join('-');
 }
-let lastOperationTimestamp = null;
 module.exports = (core, proc) => {
   const { routeAuthenticated } = core.make('osjs/express');
 
@@ -48,7 +46,7 @@ module.exports = (core, proc) => {
             if (!sessions[inputID]) {
               //creates a lockines obj so a user can acquire and release locks on lines in the text
               const locklines = new Lock()
-              sessions[inputID] = { session: '', lock: locklines }
+              sessions[inputID] = { session: '', lock: locklines, lockedlines: new Set() }
 
               //creates a new session on the server and adds the websocket to that session list of clients
               //also takes the session file and gets the language of the file by checking its extension
@@ -65,24 +63,24 @@ module.exports = (core, proc) => {
           }
           //handles code changes
           if (data.type === 'codechange') {
-            // Check if the operation's timestamp is later than the last operation's timestamp
-            if (!lastOperationTimestamp || new Date(data.actions.Timestamp) > new Date(lastOperationTimestamp)) {
-              // Update the last operation timestamp
-              lastOperationTimestamp = data.actions.Timestamp;
+            // Update the last operation timestamp
+            lastOperationTimestamp = data.actions.Timestamp;
 
-              // Get the document from the session
-              const doc = sessions[data.sessionID].session.instance.sessionFile.data;
+            // Get the document from the session
+            const doc = sessions[data.sessionID].session.instance.sessionFile.data;
 
-              // Acquire a lock on the lines that are being edited
-              tryoperation(sessions[data.sessionID].lock, ws, sessions[data.sessionID].session, data.actions);
+            // Broadcast the changes to all other clients
+            sessions[data.sessionID].session.instance.clients.forEach((client) => {
+              if (client !== ws) {
 
-              // Apply the edits to the document on the server so whenever a new client joins they will get the updated document
-              const updated_doc = applyEdit(data.actions, doc);
-              sessions[data.sessionID].session.instance.sessionFile.data = updated_doc;
-            }
-            else if(!lastOperationTimestamp || new Date(data.actions.Timestamp) < new Date(lastOperationTimestamp)){
-              ws.send(JSON.stringify({ type: 'undo', actions: data.actions }));
-            }
+                client.send(JSON.stringify({ type: 'incodechange', actions: data.actions }));
+
+              }
+
+            });
+            // Apply the edits to the document on the server so whenever a new client joins they will get the updated document
+            const updated_doc = applyEdit(data.actions, doc);
+            sessions[data.sessionID].session.instance.sessionFile.data = updated_doc;
 
           }
           //handles a user joining a session, sends all the relavent data to the client and boradcasts to all other clients that a new user has joined
@@ -95,7 +93,7 @@ module.exports = (core, proc) => {
 
               const language = sessions[data.sessionID].session.language
 
-              ws.send(JSON.stringify({ type: 'joinedsession', code: code, language: language }))
+              ws.send(JSON.stringify({ type: 'joinedsession', code: code, language: language, lockedlines: Array.from(sessions[data.sessionID].lockedlines) }))
 
               sessions[data.sessionID].session.instance.clients.forEach((client) => {
                 if (client !== ws) {
@@ -107,6 +105,23 @@ module.exports = (core, proc) => {
               });
 
             }
+          }
+          if (data.type === 'acquirelock') {
+            
+            tryoperation(sessions[data.sessionID].lock, ws, sessions[data.sessionID].session, data.line, sessions[data.sessionID].lockedlines,data.timestamp);
+          }
+          if (data.type === 'releaselock') {
+            //Release the lock and remove the line from the lockedlines set
+            sessions[data.sessionID].lock.release(data.line)
+            sessions[data.sessionID].lockedlines.delete(data.line);
+            //Broadcast the release to all other clients
+            sessions[data.sessionID].session.instance.clients.forEach((client) => {
+              if (client !== ws) {
+                client.send(JSON.stringify({ type: 'releaseline', line: data.line }));
+
+              }
+
+            });
           }
           //handles the disconnect event through the disconnect button
           if (data.type === 'disconnect') {
