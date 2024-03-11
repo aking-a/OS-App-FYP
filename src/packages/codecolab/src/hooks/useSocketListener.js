@@ -4,7 +4,7 @@ import { incomingChange } from '../utils/monaco/handleChanges.js';//This just ha
 import { getApp } from './useSetApp.js';//app variables
 import { addUsername, removeUsername } from '../utils/username/updatelist.js'//This is used for the list of usernames in the session adds and removes usernames from list 
 import { terminatewindow } from '../utils/events/renderlist.js'//Used for closing any open windows (for now that is just the user list window)
-
+import { acquireLock } from '../utils/socket/socketoutgoing.js';
 //socket lsitner funtions
 const useSocketListener = (socket, navigate) => {
     //this listens for incoming socket events
@@ -28,12 +28,15 @@ const useSocketListener = (socket, navigate) => {
                     session.sessionID = data.sessionID
                     //navigate to the main page
                     navigate('/Session')
+                    session.curline = 1
+                    acquireLock(session.socket, session.sessionID, session.curline)
 
                 }
                 //handles the incmoing changes from the server mainly the code being updated by another user
                 if (data.type === 'incodechange') {
                     getSession().ProgrammaticChange = true//This was explained above and is nessaary here
                     incomingChange(data.actions)
+
 
 
                 }
@@ -82,11 +85,11 @@ const useSocketListener = (socket, navigate) => {
                         //There are two cases for this, when a user diconnects from the disconnect button and when a user closes the window or loses connection
                         //if the latter happens we will recive a number and if the former we will recive a string
                         //we must get the user at that index if the latter occurs hence the reason for the below statements
-                        if(typeof data.username == 'number'){
-                            const index = data.username -1;
+                        if (typeof data.username == 'number') {
+                            const index = data.username - 1;
                             session.popupMessage(session.usernameslist[index] + " has left the session")//disconnect message
                             removeUsername(session.usernameslist[index])// the function that removes the user from the list
-                        }else{
+                        } else {
                             session.popupMessage(data.username + " has left the session")
                             removeUsername(data.username)
                         }
@@ -107,11 +110,10 @@ const useSocketListener = (socket, navigate) => {
                 if (data.type === 'releaseline') {
                     setTimeout(() => {
                         getSession().lockedlines.delete(data.line)
-                    }, 1000) 
+                    }, 1000)
                 }
-                if(data.type === 'undo'){
-                    getSession().ProgrammaticChange = true
-                    getSession().editorRef.getModel().undo()
+                if(data.type === 'hasline'){
+                    getSession().lockedlines.add(data.line)
                 }
 
             };

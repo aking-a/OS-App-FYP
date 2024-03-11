@@ -5,31 +5,18 @@ class Lock {
 
     async acquire(line) {
         if (!this.locks.has(line)) {
-            this.locks.set(line, { isLocked: false, queue: [] });
+            this.locks.set(line, { isLocked: false });
         }
 
         const lock = this.locks.get(line);
 
-        return new Promise((resolve) => {
-            if (!lock.isLocked) {
-                lock.isLocked = true;
-                resolve();
-            } else {
-                lock.queue.push(resolve);
-            }
-        });
+        return true
     }
 
     release(line) {
         if (this.locks.has(line)) {
             const lock = this.locks.get(line);
-
-            if (lock.queue.length > 0) {
-                const resolve = lock.queue.shift();
-                resolve();
-            } else {
-                lock.isLocked = false;
-            }
+            lock.isLocked = false;
         }
     }
 }

@@ -1,23 +1,20 @@
-async function tryoperation(linelock, ws, session, actions) {
+async function tryoperation(linelock, ws, session,line) {
     //if another ws comes in here tring to acuire the lock it will be blocked(added to a queu) until the lock is released
-    await linelock.acquire(actions.Start_Line)
-    try {
-        // Edit the line
-        await broadcastEdit(ws, session, actions)
-    } finally {
-        // Release the lock for the line
-        linelock.release(actions.Start_Line);
-        await releaseLineBroadcast(ws, session, actions)
-    }
+   const verdict = await linelock.acquire(actions.Start_Line)
+   if(verdict){
+    await broadcastEdit(ws,session,line) 
+   }else{
+    return
+   }
 
 
 }
 //apply the change to all other connected clients
-async function broadcastEdit(ws, session, actions) {
+async function broadcastEdit(ws, session, line) {
     session.instance.clients.forEach((client) => {
         if (client !== ws) {
 
-            client.send(JSON.stringify({ type: 'incodechange', actions: actions }));
+            client.send(JSON.stringify({ type: 'hasline', line: line}));
 
         }
 

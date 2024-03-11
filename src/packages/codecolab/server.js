@@ -14,7 +14,6 @@ function generateUUID() {
   bytes[8] = (bytes[8] & 0x3f) | 0x80; // Variant 1
   return bytes.toString('hex').match(/.{1,2}/g).join('-');
 }
-let lastOperationTimestamp = null;
 module.exports = (core, proc) => {
   const { routeAuthenticated } = core.make('osjs/express');
 
@@ -65,24 +64,24 @@ module.exports = (core, proc) => {
           }
           //handles code changes
           if (data.type === 'codechange') {
-            // Check if the operation's timestamp is later than the last operation's timestamp
-            if (!lastOperationTimestamp || new Date(data.actions.Timestamp) > new Date(lastOperationTimestamp)) {
-              // Update the last operation timestamp
-              lastOperationTimestamp = data.actions.Timestamp;
+            // Update the last operation timestamp
+            lastOperationTimestamp = data.actions.Timestamp;
 
-              // Get the document from the session
-              const doc = sessions[data.sessionID].session.instance.sessionFile.data;
+            // Get the document from the session
+            const doc = sessions[data.sessionID].session.instance.sessionFile.data;
 
-              // Acquire a lock on the lines that are being edited
-              tryoperation(sessions[data.sessionID].lock, ws, sessions[data.sessionID].session, data.actions);
+            // Broadcast the changes to all other clients
+            sessions[data.sessionID].session.instance.clients.forEach((client) => {
+              if (client !== ws) {
 
-              // Apply the edits to the document on the server so whenever a new client joins they will get the updated document
-              const updated_doc = applyEdit(data.actions, doc);
-              sessions[data.sessionID].session.instance.sessionFile.data = updated_doc;
-            }
-            else if(!lastOperationTimestamp || new Date(data.actions.Timestamp) < new Date(lastOperationTimestamp)){
-              ws.send(JSON.stringify({ type: 'undo', actions: data.actions }));
-            }
+                client.send(JSON.stringify({ type: 'incodechange', actions: actions }));
+
+              }
+
+            });
+            // Apply the edits to the document on the server so whenever a new client joins they will get the updated document
+            const updated_doc = applyEdit(data.actions, doc);
+            sessions[data.sessionID].session.instance.sessionFile.data = updated_doc;
 
           }
           //handles a user joining a session, sends all the relavent data to the client and boradcasts to all other clients that a new user has joined
@@ -107,6 +106,9 @@ module.exports = (core, proc) => {
               });
 
             }
+          }
+          if (data.type === 'acquirelock') {
+            tryoperation(sessions[data.sessionID].lock, ws, sessions[data.sessionID].session);
           }
           //handles the disconnect event through the disconnect button
           if (data.type === 'disconnect') {

@@ -23,4 +23,14 @@ function handleDisconnect(socket, sessionID, username) {
         socket.send(JSON.stringify({ type: 'disconnect', sessionID: sessionID, username: username }));
     }
 }
-export { handleDisconnect, StartFileShare, CodeChange, JoinSession }
+function acquireLock(socket, sessionID, curline) {
+    if (socket.connected) {
+        socket.send(JSON.stringify({ type: 'acquirelock', sessionID: sessionID,line: curline,}));
+    }
+}
+function releaseLock(socket, sessionID, ) {
+    if (socket.connected) {
+        socket.send(JSON.stringify({ type: 'releaselock', sessionID: sessionID,  }));
+    }
+}
+export { handleDisconnect, StartFileShare, CodeChange, JoinSession, acquireLock, releaseLock }
