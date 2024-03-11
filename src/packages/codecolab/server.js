@@ -80,6 +80,9 @@ module.exports = (core, proc) => {
               const updated_doc = applyEdit(data.actions, doc);
               sessions[data.sessionID].session.instance.sessionFile.data = updated_doc;
             }
+            else if(!lastOperationTimestamp || new Date(data.actions.Timestamp) < new Date(lastOperationTimestamp)){
+              ws.send(JSON.stringify({ type: 'undo', actions: data.actions }));
+            }
 
           }
           //handles a user joining a session, sends all the relavent data to the client and boradcasts to all other clients that a new user has joined

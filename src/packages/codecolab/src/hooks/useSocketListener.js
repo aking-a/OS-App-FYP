@@ -109,6 +109,10 @@ const useSocketListener = (socket, navigate) => {
                         getSession().lockedlines.delete(data.line)
                     }, 1000) 
                 }
+                if(data.type === 'undo'){
+                    getSession().ProgrammaticChange = true
+                    getSession().editorRef.getModel().undo()
+                }
 
             };
             //when socket recived a message disipher the message and perform the relavant action
