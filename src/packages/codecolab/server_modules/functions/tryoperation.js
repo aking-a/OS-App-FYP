@@ -1,7 +1,8 @@
-async function tryoperation(linelock, ws, session,line) {
+async function tryoperation(linelock, ws, session,line,lockedlines) {
     //if another ws comes in here tring to acuire the lock it will be blocked(added to a queu) until the lock is released
-   const verdict = await linelock.acquire(actions.Start_Line)
+   const verdict = await linelock.acquire(line)
    if(verdict){
+    lockedlines.add(line)
     await broadcastEdit(ws,session,line) 
    }else{
     return

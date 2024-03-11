@@ -24,6 +24,7 @@ function handleDisconnect(socket, sessionID, username) {
     }
 }
 function acquireLock(socket, sessionID, curline) {
+     console.log('acquiring lock')
     if (socket.connected) {
         socket.send(JSON.stringify({ type: 'acquirelock', sessionID: sessionID,line: curline,}));
     }

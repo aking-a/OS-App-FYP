@@ -26,10 +26,10 @@ const useSocketListener = (socket, navigate) => {
                     session.sharelink = data.sharelink
                     session.isVisible = true//This toggles if the dropdown menu is visible or not
                     session.sessionID = data.sessionID
+                    acquireLock(session.socket, data.sessionID, 1)
+                    
                     //navigate to the main page
                     navigate('/Session')
-                    session.curline = 1
-                    acquireLock(session.socket, session.sessionID, session.curline)
 
                 }
                 //handles the incmoing changes from the server mainly the code being updated by another user
@@ -43,6 +43,9 @@ const useSocketListener = (socket, navigate) => {
                 //Sets up the session for when a user joines a session throught the share link
                 if (data.type === 'joinedsession') {
                     const session = getSession()
+                    console.log(data.lockedlines)
+                    data.lockedlines.forEach(value => session.lockedlines.add(value))
+                    session.lockedlines
                     getSession().ProgrammaticChange = true
                     session.language = data.language
                     session.code = data.code

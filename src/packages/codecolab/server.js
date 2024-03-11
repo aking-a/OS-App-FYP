@@ -7,7 +7,7 @@ const applyEdit = require('./server_modules/functions/serverDocEditor.js');
 const onDisconnect = require('./server_modules/functions/onDisconnect.js');
 const { on } = require('events');
 const sessions = {}
-
+const lockedlines = new Set()
 function generateUUID() {
   const bytes = crypto.randomBytes(16);
   bytes[6] = (bytes[6] & 0x0f) | 0x40; // Version 4
@@ -74,7 +74,7 @@ module.exports = (core, proc) => {
             sessions[data.sessionID].session.instance.clients.forEach((client) => {
               if (client !== ws) {
 
-                client.send(JSON.stringify({ type: 'incodechange', actions: actions }));
+                client.send(JSON.stringify({ type: 'incodechange', actions: data.actions }));
 
               }
 
@@ -94,7 +94,7 @@ module.exports = (core, proc) => {
 
               const language = sessions[data.sessionID].session.language
 
-              ws.send(JSON.stringify({ type: 'joinedsession', code: code, language: language }))
+              ws.send(JSON.stringify({ type: 'joinedsession', code: code, language: language,lockedlines:Array.from(lockedlines) }))
 
               sessions[data.sessionID].session.instance.clients.forEach((client) => {
                 if (client !== ws) {
@@ -108,7 +108,7 @@ module.exports = (core, proc) => {
             }
           }
           if (data.type === 'acquirelock') {
-            tryoperation(sessions[data.sessionID].lock, ws, sessions[data.sessionID].session);
+            tryoperation(sessions[data.sessionID].lock, ws, sessions[data.sessionID].session,data.line,lockedlines);
           }
           //handles the disconnect event through the disconnect button
           if (data.type === 'disconnect') {
