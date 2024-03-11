@@ -94,7 +94,7 @@ module.exports = (core, proc) => {
 
               const language = sessions[data.sessionID].session.language
 
-              ws.send(JSON.stringify({ type: 'joinedsession', code: code, language: language,lockedlines:Array.from(lockedlines) }))
+              ws.send(JSON.stringify({ type: 'joinedsession', code: code, language: language, lockedlines: Array.from(lockedlines) }))
 
               sessions[data.sessionID].session.instance.clients.forEach((client) => {
                 if (client !== ws) {
@@ -108,7 +108,20 @@ module.exports = (core, proc) => {
             }
           }
           if (data.type === 'acquirelock') {
-            tryoperation(sessions[data.sessionID].lock, ws, sessions[data.sessionID].session,data.line,lockedlines);
+            tryoperation(sessions[data.sessionID].lock, ws, sessions[data.sessionID].session, data.line, lockedlines);
+          }
+          if (data.type === 'releaselock') {
+            //Release the lock and remove the line from the lockedlines set
+            sessions[data.sessionID].lock.release(data.line)
+            lockedlines.delete(data.line)
+            //Broadcast the release to all other clients
+            sessions[data.sessionID].session.instance.clients.forEach((client) => {
+              if (client !== ws) {
+                client.send(JSON.stringify({ type: 'releaseline', line: data.line }));
+
+              }
+
+            });
           }
           //handles the disconnect event through the disconnect button
           if (data.type === 'disconnect') {

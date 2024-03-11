@@ -21,17 +21,6 @@ async function broadcastEdit(ws, session, line) {
 
     });
 }
-//tell all other clients that the lock has been released
-async function releaseLineBroadcast(ws, session, actions) {
-    session.instance.clients.forEach((client) => {
-        if (client !== ws) {
-
-            client.send(JSON.stringify({ type: 'releaseline', line: actions.Start_Line }));
-
-        }
-
-    });
-}
 
 // Export your function
 module.exports = tryoperation;

@@ -26,8 +26,9 @@ const useSocketListener = (socket, navigate) => {
                     session.sharelink = data.sharelink
                     session.isVisible = true//This toggles if the dropdown menu is visible or not
                     session.sessionID = data.sessionID
-                    acquireLock(session.socket, data.sessionID, 1)
-                    
+                    //getting the length of the file and setting the current line to the end of the file
+                    // getSession().curline = getSession().file.data.split('\n').length
+                    // console.log(getSession().curline)
                     //navigate to the main page
                     navigate('/Session')
 
@@ -111,11 +112,10 @@ const useSocketListener = (socket, navigate) => {
                 }
                 //relases the locked line to allow editing of that line
                 if (data.type === 'releaseline') {
-                    setTimeout(() => {
-                        getSession().lockedlines.delete(data.line)
-                    }, 1000)
+                    console.log('releasing line')
+                    getSession().lockedlines.delete(data.line)
                 }
-                if(data.type === 'hasline'){
+                if (data.type === 'hasline') {
                     getSession().lockedlines.add(data.line)
                 }
 
