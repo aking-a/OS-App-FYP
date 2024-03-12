@@ -117,6 +117,12 @@ const useSocketListener = (socket, navigate) => {
                 }
                 //add locked lines to the list of locked lines
                 if (data.type === 'hasline') {
+                    //check if the editor is on the line that is locked and moves the cursor up one line if it is
+                    //The reason for this is because when two users can get into the same line before the broadcast is recieved
+                    //by users that do not have the line lock
+                    if(getSession().editorRef.getPosition().lineNumber == data.line){
+                        getSession().editorRef.setPosition({ lineNumber: data.line -1, column: 1 });
+                    }
                     getSession().lockedlines.add(data.line)
                 }
 
