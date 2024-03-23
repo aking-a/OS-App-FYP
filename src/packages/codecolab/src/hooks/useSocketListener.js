@@ -4,7 +4,6 @@ import { incomingChange } from '../utils/monaco/handleChanges.js';//This just ha
 import { getApp } from './useSetApp.js';//app variables
 import { addUsername, removeUsername } from '../utils/username/updatelist.js'//This is used for the list of usernames in the session adds and removes usernames from list 
 import { terminatewindow } from '../utils/events/renderlist.js'//Used for closing any open windows (for now that is just the user list window)
-import { acquireLock } from '../utils/socket/socketoutgoing.js';
 //socket lsitner funtions
 const useSocketListener = (socket, navigate) => {
     //this listens for incoming socket events
@@ -129,10 +128,6 @@ const useSocketListener = (socket, navigate) => {
             };
             //when socket recived a message disipher the message and perform the relavant action
             socket.on('message', handleSocketData);
-
-            return () => {
-                socket.off('message', handleSocketData);
-            };
         }
     }, [socket]);
 };

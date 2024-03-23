@@ -4,7 +4,7 @@ class CreateNewSession {
         this.instance = null
         this.language = null
     }
-    //pushes ws onto clients array
+    //pushes admin onto the clients array along with the file data
     createSession(ws) {
         this.instance = { clients: [],sessionFile: this.data }
         this.instance.clients.push(ws)

@@ -147,6 +147,15 @@
 .highlight {
   background-color: rgba(255, 0, 0, 0.448);
 }
+
+.monaco-editor-hover {
+  background-color: #f5f5f5 !important; /* Change the background color */
+  color: #333 !important; /* Change the text color */
+  border: 1px solid #ddd !important; /* Add a border */
+  border-radius: 4px !important; /* Add rounded corners */
+  padding: 10px !important; /* Add some padding */
+  font-size: 14px !important; /* Change the font size */
+}
 @keyframes CEdhbyGgLiHoi9hhGGU9 {
   0% {
     opacity: 0;
